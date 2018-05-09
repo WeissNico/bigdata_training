@@ -1,0 +1,63 @@
+create table products_dwh (prod_id int, category string, title string, actor string, name string, source_id int, load_id int) stored as Orc;
+
+
+a = load 'csv/products_201805031519.csv' using PigStorage(';');
+b = FILTER a by $0>0;
+c = foreach b generate (int)$0 as prod_id:int, (chararray)$1 as category:chararray, (chararray)$2 as title:chararray, (chararray)$3 as actor:chararray;
+d = foreach c generate *, (chararray)CONCAT('DVD ', title,' (', actor, ')') as name:chararray, (int)1 as source_id:int, (int)1 as load_id:int;
+store d into 'products_dwh' using org.apache.hive.hcatalog.pig.HCatStorer();
+---
+create table category_dwh (category_id int, categoryname string);
+
+a = load 'csv/categories_201804301531.csv' using PigStorage(',');
+b = FILTER a by $0>0;
+c = foreach b generate (int)$0 as category_id :int, (chararray)$1 as categoryname:chararray;
+store c into 'category_dwh' using org.apache.hive.hcatalog.pig.HCatStorer();
+---
+create table customer_dwh (cust_id int, cust_hid int, cust_valid_from timestamp, cust_valid_to timestamp, cust_current string, name string, address string, city string, state string, zip string, country string, region string, email string, phone string, age int, income int, gender string, source_id int);
+create table customer_tmp (cust_id int, cust_hid int, cust_valid_from string, cust_valid_to string, cust_current string, name string, address string, city string, state string, zip string, country string, region string, email string, phone string, age int, income int, gender string, source_id int);
+
+sqoop import --connect jdbc:postgresql://159.122.175.139:30947/dellstore  --password docker --username docker --target-dir /user/data/dellstore/customer --table customers --hive-import --create-hive-table --hive-table customer
+
+a = load 'csv/customers_201804301531.csv' using PigStorage(',');
+b = FILTER a by $0>0;
+c = foreach b generate (int)$0 as cust_id:int, (int)1 as cust_hid:int, null as cust_valid_from:datetime, null as cust_valid_to:datetime, (chararray)'Y' as cust_current:chararray, (chararray)CONCAT((chararray)$1, (chararray)$2) as name:chararray, (chararray)$3 as address:chararray, (chararray)$5 as city:chararray,(chararray)$6 as state:chararray,(chararray)$7 as zip:chararray,(chararray)$8 as country:chararray, (chararray)$9 as region:chararray, (chararray)$10 as email:chararray,(chararray)$11 as phone:chararray,(int)$17 as age:int,(int)$18 as income:int,(chararray)$19 as gender:chararray, (int)1 as source_id:int;
+store c into 'customer_dwh' using org.apache.hive.hcatalog.pig.HCatStorer();
+
+a = load 'customer' using org.apache.hive.hcatalog.pig.HCatLoader();
+b = foreach a generate customerid as cust_id:int, customerid as cust_hid:int, '01.01.1990' as cust_valid_from, '31.12.2200' as cust_valid_to, (chararray)'Y' as cust_current:chararray, (chararray)CONCAT(firstname, lastname) as name:chararray, address1 as address:chararray, city as city:chararray, state as state:chararray, zip as zip:chararray, country as country:chararray, region as region:chararray, email as email:chararray, phone as phone:chararray, age as age:int, income as income:int, gender as gender:chararray, (int)1 as source_id:int; 
+store b into 'customer_tmp' using org.apache.hive.hcatalog.pig.HCatStorer();
+
+insert into customer_dwh select cust_id, cust_hid, from_unixtime(unix_timestamp(cust_valid_from, 'dd.MM.yyyy')), from_unixtime(unix_timestamp(cust_valid_to, 'dd.MM.yyyy')), cust_current, name, address, city, state, zip, country, region, email, phone, age, income, gender, source_id from customer_tmp;
+
+b = foreach a generate customerid as cust_id:int, customerid as cust_hid:int, ToDate('01.01.1990', 'dd.mm.yyyy') as cust_valid_from:datetime, ToDate('31.12.2200', 'dd.mm.yyyy') as cust_valid_to:datetime, (chararray)'Y' as cust_current:chararray, (chararray)CONCAT(firstname, lastname) as name:chararray, address1 as address:chararray, city as city:chararray, state as state:chararray, zip as zip:chararray, country as country:chararray, region as region:chararray, email as email:chararray, phone as phone:chararray, age as age:int, income as income:int, gender as gender:chararray, (int)1 as source_id:int; 
+
+
+---
+create table time_dwh (time_id date, day int, month int, year int, calweek int, yearmonth string, load_id int) stored as Orc;
+
+a = load 'csv/date.csv' using PigStorage(',');
+b = foreach a generate ToDate($1, 'dd.mm.yyyy') as time_id:datetime, (int)$2 as day:int, (int)$3 as month:int, (int)$4 as year:int, (int)$5 as calweek:int, (chararray)$6 as yearmonth:chararray, (int)$7 as load_id:int;
+store b into 'time_dwh' using org.apache.hive.hcatalog.pig.HCatStorer();
+
+---
+create table sales_dwh (time_id date, cust_hid int, pord_id int, order_id int, quantity float, price float, netamount float, totalamount float, source_id int) stored as Orc;
+
+a = load 'csv/orders_201805031443.csv' using PigStorage(';');
+b = FILTER a by $0>0;
+c = foreach b generate (int)$0 as order_id, ToDate($1, 'yyyy-mm-dd') as orderdate:datetime, (int)$2 as cust_id:int, (float)$3 as netamout:float, (float)$4 as tax:float, (float)$5 as totalamount:float;
+d = load 'csv/orderlines_201805031443.csv' using PigStorage(';') as (orderline_id:int, order_id:int, pord_id:int, quantity:int, orderdate:datetime);
+e = FILTER d by $0>0;
+f = load 'csv/products_201805031519.csv' using PigStorage(';');
+g = FILTER f by $0>0;
+h = foreach g generate (int)$0 as prod_id, (float)$4 as price;
+i = JOIN e BY($2), h BY($0);
+j = foreach i generate (int)$0 as orderline_id:int, (int)$1 as order_id:int, (int)$2 as pord_id:int, (int)$3 as quantity:int, (datetime)$4 as orderdate:datetime, (float)$6 as price:float;
+k = JOIN c BY($0), j BY($1);
+l = foreach k generate $1 as time_id:datetime, (int)1 as cust_hid:int, (int)$8 as pord_id:int, (int)$7 as order_id:int, (float)$9 as quantity:float, (float)$11 as price:float, (float)$3 as netamount:float, (float)$5 as totalamount:float,(int)1 as source_id:int;
+store l into 'sales_dwh' using org.apache.hive.hcatalog.pig.HCatStorer();
+---
+
+SQOOP:
+
+sqoop import --connect jdbc:postgresql://159.122.175.139:30947/dellstore  --password docker --username docker --target-dir /user/data/dellstore/categories --table categories
