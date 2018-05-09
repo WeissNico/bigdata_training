@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: pg-dellstore-db-service
+    labels:
+      name: pg-dellstore-db-service
+      context: pg-dellstore
+  spec:
+    type: NodePort
+    ports:
+      # the port that this service should serve on
+      - port: 5432
+    # label keys and values that must match in order to receive traffic for this service
+    selector:
+      name: pg-dellstore-db
+      context: pg-dellstore
+- apiVersion: v1
+  kind: ReplicationController
+  metadata:
+    name: pg-dellstore-db
+    labels:
+      name: pg-dellstore-db
+      context: pg-dellstore
+  spec:
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          name: pg-dellstore-db
+          context: pg-dellstore
+      spec:
+        containers:
+        - name: postgre
+          image: aa8y/postgres-dataset:dellstore
+          ports:
+          - containerPort: 5432
+kind: "List"
+
