@@ -14,7 +14,20 @@ b = FILTER a by $0>0;
 c = foreach b generate (int)$0 as category_id :int, (chararray)$1 as categoryname:chararray;
 store c into 'category_dwh' using org.apache.hive.hcatalog.pig.HCatStorer();
 ---
-create table customer_dwh (cust_id int, cust_hid int, cust_valid_from timestamp, cust_valid_to timestamp, cust_current string, name string, address string, city string, state string, zip string, country string, region string, email string, phone string, age int, income int, gender string, source_id int);
+// clustered by (cust_id) into 1 buckets STORED AS ORC TBLPROPERTIES('transactional'='true');
+//create table customer_test (cust_id int, cust_hid int, cust_valid_from string, cust_valid_to string, cust_current string, name string, address string, city string, state string, zip string, country string, region string, email string, phone string, age int, income int, gender string, source_id int) clustered by (cust_id) into 1 buckets STORED AS ORC TBLPROPERTIES('transactional'='true');;
+insert into customer_test select cust_id, cust_hid, from_unixtime(unix_timestamp(cust_valid_from, 'dd.MM.yyyy')), from_unixtime(unix_timestamp(cust_valid_to, 'dd.MM.yyyy')), cust_current, name, address, city, state, zip, country, region, email, phone, age, income, gender, source_id from customer_tmp;
+insert into customer_dwh select cust_id, cust_hid, from_unixtime(unix_timestamp(cust_valid_from, 'dd.MM.yyyy')), from_unixtime(unix_timestamp(cust_valid_to, 'dd.MM.yyyy')), cust_current, name, address, city, state, zip, country, region, email, phone, age, income, gender, source_id from customer_tmp;
+update customer_test set name = 'test' where name = 'BSDNRYVGHZFPDYWI';
+
+select cs.* from customer_test as cs LEFT OUTER JOIN customer_dwh as cd on cs.cust_id = cd.cust_id where cs.name != cd.name;
+
+merge into customer_dwh using customer_test on customer_dwh.cust_id = customer_test.cust_id when matched then update set name = customer_test.name;
+
+select cs.name from customer_test as cs JOIN customer_dwh as cd on cs.cust_id = cd.cust_id where cs.name != cd.name); 
+// https://dzone.com/articles/update-hive-tables-the-easy-way-hortonworks
+
+create table customer_dwh (cust_id int, cust_hid int, cust_valid_from timestamp, cust_valid_to timestamp, cust_current string, name string, address string, city string, state string, zip string, country string, region string, email string, phone string, age int, income int, gender string, source_id int) clustered by (cust_id) into 1 buckets STORED AS ORC TBLPROPERTIES('transactional'='true'); 
 create table customer_tmp (cust_id int, cust_hid int, cust_valid_from string, cust_valid_to string, cust_current string, name string, address string, city string, state string, zip string, country string, region string, email string, phone string, age int, income int, gender string, source_id int);
 
 sqoop import --connect jdbc:postgresql://159.122.175.139:30947/dellstore  --password docker --username docker --target-dir /user/data/dellstore/customer --table customers --hive-import --create-hive-table --hive-table customer
@@ -30,7 +43,6 @@ store b into 'customer_tmp' using org.apache.hive.hcatalog.pig.HCatStorer();
 
 insert into customer_dwh select cust_id, cust_hid, from_unixtime(unix_timestamp(cust_valid_from, 'dd.MM.yyyy')), from_unixtime(unix_timestamp(cust_valid_to, 'dd.MM.yyyy')), cust_current, name, address, city, state, zip, country, region, email, phone, age, income, gender, source_id from customer_tmp;
 
-b = foreach a generate customerid as cust_id:int, customerid as cust_hid:int, ToDate('01.01.1990', 'dd.mm.yyyy') as cust_valid_from:datetime, ToDate('31.12.2200', 'dd.mm.yyyy') as cust_valid_to:datetime, (chararray)'Y' as cust_current:chararray, (chararray)CONCAT(firstname, lastname) as name:chararray, address1 as address:chararray, city as city:chararray, state as state:chararray, zip as zip:chararray, country as country:chararray, region as region:chararray, email as email:chararray, phone as phone:chararray, age as age:int, income as income:int, gender as gender:chararray, (int)1 as source_id:int; 
 
 
 ---
