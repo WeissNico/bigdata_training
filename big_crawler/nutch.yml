@@ -1,0 +1,76 @@
+---
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: nutch-service
+    labels:
+      name: nutch-service
+      context: nutch-context
+  spec:
+    type: NodePort
+    ports:
+      # the port that this service should serve on
+      - port: 22
+        nodePort: 30022 
+    # label keys and values that must match in order to receive traffic for this service
+    selector:
+      name: nutch-agent
+      context: nutch-context
+- apiVersion: v1
+  kind: ReplicationController
+  metadata:
+    name: nutch-agent
+    labels:
+      name: nutch-agent
+      context: nutch-context
+  spec:
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          name: nutch-agent
+          context: nutch-context
+      spec:
+        containers:
+        - name: nutch
+          image: pure/nutch-mongo:alpine
+          ports:
+          - containerPort: 22
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: mongo
+    labels:
+      name: mongo-service
+      context: nutch-context
+  spec:
+    type: NodePort
+    ports:
+      - port: 27017
+        nodePort: 30017 
+    selector:
+      name: mongo
+      context: nutch-context
+- apiVersion: v1
+  kind: ReplicationController
+  metadata:
+    name: mongodb
+    labels:
+      name: mongo
+      context: nutch-context
+  spec:
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          name: mongo
+          context: nutch-context
+      spec:
+        hostname: mongo
+        containers:
+        - name: mongo
+          image: mongo:3.2
+kind: "List"
+
