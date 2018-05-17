@@ -12,8 +12,8 @@ items:
     type: NodePort
     ports:
       # the port that this service should serve on
-      - port: 22
-        nodePort: 30022 
+      - port: 8081
+        nodePort: 30081
     # label keys and values that must match in order to receive traffic for this service
     selector:
       name: nutch-agent
@@ -36,8 +36,10 @@ items:
         containers:
         - name: nutch
           image: pure/nutch-mongo:alpine
+          command: ["/nutch/bin/nutch"]
+          args: ["nutchserver"]
           ports:
-          - containerPort: 22
+          - containerPort: 8081
 - apiVersion: v1
   kind: Service
   metadata:
