@@ -53,7 +53,7 @@ print('Created Job data: {}'.format(resp.text))
 config = "default" #resp_config.text #"default"
 #print(config)
 
-for x in range(0, 2):
+for x in range(0, 1):
     print(x)
     time1 = int(round(time.time()*1000))
     batch = str(time1) + "-" + str(randint(1000, 9999))

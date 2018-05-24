@@ -31,10 +31,14 @@ items:
       spec:
         containers:
           - name: kibana
-            image: kibana
+            image: docker.elastic.co/kibana/kibana-oss:6.2.2
             env:
             - name: "ELASTICSEARCH_URL"
-              value: "http://elasticsearch-service:9200"
+              value: "https://admin:RYZUAYORFMEGJRCT@portal-ssl223-11.bmix-lon-yp-2012af18-4749-4d32-94a6-09573ff5ee35.3259324498.composedb.com:26611"
+            - name: "ELASTICSEARCH_USERNAME"
+              value: "admin"
+            - name: "ELASTICSEARCH_PASSWORD"
+              value: "RYZUAYORFMEGJRCT" 
             ports:
               - containerPort: 5601
                 name: http
