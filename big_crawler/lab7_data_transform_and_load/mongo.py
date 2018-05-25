@@ -95,16 +95,14 @@ sys.exit(0)
 file = collection.find_one({'_id': 'de.bayern.region-suedostoberbayern.www:http/verbandsarbeit/sitzungen/'})
 binary = file['content']
 name = file['_id'].replace('/', '#').replace(':', ';')
-
-        
+  
 
 #%%
 with open(os.path.expanduser('~/Desktop/data/nutch/'+name+'.html' ), 'wb') as file_out:
     # fout.write(base64.decodebytes(binary))
     file_out.write(binary)
     #print(doc_id.replace('/', '#'))
-'''
-'''
+#%%
 
 metadata =  { (key if isinstance(key,str) else key.decode('utf-8')) :(val if isinstance(val,str) else val.decode('cp1252')) for key, val in file['metadata'].items() }
 
@@ -118,8 +116,6 @@ doc = {
 
 }
 doc_id = file['_id']
-
+#%%
 elastic = Elastic()
 elastic.insert_dokument(doc=doc, doc_id=doc_id)
-
-'''
