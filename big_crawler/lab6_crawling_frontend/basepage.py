@@ -10,7 +10,7 @@ def basepage(content):
     <meta name="author" content="">
     <link rel="icon" href="../../../../favicon.ico">
 
-    <title>Starter Template for Bootstrap</title>
+    <title>Researchbot</title>
 
     <!-- Bootstrap core CSS -->
     <link href="/static/bootstrap.min.css" rel="stylesheet">
@@ -22,7 +22,7 @@ def basepage(content):
   <body>
 
     <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
-      <a class="navbar-brand" href="#">Navbar</a>
+      <a class="navbar-brand" href="#">ResearchBot</a>
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -33,17 +33,19 @@ def basepage(content):
             <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="#">Link</a>
+            <a class="nav-link" href="http://159.122.175.139:30101">Search</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link disabled" href="#">Disabled</a>
+            <a class="nav-link disabled" href="#">Upload</a>
           </li>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="https://example.com" id="dropdown01" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Dropdown</a>
+            <a class="nav-link dropdown-toggle" href="https://example.com" id="dropdown01" 
+                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Configuration</a>
             <div class="dropdown-menu" aria-labelledby="dropdown01">
-              <a class="dropdown-item" href="#">Action</a>
-              <a class="dropdown-item" href="#">Another action</a>
-              <a class="dropdown-item" href="#">Something else here</a>
+              <a class="dropdown-item" href="#">Crawling Jobs</a>
+              <a class="dropdown-item" href="#">Databases</a>
+              <a class="dropdown-item" href="#">Dictionaries</a>
+              <a class="dropdown-item" href="#">Schedules</a>
             </div>
           </li>
         </ul>
