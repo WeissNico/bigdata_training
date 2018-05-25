@@ -43,6 +43,15 @@ def train():
         page_layout = html_inline + "<h1> Tag1  Tag2  Tag3   Tag4 <h1>"
         return basepage(page_layout)
 
+@app.route("/download")
+def train():
+    doc_id = request.args.get('doc_id')
+    if doc_id == "":
+        return basepage("""<div class="starter-template"> <h1>Doc ID is missing</h1> </div>""")
+    else:
+        return "Download should happen here"
+
+
 @app.route("/")
 def home():
     return basepage("""<div class="starter-template">
