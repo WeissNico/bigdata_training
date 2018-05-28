@@ -1,7 +1,6 @@
 from elasticsearch import Elasticsearch, RequestsHttpConnection
 es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
 from flask import Flask, request, render_template
-from basepage import basepage
 from settings import ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORT, ELASTICSEARCH_HOST, ELASTICSEARCH_PORT
 app = Flask(__name__)
 
@@ -39,27 +38,24 @@ def search():
 @app.route("/train")
 def train():
     doc_id = request.args.get('doc_id')
-    if doc_id == "":
-        return basepage("""<div class="starter-templates"> <h1>Doc ID is missing</h1> </div>""")
+    if doc_id == None:
+        return render_template('warning.html', warning="DocId is missing")
     else:
-        html_inline = '<iframe src="https://www.w3schools.com"></iframe>'
-        page_layout = html_inline + "<h1> Tag1  Tag2  Tag3   Tag4 <h1>"
-        return basepage(page_layout)
+        url = '<iframe src="https://www.w3schools.com"></iframe>'
+        return render_template('train.html', tags = ["Tag1","Tag2","Tag4"], url = url  )
 
-@app.route("/download", endpoint=basepage) #without endpoint an an AssertionError occurs
-def train():
+@app.route("/download") #without endpoint an an AssertionError occurs
+def download():
     doc_id = request.args.get('doc_id')
-    if doc_id == "":
-        return basepage("""<div class="starter-templates"> <h1>Doc ID is missing</h1> </div>""")
+    if doc_id == None:
+        return render_template('warning.html', warning="DocId is missing")
     else:
         return "Download should happen here"
 
 
 @app.route("/")
 def home():
-    return basepage("""<div class="starter-templates">
-        <h1>Search for Wacker</h1>
-        <p class="lead">Search easy and fast.<br> All you get is this text.  </div>""")
+    return render_template('home.html', news="No news")
 
 if __name__ == "__main__":
     #app = create_app(config.DATABASE_URI, debug=True)

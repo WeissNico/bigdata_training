@@ -1,22 +1,21 @@
-
-def basepage(content):
-    return """
 <!doctype html>
 <html lang="en">
   <head>
+    {% block head %}
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="description" content="">
     <meta name="author" content="">
     <link rel="icon" href="../../../../favicon.ico">
 
-    <title>Researchbot</title>
+    <title>{% block title %}Researchbot{% endblock %}</title>
 
     <!-- Bootstrap core CSS -->
     <link href="/static/bootstrap.min.css" rel="stylesheet">
 
     <!-- Custom styles for this templates -->
     <link href="/static/starter-templates.css" rel="stylesheet">
+    {% endblock %}
   </head>
 
   <body>
@@ -56,8 +55,9 @@ def basepage(content):
       </div>
     </nav>
     <main role="main" class="container">
-"""+content+"""
+    {% block content %}{% endblock %}
     </main><!-- /.container -->
+    {% block footer %}{% endblock %}
 
     <!-- Bootstrap core JavaScript
     ================================================== -->
@@ -67,4 +67,4 @@ def basepage(content):
     <script src="/static/popper.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
   </body>
-</html>"""
+</html>
