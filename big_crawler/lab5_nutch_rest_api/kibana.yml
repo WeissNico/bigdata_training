@@ -35,11 +35,9 @@ items:
             env:
             - name: "ELASTICSEARCH_URL"
               value: "https://admin:RYZUAYORFMEGJRCT@portal-ssl223-11.bmix-lon-yp-2012af18-4749-4d32-94a6-09573ff5ee35.3259324498.composedb.com:26611"
-            - name: "ELASTICSEARCH_CUSTOMHEADERS"
-              value: "{Authorization: Basic base64encoded admin:RYZUAYORFMEGJRCT }"
-            - name: "_ELASTICSEARCH_USERNAME"
+            - name: "ELASTICSEARCH_USERNAME"
               value: "admin"              
-            - name: "_ELASTICSEARCH_PASSWORD"
+            - name: "ELASTICSEARCH_PASSWORD"
               value: "RYZUAYORFMEGJRCT" 
             ports:
               - containerPort: 5601

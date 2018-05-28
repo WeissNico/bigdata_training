@@ -22,7 +22,7 @@ class Elastic():
         #    'text': 'Elasticsearch: cool. bonsai cool.',
         #    'timestamp': datetime.now(),
         #}
-        res = self.es.index(index="crawler", doc_type='nutch', id=doc_id, body=doc)
+        res = self.es.index(index="testcase", doc_type='nutch', id=doc_id, body=doc)
 
         return res
 

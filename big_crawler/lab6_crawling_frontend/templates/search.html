@@ -1,7 +1,4 @@
-
-def basepage(content):
-    return """
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -14,9 +11,9 @@ def basepage(content):
 
     <!-- Bootstrap core CSS -->
     <link href="/static/bootstrap.min.css" rel="stylesheet">
-
+    <script src="/static/jquery-3.3.1.slim.min.js" integrity=""></script>
     <!-- Custom styles for this templates -->
-    <link href="/static/starter-templates.css" rel="stylesheet">
+    <link href="/static/starter-template.css" rel="stylesheet">
   </head>
 
   <body>
@@ -39,7 +36,7 @@ def basepage(content):
             <a class="nav-link disabled" href="#">Upload</a>
           </li>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="https://example.com" id="dropdown01" 
+            <a class="nav-link dropdown-toggle" href="https://example.com" id="dropdown01"
                  data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Configuration</a>
             <div class="dropdown-menu" aria-labelledby="dropdown01">
               <a class="dropdown-item" href="#">Crawling Jobs</a>
@@ -55,8 +52,21 @@ def basepage(content):
         </form>
       </div>
     </nav>
-    <main role="main" class="container">
-"""+content+"""
+    <main role="main" class="">
+        <table class="table">
+            <thead>
+                <th>Filename</th>
+                <th>Date</th>
+                <th>Text</th>
+            </thead>
+            {% for result in results %}
+                <tr>
+                  <td>{{ result['filename'] }}</td>
+                  <td>{{ result['date'] }}</td>
+                  <td>{{ result['text'] | safe }}</td>
+                </tr>
+            {% endfor %}
+        </table>
     </main><!-- /.container -->
 
     <!-- Bootstrap core JavaScript
@@ -67,4 +77,4 @@ def basepage(content):
     <script src="/static/popper.min.js"></script>
     <script src="/static/bootstrap.min.js"></script>
   </body>
-</html>"""
+</html>

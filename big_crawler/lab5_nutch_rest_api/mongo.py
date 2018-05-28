@@ -9,7 +9,7 @@ db = client['crawler']
 
 elastic = Elastic()
 
-collection = db.mynutch_webpage
+collection = db.webpage
 
 
 cursor = collection.find({})
@@ -20,7 +20,7 @@ for document in cursor:
         if document.get('metadata') != None:
             try:
                 metadata = {
-                (key if isinstance(key, str) else key.decode('utf-8')): (val if isinstance(val, str) else val.decode('CP1252')) for
+                (key if isinstance(key, str) else key.decode('utf-16')): (val if isinstance(val, str) else val.decode('CP1252')) for
                 key, val in document['metadata'].items()}
             except Exception as e:
                 try:
@@ -37,7 +37,7 @@ for document in cursor:
             'contentType': document['contentType'] if document.get('contentType')!= None else "",
             'title': document['title'] if document.get('title')!= None else "",
             'text': document['text'] if document.get('text')!= None else "",
-            'metdadata': metadata,
+            'metadata': metadata,
 
         }
         doc_id = document['_id']

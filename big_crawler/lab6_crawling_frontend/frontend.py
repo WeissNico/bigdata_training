@@ -1,6 +1,6 @@
 from elasticsearch import Elasticsearch, RequestsHttpConnection
 es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
-from flask import Flask, request
+from flask import Flask, request, render_template
 from basepage import basepage
 from settings import ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORT, ELASTICSEARCH_HOST, ELASTICSEARCH_PORT
 app = Flask(__name__)
@@ -17,44 +17,47 @@ def search():
                        max_retries=10, retry_on_timeout=True,
                        http_auth=auth)
     #res = requests.get(ELASTIC_URL+"/=")
-    results = es.search(index="testcase", body={"query": {"simple_query_string": {"query":search_text}}})
+    results = es.search(index="testcase", body={"query": {"simple_query_string": {"query":search_text}}, "highlight": {"fields": {"*" : {"pre_tags" : ["<b>"], "post_tags" : ["</b>"]}}}})
     data = [doc for doc in results['hits']['hits']]
-    print("search for %s returned %s hits" % (search_text,len(data)))
+    #print("search for %s returned %s hits" % (search_text,len(data)))
     formated_list = ""
+    search_result = list()
     for doc in data:
-        Filename = doc['_id']
-        Date = doc['_id']
-        Text = doc['_source']['text'][:200]
-        Tags = doc['_source']['contentType']
-        print("%s) %s" % (Filename,Tags ))
-        formated_list += '<tr><td style="width: 40px">%s</td><td style="width: 10%%"> %s</td><td> %s</td><td> %s</td></tr>' \
-                         % (Filename,Date, Text,Tags)
+        filename = doc['_id']
+        date = doc['_source']['metadata']['date']
+        text = doc['highlight']['text'][:200] if doc.get('highlight', {}).get('text')!= None else ""
+        tags = doc['_source']['contentType']
+        print("%s) %s" % (filename,tags ))
+        #formated_list += '<tr><td style="width: 40px">%s</td><td style="width: 10%%"> %s</td><td> %s</td><td> %s</td></tr>' \
+        #                 % (Filename,Date, Text,Tags)
+        search_result.append({'filename':filename, 'date':date, 'text':text, 'tags':tags})
 
-    table_header = '<tr><th  style="width: 10%">Filename<th/><th  style="width: 10%;">Date <th/><th  style="width: 60%;">Text <th/><th style="width: 20%;">Tags <th/></tr>'
-    return basepage('<table>%s %s</table>' % (table_header,formated_list))
+    #table_header = '<tr><th  style="width: 10%">Filename<th/><th  style="width: 10%;">Date <th/><th  style="width: 60%;">Text <th/><th style="width: 20%;">Tags <th/></tr>'
+    #return basepage('<table>%s %s</table>' % (table_header,formated_list))
+    return render_template('search.html', results=search_result)
 
 @app.route("/train")
 def train():
     doc_id = request.args.get('doc_id')
     if doc_id == "":
-        return basepage("""<div class="starter-template"> <h1>Doc ID is missing</h1> </div>""")
+        return basepage("""<div class="starter-templates"> <h1>Doc ID is missing</h1> </div>""")
     else:
         html_inline = '<iframe src="https://www.w3schools.com"></iframe>'
         page_layout = html_inline + "<h1> Tag1  Tag2  Tag3   Tag4 <h1>"
         return basepage(page_layout)
 
-@app.route("/download")
+@app.route("/download", endpoint=basepage) #without endpoint an an AssertionError occurs
 def train():
     doc_id = request.args.get('doc_id')
     if doc_id == "":
-        return basepage("""<div class="starter-template"> <h1>Doc ID is missing</h1> </div>""")
+        return basepage("""<div class="starter-templates"> <h1>Doc ID is missing</h1> </div>""")
     else:
         return "Download should happen here"
 
 
 @app.route("/")
 def home():
-    return basepage("""<div class="starter-template">
+    return basepage("""<div class="starter-templates">
         <h1>Search for Wacker</h1>
         <p class="lead">Search easy and fast.<br> All you get is this text.  </div>""")
 

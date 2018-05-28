@@ -61,6 +61,7 @@ for document in cursor:
 
         doc = {
             'inlinks': document['inlinks'] if document.get('inlinks')!= None else "",
+            'outlinks': document['outlinks'] if document.get('outlinks') != None else "",
             'baseUrl': document['baseUrl'] if document.get('baseUrl')!= None else "",
             'contentType': document['contentType'] if document.get('contentType')!= None else "",
             'title': document['title'] if document.get('title')!= None else "",
@@ -69,10 +70,12 @@ for document in cursor:
 
         }
         
-        if doc['contentType']=='text/pdf':
-            text = get_text_from_pdf_2(document['content'])
-        else:
-            text =  doc['text']
+        #if doc['contentType']=='text/pdf':
+        #    text = get_text_from_pdf_2(document['content'])
+        #else:
+        #    text =  doc['text']
+
+        text = doc['text']
 
         z = classify2.predict([text])
         print("%s - %s " % (doc['title'],z[0]))
@@ -107,11 +110,12 @@ with open(os.path.expanduser('~/Desktop/data/nutch/'+name+'.html' ), 'wb') as fi
 metadata =  { (key if isinstance(key,str) else key.decode('utf-8')) :(val if isinstance(val,str) else val.decode('cp1252')) for key, val in file['metadata'].items() }
 
 doc = {
-    'inlinks': file['inlinks'],
-    'baseUrl': file['baseUrl'],
-    'contentType': file['contentType'],
-    'title': file['title'],
-    'text': file['text'],
+    'inlinks': document['inlinks'] if document.get('inlinks') != None else "",
+    'outlinks': document['outlinks'] if document.get('outlinks') != None else "",
+    'baseUrl': document['baseUrl'] if document.get('baseUrl') != None else "",
+    'contentType': document['contentType'] if document.get('contentType') != None else "",
+    'title': document['title'] if document.get('title') != None else "",
+    'text': document['text'] if document.get('text') != None else "",
     'metdadata': metadata,
 
 }
