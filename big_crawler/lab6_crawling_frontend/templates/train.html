@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Researchbot - Index{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style type="text/css">
+    .important { color: #336699; }
+  </style>
+{% endblock %}
+{% block content %}
+         {{ url }}
+            {% for t in tags %}
+                <br><button class="btn btn-outline-success my-2 my-sm-0" type="submit"> {{ t }}</button>
+            {% endfor %}
+
+{% endblock %}
