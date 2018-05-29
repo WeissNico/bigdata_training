@@ -67,7 +67,6 @@ for document in cursor:
             'title': document['title'] if document.get('title')!= None else "",
             'text': document['text'] if document.get('text')!= None else "",
             'metdadata': metadata,
-
         }
         
         #if doc['contentType']=='text/pdf':

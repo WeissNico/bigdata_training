@@ -2,6 +2,7 @@ from elasticsearch import Elasticsearch, RequestsHttpConnection
 es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
 from flask import Flask, request, render_template
 from settings import ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORT, ELASTICSEARCH_HOST, ELASTICSEARCH_PORT
+from elastic import Elastic
 app = Flask(__name__)
 
 @app.route("/search", methods=['GET', 'POST'])
@@ -22,14 +23,15 @@ def search():
     formated_list = ""
     search_result = list()
     for doc in data:
-        filename = doc['_id']
-        date = doc['_source']['metadata']['date']
-        text = doc['highlight']['text'][:200] if doc.get('highlight', {}).get('text')!= None else ""
-        tags = doc['_source']['contentType']
-        print("%s) %s" % (filename,tags ))
+        if doc.get('highlight', {}).get('text') != None:
+            filename = doc['_id']
+            date = doc['_source']['metadata']['date']
+            text = doc['highlight']['text'][:200]
+            tags = list(doc['_source']['tags']) if doc.get('_source', {}).get('tags') != None else [],
+            print("%s) %s" % (filename,tags ))
         #formated_list += '<tr><td style="width: 40px">%s</td><td style="width: 10%%"> %s</td><td> %s</td><td> %s</td></tr>' \
         #                 % (Filename,Date, Text,Tags)
-        search_result.append({'filename':filename, 'date':date, 'text':text, 'tags':tags})
+            search_result.append({'filename':filename, 'date':date, 'text':text, 'tags':tags})
 
     #table_header = '<tr><th  style="width: 10%">Filename<th/><th  style="width: 10%;">Date <th/><th  style="width: 60%;">Text <th/><th style="width: 20%;">Tags <th/></tr>'
     #return basepage('<table>%s %s</table>' % (table_header,formated_list))
@@ -56,6 +58,18 @@ def download():
 @app.route("/")
 def home():
     return render_template('home.html', news="No news")
+
+
+@app.route("/addTag", methods=['POST'])
+def add_tag():
+    doc_id = request.form['doc_id']
+    tag = request.form['tag']
+
+    elastic = Elastic()
+    elastic.update_dokument(tag, doc_id)
+
+    print("test")
+    return "update successfully"
 
 if __name__ == "__main__":
     #app = create_app(config.DATABASE_URI, debug=True)

@@ -33,10 +33,12 @@ for document in cursor:
 
         doc = {
             'inlinks': document['inlinks'] if document.get('inlinks')!= None else "",
+            'outlinks': document['outlinks'] if document.get('outlinks') != None else "",
             'baseUrl': document['baseUrl'] if document.get('baseUrl')!= None else "",
             'contentType': document['contentType'] if document.get('contentType')!= None else "",
             'title': document['title'] if document.get('title')!= None else "",
             'text': document['text'] if document.get('text')!= None else "",
+            'tags': [],
             'metadata': metadata,
 
         }

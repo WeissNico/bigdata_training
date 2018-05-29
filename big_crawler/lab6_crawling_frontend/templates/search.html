@@ -5,22 +5,30 @@
   <style type="text/css">
     .important { color: #336699; }
   </style>
+  <script src="/static/search.js"></script>
 {% endblock %}
 {% block content %}
-        <table class="table">
+        <table class="table margin-top">
             <thead>
                 <th>Filename</th>
                 <th>Date</th>
                 <th>Text</th>
-                 <th>Tags</th>
+                <th>Tags</th>
             </thead>
+            <tbody>
             {% for result in results %}
-                <tr>
+                <tr data-value="{{ result['filename'] }}">
                   <td>{{ result['filename'] }}</td>
                   <td>{{ result['date'] }}</td>
                   <td>{{ result['text'] | safe }}</td>
-                    <td>{{ result['tags'] | safe }}</td>
+                  <td>
+                       <input onkeydown="addTag(event)" class="form-control mr-sm-2" type="text" name="addTag" placeholder="add..." aria-label="Search">
+                      {% for tag in result['tags'][0] %}
+                         <button ondblclick="deleteTag(event)" class="btn btn-outline-success my-2 my-sm-0" type="submit">{{ tag | safe }}</button>
+                      {% endfor %}
+                  </td>
                 </tr>
             {% endfor %}
+            </tbody>
         </table>
 {% endblock %}
