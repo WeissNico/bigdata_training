@@ -23,10 +23,10 @@ def search():
     formated_list = ""
     search_result = list()
     for doc in data:
-        if doc.get('highlight', {}).get('text') != None:
+        if doc.get('highlight', {}).get('text') != None or doc.get('highlight', {}).get('tags') != None:
             filename = doc['_id']
             date = doc['_source']['metadata']['date']
-            text = doc['highlight']['text'][:200]
+            text = doc['highlight']['text'][:200] if doc.get('highlight', {}).get('text') != None else doc['_source']['text'][:200],
             tags = list(doc['_source']['tags']) if doc.get('_source', {}).get('tags') != None else [],
             print("%s) %s" % (filename,tags ))
         #formated_list += '<tr><td style="width: 40px">%s</td><td style="width: 10%%"> %s</td><td> %s</td><td> %s</td></tr>' \
