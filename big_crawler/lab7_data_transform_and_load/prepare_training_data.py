@@ -7,7 +7,7 @@ Created on Fri May 25 19:28:37 2018
 
 #%%
 import os
-os.chdir('D:\\DEV\\bigdata_training\\big_crawler\\lab7_data_transform_and_load')
+os.chdir('C:\\Users\\f.hiekel\\BlueReply\\ambari\\bigdata_training\\big_crawler\\lab7_data_transform_and_load')
 #%%
 import PyPDF2 
 

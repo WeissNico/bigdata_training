@@ -58,12 +58,14 @@
                 <th>Filename</th>
                 <th>Date</th>
                 <th>Text</th>
+                 <th>Tags</th>
             </thead>
             {% for result in results %}
                 <tr>
                   <td>{{ result['filename'] }}</td>
                   <td>{{ result['date'] }}</td>
                   <td>{{ result['text'] | safe }}</td>
+                    <td>{{ result['tags'] | safe }}</td>
                 </tr>
             {% endfor %}
         </table>
