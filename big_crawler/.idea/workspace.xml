@@ -11,11 +11,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="frontend.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="frontend.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/lab6_crawling_frontend/frontend.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="402">
-              <caret line="37" column="0" lean-forward="false" selection-start-line="37" selection-start-column="0" selection-end-line="37" selection-end-column="0" />
+            <state relative-caret-position="240">
+              <caret line="65" column="0" lean-forward="false" selection-start-line="65" selection-start-column="0" selection-end-line="65" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -34,41 +34,29 @@
       <file leaf-file-name="search.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/lab6_crawling_frontend/static/search.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="323">
-              <caret line="19" column="31" lean-forward="false" selection-start-line="19" selection-start-column="31" selection-end-line="19" selection-end-column="31" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="elastic.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/lab6_crawling_frontend/elastic.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="442">
-              <caret line="41" column="68" lean-forward="false" selection-start-line="41" selection-start-column="68" selection-end-line="41" selection-end-column="68" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="prepare_training_data.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/lab7_data_transform_and_load/prepare_training_data.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="573">
-              <caret line="114" column="21" lean-forward="false" selection-start-line="114" selection-start-column="12" selection-end-line="114" selection-end-column="21" />
+            <state relative-caret-position="119">
+              <caret line="7" column="54" lean-forward="false" selection-start-line="7" selection-start-column="54" selection-end-line="7" selection-end-column="54" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
       <file leaf-file-name="mongo.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/lab7_data_transform_and_load/mongo.py">
+        <entry file="file://$PROJECT_DIR$/lab5_nutch_rest_api/mongo.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="255">
-              <caret line="66" column="79" lean-forward="true" selection-start-line="66" selection-start-column="42" selection-end-line="66" selection-end-column="79" />
-              <folding>
-                <element signature="e#0#31#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="-136">
+              <caret line="19" column="10" lean-forward="false" selection-start-line="19" selection-start-column="10" selection-end-line="19" selection-end-column="10" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="elastic.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/lab6_crawling_frontend/elastic.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="283">
+              <caret line="39" column="0" lean-forward="false" selection-start-line="39" selection-start-column="0" selection-end-line="39" selection-end-column="0" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -92,13 +80,13 @@
         <option value="$PROJECT_DIR$/lab6_crawling_frontend/css/base.css" />
         <option value="$PROJECT_DIR$/lab6_crawling_frontend/search.py" />
         <option value="$PROJECT_DIR$/lab6_crawling_frontend/templates/base.html" />
-        <option value="$PROJECT_DIR$/lab6_crawling_frontend/static/search.js" />
         <option value="$PROJECT_DIR$/lab7_data_transform_and_load/mongo.py" />
         <option value="$PROJECT_DIR$/lab5_nutch_rest_api/nutch_rest.py" />
         <option value="$PROJECT_DIR$/lab5_nutch_rest_api/mongo.py" />
-        <option value="$PROJECT_DIR$/lab6_crawling_frontend/elastic.py" />
-        <option value="$PROJECT_DIR$/lab6_crawling_frontend/frontend.py" />
         <option value="$PROJECT_DIR$/lab6_crawling_frontend/templates/search.html" />
+        <option value="$PROJECT_DIR$/lab6_crawling_frontend/static/search.js" />
+        <option value="$PROJECT_DIR$/lab6_crawling_frontend/frontend.py" />
+        <option value="$PROJECT_DIR$/lab6_crawling_frontend/elastic.py" />
       </list>
     </option>
   </component>
@@ -220,6 +208,23 @@
     </option>
   </component>
   <component name="RunManager" selected="Python.frontend">
+    <configuration name="elastic" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/lab6_crawling_frontend" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="big_crawler" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/lab6_crawling_frontend/elastic.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+    </configuration>
     <configuration name="frontend" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -250,23 +255,6 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="big_crawler" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/lab5_nutch_rest_api/mongo.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-    </configuration>
-    <configuration name="mongo" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/lab7_data_transform_and_load" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="big_crawler" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/lab7_data_transform_and_load/mongo.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -307,18 +295,18 @@
     </configuration>
     <list size="5">
       <item index="0" class="java.lang.String" itemvalue="Python.frontend" />
-      <item index="1" class="java.lang.String" itemvalue="Python.mongo" />
-      <item index="2" class="java.lang.String" itemvalue="Python.mongo (1)" />
-      <item index="3" class="java.lang.String" itemvalue="Python.nutch_rest" />
-      <item index="4" class="java.lang.String" itemvalue="Python.prepare_training_data" />
+      <item index="1" class="java.lang.String" itemvalue="Python.mongo (1)" />
+      <item index="2" class="java.lang.String" itemvalue="Python.nutch_rest" />
+      <item index="3" class="java.lang.String" itemvalue="Python.prepare_training_data" />
+      <item index="4" class="java.lang.String" itemvalue="Python.elastic" />
     </list>
     <recent_temporary>
       <list size="5">
         <item index="0" class="java.lang.String" itemvalue="Python.frontend" />
         <item index="1" class="java.lang.String" itemvalue="Python.mongo (1)" />
-        <item index="2" class="java.lang.String" itemvalue="Python.nutch_rest" />
-        <item index="3" class="java.lang.String" itemvalue="Python.prepare_training_data" />
-        <item index="4" class="java.lang.String" itemvalue="Python.mongo" />
+        <item index="2" class="java.lang.String" itemvalue="Python.elastic" />
+        <item index="3" class="java.lang.String" itemvalue="Python.nutch_rest" />
+        <item index="4" class="java.lang.String" itemvalue="Python.prepare_training_data" />
       </list>
     </recent_temporary>
   </component>
@@ -379,12 +367,12 @@
           <option name="timeStamp" value="10" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/lab6_crawling_frontend/frontend.py</url>
-          <line>37</line>
-          <option name="timeStamp" value="17" />
+          <url>file://$PROJECT_DIR$/lab6_crawling_frontend/elastic.py</url>
+          <line>39</line>
+          <option name="timeStamp" value="26" />
         </line-breakpoint>
       </breakpoints>
-      <option name="time" value="18" />
+      <option name="time" value="27" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -515,14 +503,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/lab6_crawling_frontend/static/search.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="323">
-          <caret line="19" column="31" lean-forward="false" selection-start-line="19" selection-start-column="31" selection-end-line="19" selection-end-column="31" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/_pydev_imps/_pydev_execfile.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="289">
@@ -555,14 +535,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/lab5_nutch_rest_api/mongo.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-119">
-          <caret line="19" column="10" lean-forward="false" selection-start-line="19" selection-start-column="10" selection-end-line="19" selection-end-column="10" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/lab5_nutch_rest_api/elastic.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="357">
@@ -571,18 +543,26 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/AppData/Local/Programs/Python/Python36-32/Lib/site-packages/flask/app.py">
+    <entry file="file://$PROJECT_DIR$/lab6_crawling_frontend/static/search.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="1597" column="0" lean-forward="false" selection-start-line="1597" selection-start-column="0" selection-end-line="1597" selection-end-column="0" />
+        <state relative-caret-position="119">
+          <caret line="7" column="54" lean-forward="false" selection-start-line="7" selection-start-column="54" selection-end-line="7" selection-end-column="54" />
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/lab6_crawling_frontend/elastic.py">
+    <entry file="file://$USER_HOME$/AppData/Local/Programs/Python/Python36-32/Lib/site-packages/flask/app.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="442">
-          <caret line="41" column="68" lean-forward="false" selection-start-line="41" selection-start-column="68" selection-end-line="41" selection-end-column="68" />
+        <state relative-caret-position="418">
+          <caret line="1611" column="0" lean-forward="false" selection-start-line="1611" selection-start-column="0" selection-end-line="1611" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/lab7_data_transform_and_load/prepare_training_data.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="573">
+          <caret line="114" column="21" lean-forward="false" selection-start-line="114" selection-start-column="12" selection-end-line="114" selection-end-column="21" />
           <folding />
         </state>
       </provider>
@@ -597,14 +577,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/lab7_data_transform_and_load/prepare_training_data.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="573">
-          <caret line="114" column="21" lean-forward="false" selection-start-line="114" selection-start-column="12" selection-end-line="114" selection-end-column="21" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/lab6_crawling_frontend/templates/search.html">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="425">
@@ -613,10 +585,26 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/lab5_nutch_rest_api/mongo.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-136">
+          <caret line="19" column="10" lean-forward="false" selection-start-line="19" selection-start-column="10" selection-end-line="19" selection-end-column="10" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/lab6_crawling_frontend/frontend.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="402">
-          <caret line="37" column="0" lean-forward="false" selection-start-line="37" selection-start-column="0" selection-end-line="37" selection-end-column="0" />
+        <state relative-caret-position="240">
+          <caret line="65" column="0" lean-forward="false" selection-start-line="65" selection-start-column="0" selection-end-line="65" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/lab6_crawling_frontend/elastic.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="283">
+          <caret line="39" column="0" lean-forward="false" selection-start-line="39" selection-start-column="0" selection-end-line="39" selection-end-column="0" />
           <folding />
         </state>
       </provider>

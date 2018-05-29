@@ -26,10 +26,30 @@ class Elastic():
 
         return res
 
-    def delete_dokument(self, doc_id):
-        self.es.delete(index="testcase", doc_type="nutch", id=doc_id)
+    def remove_tag(self, tag, doc_id):
 
-    def update_dokument(self, tag, doc_id):
+
+        document = self.es.get(index="testcase", doc_type='nutch', id=doc_id)
+
+        tags_list = document['_source']['tags']
+        tags_list.remove(tag)
+
+        doc = {
+            "script": "ctx._source.remove('tags')"
+        }
+        self.es.update(index="testcase", doc_type='nutch', id=doc_id, body=doc)
+
+        doc = {
+            "script": "ctx._source.tags = []"
+        }
+        self.es.update(index="testcase", doc_type='nutch', id=doc_id, body=doc)
+
+        for tag in tags_list:
+            self.update_tag(tag, doc_id)
+
+        #self.es.indices.refresh(index="testcase")
+
+    def update_tag(self, tag, doc_id):
         doc = {
             "script": {
                 "inline": "ctx._source.tags.add(params.tag)",

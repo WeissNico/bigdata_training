@@ -60,13 +60,24 @@ def home():
     return render_template('home.html', news="No news")
 
 
+@app.route("/removeTag", methods=['POST'])
+def remove_tag():
+    doc_id = request.form['doc_id']
+    tag = request.form['tag']
+
+    elastic = Elastic()
+    elastic.remove_tag(tag, doc_id)
+
+    print("test")
+    return "update successfully"
+
 @app.route("/addTag", methods=['POST'])
 def add_tag():
     doc_id = request.form['doc_id']
     tag = request.form['tag']
 
     elastic = Elastic()
-    elastic.update_dokument(tag, doc_id)
+    elastic.update_tag(tag, doc_id)
 
     print("test")
     return "update successfully"

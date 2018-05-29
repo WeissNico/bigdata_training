@@ -1,6 +1,15 @@
 function deleteTag(e) {
     doc_id = e.target.parentElement.parentElement.getAttribute('data-value')
     e.target.remove()
+
+    $.ajax({
+        type: 'POST',
+        url: "/removeTag",
+        data: {doc_id: doc_id, tag: e.target.innerText},
+        success: function(response) {
+            console.log(response);
+        }
+    });
 }
 
 function addTag(e){
