@@ -24,14 +24,16 @@ def search():
     search_result = list()
     for doc in data:
         if doc.get('highlight', {}).get('text') != None or doc.get('highlight', {}).get('tags') != None:
-            filename = doc['_id']
+            link = doc['_source']['baseUrl']
+            id = doc['_id']
+            filename = doc['_source']['title'] if doc.get('_source', {}).get('title') != "" else "no title"
             date = doc['_source']['metadata']['date']
             text = doc['highlight']['text'][:200] if doc.get('highlight', {}).get('text') != None else doc['_source']['text'][:200],
             tags = list(doc['_source']['tags']) if doc.get('_source', {}).get('tags') != None else [],
             print("%s) %s" % (filename,tags ))
         #formated_list += '<tr><td style="width: 40px">%s</td><td style="width: 10%%"> %s</td><td> %s</td><td> %s</td></tr>' \
         #                 % (Filename,Date, Text,Tags)
-            search_result.append({'filename':filename, 'date':date, 'text':text, 'tags':tags})
+            search_result.append({'id':id, 'filename':filename, 'date':date, 'text':text, 'tags':tags, 'link': link})
 
     #table_header = '<tr><th  style="width: 10%">Filename<th/><th  style="width: 10%;">Date <th/><th  style="width: 60%;">Text <th/><th style="width: 20%;">Tags <th/></tr>'
     #return basepage('<table>%s %s</table>' % (table_header,formated_list))
