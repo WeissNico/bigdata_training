@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 
+Create a collection in Discovery using a Natural Language configuration (here with the additional enrichment: keywords)
+
+
 """
 
 import json
@@ -69,12 +72,11 @@ if (discovery.get_environment(environment_id=news_environment_id)['status'] == '
 
     new_collection =discovery.create_collection(environment_id=writable_environment_id, configuration_id=configurations_id,
                                 name = 'Reports', description="Reports English Data")
-
-
-    print(new_collection)
-
-    with open(os.path.join(os.getcwd(), 'Reports', 'AkamaiFileDownload.pdf'), "rb") as fileinfo:
-        add_doc = discovery.add_document(environment_id=writable_environment_id,
-                                     collection_id=new_collection['collection_id'], file=fileinfo)
-        print(json.dumps(add_doc, indent=2))
-
+#
+#
+#    print(new_collection)
+#
+#    with open(os.path.join(os.getcwd(), 'Reports', 'AkamaiFileDownload.pdf'), "rb") as fileinfo:
+#        add_doc = discovery.add_document(environment_id=writable_environment_id,
+#                                     collection_id=new_collection['collection_id'], file=fileinfo)
+#        print(json.dumps(add_doc, indent=2))
