@@ -41,7 +41,7 @@ print(json.dumps(configurations_id, indent=2))
 
 print(json.dumps(configurations, indent=2))
 
-#delete_doc = discovery.delete_document('3e870668-3533-43ec-8cca-b4e2d203b348', 'a6b23b78-2914-4221-95d5-70aaba1e7901', '{document_id}')
+#delete_doc = discovery.delete_document(news_environment_id, collectionid, '{document_id}')
 #print(json.dumps(delete_doc, indent=2))
 
 
