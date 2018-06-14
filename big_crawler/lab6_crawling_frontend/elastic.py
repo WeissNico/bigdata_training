@@ -2,7 +2,7 @@ import requests
 import elasticsearch
 from elasticsearch import Elasticsearch, RequestsHttpConnection
 import datetime
-
+import traceback
 #print(es1.info())
 
 class Elastic():
@@ -61,6 +61,41 @@ class Elastic():
 
         self.es.update(index="testcase", doc_type='nutch', id=doc_id, body=doc)
         self.es.indices.refresh(index="testcase")
+
+
+    def get_seeds(self):
+        try:
+            res = self.es.search(index="seeds", body={"query": {"match_all": {}}})
+
+            newlist = {}
+            for k, value in enumerate(res['hits']['hits']):
+                category = value['_source']['category']
+                val = {'id': value['_id'], 'category': category , 'name': value['_source']['name'], 'url': value['_source']['url']}
+                if  value['_source']['category'] not in newlist:
+                    newlist[category] = []
+                newlist[category].append(val)
+
+        except Exception as e:
+            print(traceback.format_exc())
+            res = []
+        return newlist
+
+    def set_seed(self, seed):
+        doc = {
+            "url":seed['url'],
+            "category":seed['category'],
+            "name":seed['name']
+        }
+
+        doc_id = seed['doc_id']
+
+        result = self.es.index(index="seeds", doc_type='nutch', id=doc_id, body=doc)
+        return result
+
+    def delete_seed(self, doc_id):
+
+        result = self.es.delete(index="seeds", doc_type="nutch", id=doc_id)
+        return result
 
 
 

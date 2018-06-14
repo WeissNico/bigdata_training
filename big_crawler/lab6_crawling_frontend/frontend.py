@@ -3,8 +3,11 @@ es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
 from flask import Flask, request, render_template
 from settings import ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORT, ELASTICSEARCH_HOST, ELASTICSEARCH_PORT
 from elastic import Elastic
+from google import google
+
 app = Flask(__name__)
 
+elastic = Elastic()
 @app.route("/search", methods=['GET', 'POST'])
 def search():
     search_text = request.args.get('search')
@@ -19,25 +22,34 @@ def search():
     #res = requests.get(ELASTIC_URL+"/=")
     results = es.search(index="testcase", body={"query": {"simple_query_string": {"query":search_text}}, "highlight": {"fields": {"*" : {"pre_tags" : ["<b>"], "post_tags" : ["</b>"]}}}})
     data = [doc for doc in results['hits']['hits']]
-    #print("search for %s returned %s hits" % (search_text,len(data)))
-    formated_list = ""
+
     search_result = list()
     for doc in data:
         if doc.get('highlight', {}).get('text') != None or doc.get('highlight', {}).get('tags') != None:
             link = doc['_source']['baseUrl']
             id = doc['_id']
             filename = doc['_source']['title'] if doc.get('_source', {}).get('title') != "" else "no title"
-            date = doc['_source']['metadata']['date']
+            date = doc['_source']['metadata']['date'] if doc.get('_source', {}).get('metadata').get('date') != None else 'no date'
             text = doc['highlight']['text'][:200] if doc.get('highlight', {}).get('text') != None else doc['_source']['text'][:200],
             tags = list(doc['_source']['tags']) if doc.get('_source', {}).get('tags') != None else [],
-            print("%s) %s" % (filename,tags ))
-        #formated_list += '<tr><td style="width: 40px">%s</td><td style="width: 10%%"> %s</td><td> %s</td><td> %s</td></tr>' \
-        #                 % (Filename,Date, Text,Tags)
+            print("%s) %s" % (filename, tags))
+
             search_result.append({'id':id, 'filename':filename, 'date':date, 'text':text, 'tags':tags, 'link': link})
 
-    #table_header = '<tr><th  style="width: 10%">Filename<th/><th  style="width: 10%;">Date <th/><th  style="width: 60%;">Text <th/><th style="width: 20%;">Tags <th/></tr>'
-    #return basepage('<table>%s %s</table>' % (table_header,formated_list))
     return render_template('search.html', results=search_result)
+
+@app.route('/nutch')
+def nutch():
+    '''
+    print("working, pleas wait")
+    num_page = 1
+    search_results = google.search("Geschäftsberichte Wacker 2016", num_page)
+    print("done :)")
+
+    return render_template('nutch.html', results=search_results)
+    '''
+    res = elastic.get_seeds()
+    return render_template('seeds.html', seeds = res)
 
 @app.route("/train")
 def train():
@@ -67,22 +79,44 @@ def remove_tag():
     doc_id = request.form['doc_id']
     tag = request.form['tag']
 
-    elastic = Elastic()
     elastic.remove_tag(tag, doc_id)
 
-    print("test")
-    return "update successfully"
+    return "remove successfully"
 
 @app.route("/addTag", methods=['POST'])
 def add_tag():
     doc_id = request.form['doc_id']
     tag = request.form['tag']
 
-    elastic = Elastic()
     elastic.update_tag(tag, doc_id)
 
-    print("test")
     return "update successfully"
+
+@app.route("/addSeed", methods=['POST'])
+def add_seed():
+    category = request.form['category']
+    url = request.form['url']
+    name = request.form['name']
+    doc_id = category + '#' + name
+
+    seed = {
+        "url": url,
+        "name" :name,
+        "category": category,
+        "doc_id":doc_id
+    }
+
+    elastic.set_seed(seed)
+
+    return "update successfully"
+
+@app.route("/deleteSeed", methods=['POST'])
+def delete_seed():
+    doc_id = request.form['doc_id']
+
+    elastic.delete_seed(doc_id)
+
+    return "delete successfully"
 
 if __name__ == "__main__":
     #app = create_app(config.DATABASE_URI, debug=True)

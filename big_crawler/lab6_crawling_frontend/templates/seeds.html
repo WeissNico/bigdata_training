@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Researchbot - Index{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style type="text/css">
+    .important { color: #336699; }
+  </style>
+  <script src="/static/seeds.js"></script>
+{% endblock %}
+{% block content %}
+<h4>Environmental Regulation (Germany)</h4>
+<ul class="container" id="environmentalregulationgermany">
+  <li class="list-group-item list-group-item-action flex-column align-items-start">
+    <div class="d-flex w-100 justify-content-between">
+      <h5 class="mb-1">Altötting</h5>
+      <small><button class="btn btn-outline-danger my-2 my-sm-0" type="submit">Delete</button></small>
+    </div>
+    <small><a href="https://www.lra-aoe.de/umweltschutz-recht-und-technik/immissionsschutz/ueberwachungsberichte">https://www.lra-aoe.de/umweltschutz-recht-und-technik/immissionsschutz/ueberwachungsberichte</a></small>
+  </li>
+  <li class="list-group-item list-group-item-action flex-column align-items-start">
+    <div class="d-flex w-100 justify-content-between">
+      <h5 class="mb-1">Reutlingen</h5>
+      <small><button class="btn btn-outline-danger my-2 my-sm-0" type="submit">Delete</button></small>
+    </div>
+    <small><a href="http://www.kreis-reutlingen.de/de/Home">http://www.kreis-reutlingen.de/de/Home</a></small>
+  </li>
+  <li class="list-group-item list-group-item-action flex-column align-items-start">
+    <div class="d-flex w-100 justify-content-between">
+      <h5 class="mb-1">coburg</h5>
+      <small><button class="btn btn-outline-danger my-2 my-sm-0" type="submit">Delete</button></small>
+    </div>
+    <small><a href="http://www.landkreis-coburg.de/">http://www.landkreis-coburg.de/</a></small>
+  </li>
+  <li href="#" class="list-group-item list-group-item-action flex-column align-items-start">
+    <div class="d-flex w-100 justify-content-between">
+      <h5 class="mb-1">Zwickau</h5>
+      <small><button class="btn btn-outline-danger my-2 my-sm-0" type="submit">Delete</button></small>
+    </div>
+    <small><a href="http://www.landkreis-zwickau.de/">http://www.landkreis-zwickau.de/</a></small>
+  </li>
+  <button class="btn btn-outline-success my-2 my-sm-0 category_id" data-toggle="modal" data="Environmental Regulation (Germany)" data-id="environmentalregulationgermany" data-target="#myModal">Add</button>
+</ul>
+
+<h4>Competitors</h4>
+<ul class="container" id="competitors">
+  <li class="list-group-item list-group-item-action flex-column align-items-start">
+    <div class="d-flex w-100 justify-content-between">
+      <h5 class="mb-1">Wacker</h5>
+      <small><button class="btn btn-outline-danger my-2 my-sm-0" type="submit">Delete</button></small>
+    </div>
+    <small><a href="https://m.wacker.com/cms/de/home/index.jsp">https://m.wacker.com/cms/de/home/index.jsp</a></small>
+  </li>
+  <li href="#" class="list-group-item list-group-item-action flex-column align-items-start">
+    <div class="d-flex w-100 justify-content-between">
+      <h5 class="mb-1">BASF</h5>
+      <small><button class="btn btn-outline-danger my-2 my-sm-0" type="submit">Delete</button></small>
+    </div>
+    <small><a href="https://www.basf.com/de.html">https://www.basf.com/de.html</a></small>
+  </li>
+  <li href="#" class="list-group-item list-group-item-action flex-column align-items-start">
+    <div class="d-flex w-100 justify-content-between">
+      <h5 class="mb-1">exxonmobil</h5>
+      <small><button class="btn btn-outline-danger my-2 my-sm-0" type="submit">Delete</button></small>
+    </div>
+    <small><a href="http://corporate.exxonmobil.de/de-de">http://corporate.exxonmobil.de/de-de</a></small>
+  </li>
+  <button class="btn btn-outline-success my-2 my-sm-0 category_id" id="button_competitor" data-toggle="modal" data="competitors" data-id="competitors" data-target="#myModal">Add</button>
+</ul>
+<button class="btn btn-outline-success my-2 my-sm-0" type="submit">New Category</button>
+
+  <!-- Modal -->
+  <div class="modal fade" id="myModal" role="dialog">
+    <div class="modal-dialog">
+
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">New Seed</h4>
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>pleas enter a new seed</p>
+          <label for="nameFormControlInput">Name</label>
+          <input type="text" class="form-control" id="nameFormControlInput" placeholder="name">
+          <label for="urlFormControlInput">Url:</label>
+          <input type="text" class="form-control" id="urlFormControlInput" placeholder="example.com">
+          <input id="category" type=hidden value="" />
+          <input id="category_id" type=hidden value="" />
+         <!-- <label for="categoryFormControlInput">Category:</label>
+          <input type="text" class="form-control" id="categoryFormControlInput" placeholder="cagtegory"> -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" onclick="addSeed(event)" class="btn btn-outline-success my-2 my-sm-0" data-dismiss="modal">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

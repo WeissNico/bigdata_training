@@ -16,6 +16,11 @@ def seed():
     file.close() 
     return seed_text
 
+@app.route("/update", methods=['GET'])
+def update():
+    #tbd -> load list from elastic and save it under /urls/seeds.txt
+    return False
+
 @app.route("/")
 def home():
     return "<h1>Test</h1>"

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Researchbot - Index{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style type="text/css">
+    .important { color: #336699; }
+  </style>
+  <script src="/static/seeds.js"></script>
+
+{% endblock %}
+{% block navbar %}
+<div class="span2 sidebar" style="float: right;margin-top: 50px;margin-right: 50px;">
+      <button class="btn btn-outline-info" type="submit" style="width: 226px; height: 114px; border-width: thick;" >Run Crawler</button>
+</div>
+{% endblock %}
+{% block content %}
+
+{% for seed in seeds %}
+<h4>{{ seed }}</h4>
+<div>{{  seeds['environmentalregulationgermany'][0]['name'] }}</div>
+  {% for item in seeds[seed] %}
+    <p>{{ item }}</p>
+  {% endfor %}
+{% endfor %}
+{% endblock %}
