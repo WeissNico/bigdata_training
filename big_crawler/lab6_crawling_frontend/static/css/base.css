@@ -1,0 +1,256 @@
+:root {
+  /* for custom variable declaration */
+  --sidebar-inactive-color: #909296;
+  --sidebar-active-color: #fff;
+  --dashboard-font-color: #000;
+  --dashboard-highlight-color: #333;
+  --dashboard-inactive-color: var(--sidebar-inactive-color);
+}
+
+.margin-top, .padding-top {
+  margin-top: 4rem;
+}
+
+.position-relative {
+  position: relative
+}
+
+textarea {
+  resize: none;
+}
+
+/* Sidebar specific code, pulled from
+ * https://getbootstrap.com/docs/4.1/examples/dashboard/
+ */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100; /* Behind the navbar */
+  padding: 4rem 0 0; /* Height of navbar */
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+}
+
+.sidebar-sticky {
+  position: relative;
+  top: 0;
+  height: calc(100vh - 4rem);
+  padding-top: .5rem;
+  margin: 0.5rem 0.5rem;
+  overflow-x: hidden;
+  overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
+}
+
+@supports ((position: -webkit-sticky) or (position: sticky)) {
+  .sidebar-sticky {
+    position: -webkit-sticky;
+    position: sticky;
+  }
+}
+
+.sidebar-inner {
+  margin: 0.5rem;
+  overflow-x: hidden;
+}
+
+.sidebar-heading {
+  font-size: 1.5rem;
+  color: var(--sidebar-active-color);
+}
+
+.sidebar .category {
+  margin-left: 0.75rem;
+}
+
+.sidebar .nav-link {
+  font-weight: 500;
+  display: inline-block;
+  color: var(--sidebar-inactive-color);
+}
+
+.sidebar .nav-link .fas {
+  margin-right: 4px;
+  color: var(--sidebar-inactive-color);
+}
+
+.sidebar .nav-link.active {
+  color: var(--sidebar-active-color);
+}
+
+.sidebar .nav-link:hover {
+  color: var(--sidebar-active-color);
+}
+
+.sidebar .nav-link:hover .fas,
+.sidebar .nav-link.active .fas {
+  color: inherit;
+}
+
+.sidebar .cat-link {
+  font-weight: 500;
+  color: var(--sidebar-inactive-color);
+}
+
+.sidebar .cat-link .fas {
+  margin-right: 4px;
+  color: var(--sidebar-inactive-color);
+}
+
+.sidebar .cat-link.active {
+  color: var(--sidebar-active-color);
+}
+
+.sidebar .cat-link:hover {
+  text-decoration: none;
+  color: var(--sidebar-active-color);
+}
+
+.sidebar .cat-link:hover .fas,
+.sidebar .cat-link.active .fas {
+  color: inherit;
+}
+/*
+ * Content
+ */
+.badges {
+  white-space: nowrap;
+}
+
+.dashboard-header {
+  color: var(--dashboard-font-color);
+  text-decoration: none;
+}
+
+.dashboard-header:hover {
+  color: var(--dashboard-highlight-color);
+  text-decoration: none;
+}
+
+/* Regulate the look of the table and it's sort arrows */
+/* Align all cells in the middle */
+.dashboard {
+  border-collapse: separate;
+  border-spacing: 0 0.5rem;
+}
+
+.dashboard th {
+  text-align: center;
+}
+
+.dashboard tbody td {
+  border-top: 2px solid var(--dashboard-font-color);
+  border-bottom: 2px solid var(--dashboard-font-color);
+  text-align: center;
+  vertical-align: -webkit-baseline-middle;
+  vertical-align: middle;
+}
+
+.dashboard tbody td:first-child {
+  border-top: 2px solid var(--dashboard-font-color);
+  border-left: 2px solid var(--dashboard-font-color);
+  border-bottom: 2px solid var(--dashboard-font-color);
+  border-top-left-radius: 1rem;
+  border-bottom-left-radius: 1rem;
+}
+
+.dashboard tbody td:last-child {
+  border-top: 2px solid var(--dashboard-font-color);
+  border-right: 2px solid var(--dashboard-font-color);
+  border-bottom: 2px solid var(--dashboard-font-color);
+  border-top-right-radius: 1rem;
+  border-bottom-right-radius: 1rem;
+}
+
+.dashboard .impact-indicator {
+  font-size: 5rem;
+  line-height: 1.5rem;
+}
+
+.impact-indicator *,
+.impact-indicator *:hover {
+  text-decoration: none;
+  font-size: initial;
+  line-height: normal;
+  color: inherit;
+}
+
+/* use bootstraps color-variables for danger warning and success */
+.impact-indicator.high {
+  color: var(--danger);
+}
+
+.impact-indicator.medium {
+  color: var(--warning);
+}
+
+.impact-indicator.low {
+  color: var(--success);
+}
+
+.dashboard thead th {
+  border: none;
+  white-space: nowrap;
+}
+
+.dashboard thead th a {
+  color: var(--dashboard-font-color);
+  text-decoration: none;
+}
+
+.dashboard thead th .fa-sort {
+  color: var(--dashboard-inactive-color);
+}
+
+.dashboard thead th .fa-sort-up,
+.dashboard thead th .fa-sort-down {
+  color: var(--dashboard-font-color);
+}
+
+.dashboard .overflow-ellipsis {
+  text-overflow: ellipsis;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow: hidden;
+  max-height: 6rem; 
+}
+
+.dashboard .progress {
+  min-width: 10rem;
+  min-height: 2rem;
+  margin: 1rem 0;
+  border-radius: 0;
+  font-size: 1.5rem;
+  background-color: transparent;
+}
+
+.dashboard .progress-bar {
+  color: var(--dashboard-font-color);
+}
+
+.dashboard .quantity {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.dashboard .quantity span:first-child{
+  display: inline-block;
+  font-size: 3rem;
+  line-height: 2.3rem;
+  text-align: right;
+}
+
+.dashboard .quantity span:last-child{
+  display: inline-block;
+  min-width: 3rem;
+  text-align: left;
+}
+
+.dashboard .btn {
+  border: none;
+  border-radius: 0.5rem;
+  min-height: 5rem;
+  min-width: 7rem;
+}

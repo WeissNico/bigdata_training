@@ -1,0 +1,21 @@
+/* This is a custom css for introducing some custom list which is checkable 
+   and scrollable. 
+   Needs custom-check-list.js for functionning properly
+   
+   Author: Johannes Mueller <j.mueller@reply.de> */
+
+   .custom-check-list {
+     height: auto;
+     max-height: 10rem;
+     overflow-y: scroll;
+     overflow-x: hidden;
+   }
+   
+   .custom-check-list input[type=checkbox] {
+     display: none;
+     visibility: hidden;
+   }
+
+   .custom-check-list .fas {
+     visibility: hidden;
+   }

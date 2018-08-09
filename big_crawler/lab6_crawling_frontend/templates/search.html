@@ -5,7 +5,6 @@
   <style type="text/css">
     .important { color: #336699; }
   </style>
-  <script src="/static/search.js"></script>
 {% endblock %}
 {% block content %}
         <table class="table margin-top">
@@ -31,4 +30,8 @@
             {% endfor %}
             </tbody>
         </table>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src={{ url_for("static", filename="js/search.js") }}></script>
 {% endblock %}

@@ -22,13 +22,11 @@ class Elastic():
         #    'text': 'Elasticsearch: cool. bonsai cool.',
         #    'timestamp': datetime.now(),
         #}
-        res = self.es.index(index="testcase", doc_type='nutch', id=doc_id, body=doc)
-
+        res = self.es.index(index="testcase", doc_type='nutch', id=doc_id,
+                            body=doc)
         return res
 
     def remove_tag(self, tag, doc_id):
-
-
         document = self.es.get(index="testcase", doc_type='nutch', id=doc_id)
 
         tags_list = document['_source']['tags']
