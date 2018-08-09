@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Sherlock - Search{% endblock %}
+{% block head %}
+  {{ super() }}
+  <link href={{ url_for("static", filename="css/custom-check-list.css") }} rel="stylesheet">
+{% endblock %}
+{% block content %}
+<h1>New search</h1>
+<form action="{{ url_for('new_search') }}" method="POST">
+  <!-- divide in two parts: 10 cols for the content, 2 rows for the buttons -->
+  <div class="row">
+    <!-- content -->
+    <div class="col-md-10 col-sm-12">
+      <div class="form-row">
+        <div class="col-12">
+          <div class="form-group">
+            <label for="searchbar"><span class="fas fa-search"></span> Keywords</label>
+            <input type="text" class="form-control" placeholder="keyword keyword keyword ..." name="searchbar" />
+          </div>
+        </div>
+      </div>
+      <fieldset>
+        <legend>Search options</legend>
+        <div class="form-row">
+          <div class="col-md-6 col-sm-12">
+            <label for="file_types_list"><span class="fas fa-file"></span> File types</label>
+            <ul class="list-group custom-check-list" id="file_types_list">
+              {% for ft in file_types %}
+              <li class="list-group-item">
+                <span class="fas fa-check"></span>
+                <input type="checkbox" name={{ ft["id"] }} />
+                <label for={{ ft["id"] }}>{{ ft["name"] }}</label>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="col-md-6 col-sm-12">
+            <label for="time_periods_list"><span class="fas fa-clock"></span> Time periods</label>
+            <ul class="list-group custom-check-list" id="time_periods_list">
+              {% for tp in time_periods %}
+              <li class="list-group-item">
+                <span class="fas fa-check"></span>
+                <input type="checkbox" name={{ tp["id"] }} />
+                <label for={{ tp["id"] }}>{{ tp["name"] }}</label>
+              </li>
+              {% endfor %}
+            </ul>
+            <button type="button" class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#add_period_modal">
+              <span class="fas fa-plus-circle"></span> Add custom time period
+            </button>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col-12">
+            <label for="sources_list"><span class="fas fa-book"></span> Sources</label>
+            <ul class="list-group custom-check-list" id="sources_list">
+              {% for source in sources %}
+              <li class="list-group-item">
+                <span class="fas fa-check"></span>
+                <input type="checkbox" name={{ source["id"] }} />
+                <label for={{ source["id"] }}>{{ source["name"] }}</label>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="col-md-3 offset-md-9 col-sm-12">
+            <button type="button" class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#add_source_modal">
+              <span class="fas fa-plus-circle"></span> Add new source
+            </button>
+          </div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Save options</legend>
+        <div class="form-row">
+          <div class="col-12">
+            <div class="form-group">
+              <label for="save_as"><span class="fas fa-save"></span> Save search as</label>
+              <input type="text" class="form-control" placeholder="Filename" name="save_as" />
+            </div>
+          </div>
+        </div>
+      </fieldset>
+    </div>
+    <!-- buttons -->
+    <div class="col-md-2 col-sm-12">
+      <div class="form-row">
+        <div class="col-12">
+          <div class="form-group">
+            <button type="submit" class="btn btn-primary btn-block" name="search">Search</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="col-12">
+          <div class="form-group">
+            <button type="submit" class="btn btn-secondary btn-block" name="schedule">Scheduler</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+<!-- DEFINITION OF THE MODAL DIALOGS -->
+<!-- Modal for time periods -->
+<div class="modal fade" id="add_period_modal" tabindex="-1" role="dialog" aria-labelledby="add_period_label" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="add_period_label">Add new time period</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="add_period_form">
+          <div class="form-row">
+            <div class="col-md-6 col-sm-12 form-group">
+              <label for="date_from"><span class="fas fa-calendar-alt"></span> From date</label>
+              <input type="date" class="form-control" name="date_from"/ >
+            </div>
+            <div class="col-md-6 col-sm-12 form-group">
+              <label for="date_to"><span class="fas fa-calendar-alt"></span> To date</label>
+              <input type="date" class="form-control" name="date_to"/ >
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="add_period_button">Add time period</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Modal for the sources-->
+<div class="modal fade" id="add_source_modal" tabindex="-1" role="dialog" aria-labelledby="add_source_label" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="add_source_label">Add a new source to search</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="add_source_form">
+          <div class="form-row">
+            <div class="col-sm-12 form-group">
+              <label for="source_name"><span class="fas fa-list"></span> Name</label>
+              <input type="text" class="form-control" name="source_name" placeholder="Display name"/ >
+            </div>
+            <div class="col-sm-12 form-group">
+              <label for="source_name"><span class="fas fa-link"></span> URL</label>
+              <input type="text" class="form-control" name="source_link" placeholder="Resource URL"/ >
+            </div>
+            <div class="col-sm-12 form-group">
+              <label for="source_name"><span class="fas fa-font"></span> Description</label>
+              <textarea rows="4" class="form-control" name="source_description" placeholder="Resource Description">
+              </textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="add_source_button">Add new source</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src={{ url_for("static", filename="js/custom-check-list.js") }}></script>
+{% endblock %}

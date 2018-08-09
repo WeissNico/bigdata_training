@@ -5,12 +5,9 @@
   <style type="text/css">
     .important { color: #336699; }
   </style>
-  <script src="/static/seeds.js"></script>
 {% endblock %}
-{% block navbar %}
-<div class="span2 sidebar" style="float: right;margin-top: 50px;margin-right: 50px;">
-      <button class="btn btn-outline-info" type="submit" style="width: 226px; height: 114px; border-width: thick;" >Run Crawler</button>
-</div>
+{% block sidebar %}
+  <button class="btn btn-outline-info" type="submit" style="width: 226px; height: 114px; border-width: thick;" >Run Crawler</button>
 {% endblock %}
 {% block content %}
 <h4>Environmental Regulation (Germany)</h4>
@@ -84,7 +81,7 @@
           <button type="button" class="close" data-dismiss="modal">&times;</button>
         </div>
         <div class="modal-body">
-          <p>pleas enter a new seed</p>
+          <p>Please enter a new seed</p>
           <label for="nameFormControlInput">Name</label>
           <input type="text" class="form-control" id="nameFormControlInput" placeholder="name">
           <label for="urlFormControlInput">Url:</label>
@@ -100,4 +97,8 @@
       </div>
     </div>
   </div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src={{ url_for("static", filename="js/seeds.js") }}></script>
 {% endblock %}

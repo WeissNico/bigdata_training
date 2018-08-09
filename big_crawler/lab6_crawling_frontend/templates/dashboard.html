@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Sherlock - Dashboard{% endblock %}
+{% block head %} {{ super() }} {% endblock%}
+{% block sidebar %}
+<h6 class="sidebar-heading">Dashboards</h6>
+<ul class="nav flex-column">
+  <li class="nav-item">
+      <a class="cat-link" href={{ url_for("dashboard") }}>
+        <span class="fas fa-home"></span>
+        Current
+      </a>
+  </li>
+  <div>
+  {#- create a namespace for the last_month variable,
+      otherwise this won't work as expected -#}
+  {%- set ns = namespace(last_month=None) %}
+  {%- for entry in calendar %}
+    {%- set expand = current.month == entry.month %}
+    {%- if ns.last_month != entry.month %}
+    </div>
+    <li class="nav-item">
+      <!-- put the badges first, since chrome sometimes treats float-right weirdly -->
+      <span class="badges float-right">
+        <span class="badge badge-danger" data-var="open">{{ entry.n_open }}</span>
+        <span class="badge badge-warning" data-var="waiting">{{ entry.n_waiting }}</span>
+        <span class="badge badge-success" data-var="finished">{{ entry.n_finished }}</span>
+      </span>
+      <a class="cat-link {{ 'active' if expand }}" data-toggle="collapse"
+        href={{ "#" + entry.month }} aria-expanded={{ expand }}>
+        {%- if expand -%}
+          <span class="fas fa-caret-down"></span>
+        {%- else -%}
+          <span class="fas fa-caret-right"></span>
+        {%- endif -%}
+        {{- entry.month_display -}}
+      </a>
+    </li>
+    <div class="category collapse {{ 'show' if expand }}" id={{ entry.month }}>
+    {%- endif %}
+    {% set active = current.id == entry.id %}
+    <li class="nav-item">
+      <!-- put the badges first, since chrome sometimes treats float-right weirdly -->
+      <span class="badges float-right">
+        <span class="badge badge-danger" data-var="open">{{ current.n_open if active else entry.n_open }}</span>
+        <span class="badge badge-warning" data-var="waiting">{{ current.n_waiting if active else entry.n_waiting }}</span>
+        <span class="badge badge-success" data-var="finished">{{ current.n_finished if active else entry.n_finished }}</span>
+      </span>
+      <a class="nav-link p-0 {{ 'active' if active }}" href={{ url_for("dashboard", dbdate=entry.id) }}>{{ entry.display }}</a>
+    </li>
+  {%- set ns.last_month = entry.month -%}
+  {%- endfor -%}
+</ul>
+{% endblock %}
+{% block content %}
+<h1>Dashboard {{ current.display }}
+  <span class="badges">
+    <span class="badge badge-danger" data-var="open">{{ current.n_open }}</span>
+    <span class="badge badge-warning" data-var="waiting">{{ current.n_waiting }}</span>
+    <span class="badge badge-success" data-var="finished">{{ current.n_finished }}</span>
+  </span>
+</h1>
+<!-- new documents -->
+<h3><a class="dashboard-header" data-toggle="collapse" href="#newDocuments">
+  <span class="fas fa-caret-down"></span>
+  New
+</a></h3>
+<div class="collapse show" id="newDocuments">
+  {% macro document_table(cur_docs, sort_prefix="new") %}
+  <table class="dashboard table table-hover table-responsive-lg">
+    <thead>
+      <tr>
+        {% for title in columntitles %}
+        <th scope="col"> 
+          {% if sort_by[0] == title %}
+            <a href={{ url_for("dashboard", dbdate=current.id, sortby=title, desc=(not sort_by[1])) }}>
+              {{ title|capitalize }} 
+              <span class="fas fa-sort-{{ 'down' if sort_by[1] else 'up' }}"></span>
+            </a>
+          {% else %}
+            <a href={{ url_for("dashboard", dbdate=current.id, sortby=title, desc=True) }}>
+              {{ title|capitalize }} 
+              <span class="fas fa-sort"></span>
+            </a>
+          {% endif %}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in cur_docs %}
+      <tr>
+        <td>{{ doc.type }}</td>
+        <!-- impact indicator -->
+        <td>
+          <div class="impact-indicator {{ doc.impact }} mt-3">
+            {{ doc.impact|capitalize|first }}
+            </br>
+            <span>{{ doc.impact|capitalize }}</span>
+          </div>
+        </td>
+        <td>{{ doc.category }}</td>
+        <!-- source and document links -->
+        <td>
+          <div class="overflow-ellipsis">
+            <a href={{ doc.source }} target="_blank">{{ doc.source }}</a>
+          </div> 
+        </td>
+        <td>
+          <div class="overflow-ellipsis">
+            <a href={{ url_for("document_download", doc_id=doc.id) }} target="_blank">{{ doc.document }}</a>
+          </div>
+        </td>
+        <td>
+          {% set max_lines = (doc.change.lines_added, doc.change.lines_removed)|max %}
+          <div class="progress">
+            {% set add_width = doc.change.lines_added / max_lines * 100|int %}
+            <div class="progress-bar progress-bar-striped bg-success" role="progressbar" 
+                 aria-valuenow={{ doc.change.lines_added }} aria-valuemin="0" aria-valuemax={{ max_lines }}
+                 style="width: {{ add_width if add_width > 0 else 1 }}%;">
+              + {{ "{:,}".format(doc.change.lines_added) }}
+            </div>
+          </div>
+          <div class="progress">
+            {% set rem_width = doc.change.lines_removed / max_lines * 100|int %}
+            <div class="progress-bar progress-bar-striped bg-danger }}" role="progressbar"
+                 aria-valuenow={{ doc.change.lines_removed }} aria-valuemin="0" aria-valuemax={{ max_lines }}
+                 style="width: {{ rem_width if rem_width > 0 else 1 }}%;">
+              - {{ "{:,}".format(doc.change.lines_removed) }}
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="quantity">
+            <span>{{ "{:,}".format(doc.quantity.words) }}</span>
+            <span>words</span>
+          </div>
+          <div class="quantity">
+            <span>{{ "{:,}".format(doc.quantity.lines) }}</span>
+            <span>lines</span>
+          </div>
+        </td>
+        <td>
+          <button class="btn dropdown-toggle btn-status" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-val={{ doc.status }}></button>
+          <div class="dropdown-menu dropdown-status">
+            <a class="dropdown-item dropdown-item-status" href={{ url_for("document_set_status", doc_id=doc.id, status="open") }}>UNREAD</a>
+            <a class="dropdown-item dropdown-item-status" href={{ url_for("document_set_status", doc_id=doc.id, status="waiting") }}>ON HOLD</a>
+            <a class="dropdown-item dropdown-item-status" href={{ url_for("document_set_status", doc_id=doc.id, status="finished") }}>ASSIGNED</a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endmacro %}
+  {{ document_table(documents|selectattr("new", "eq", True)) }}
+</div>
+<!-- modified documends -->
+<h3><a class="dashboard-header" data-toggle="collapse" href="#modDocuments">
+  <span class="fas fa-caret-down"></span>
+  Modified
+</a></h3>
+<div class="collapse show" id="modDocuments">
+  {{ document_table(documents|selectattr("new", "eq", False)) }}
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src={{ url_for("static", filename="js/dashboard.js") }}></script>
+{% endblock %}
