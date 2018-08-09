@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from elasticsearch import Elasticsearch, RequestsHttpConnection
 es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
-from flask import Flask, request, render_template, send_file, jsonify
+from flask import Flask, request, redirect, render_template, url_for, send_file, jsonify
 from settings import ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORT, ELASTICSEARCH_HOST, ELASTICSEARCH_PORT
 from google import google
 
@@ -197,7 +197,11 @@ def download():
 
 @app.route("/")
 def home():
-    return render_template('home.html', news="No news")
+    """The page that is anchored at '/'.
+
+    For now, redirects to /dashboard.
+    """
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/removeTag", methods=['POST'])
