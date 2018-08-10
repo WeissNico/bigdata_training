@@ -1,0 +1,57 @@
+{# DEFINITION OF OFTEN USED MACROS, THAT CAN BE IMPORTED #}
+{# use "{% import "macros.html" as macros %}" for import #}
+
+{% macro dashboards_sidebar(cur_date, calendar) %}
+<h6 class="sidebar-heading">Dashboards</h6>
+<ul class="nav flex-column">
+  <li class="nav-item">
+      <a class="cat-link" href={{ url_for("dashboard") }}>
+        <span class="fas fa-home"></span>
+        Current
+      </a>
+  </li>
+  <div>
+  {#- create a namespace for the last_month variable,
+      otherwise this won't work as expected -#}
+  {%- set ns = namespace(last_month=None) %}
+  {%- for entry in calendar %}
+    {%- set expand = cur_date.month == entry.month %}
+    {%- if ns.last_month != entry.month %}
+    </div>
+    <li class="nav-item">
+      <!-- put the badges first, since chrome sometimes treats float-right weirdly -->
+      <span class="badge indicator float-right">
+        <span class="data-span" data-var="open">{{ entry.n_open }}</span>
+        <span>/</span>
+        <span class="data-span" data-var="waiting">{{ entry.n_waiting }}</span>
+        <span>/</span>
+        <span class="data-span" data-var="finished">{{ entry.n_finished }}</span>
+      </span>
+      <a class="cat-link {{ 'active' if expand }}" data-toggle="collapse"
+        href={{ "#" + entry.month }} aria-expanded={{ expand }}>
+        {%- if expand -%}
+          <span class="fas fa-caret-down"></span>
+        {%- else -%}
+          <span class="fas fa-caret-right"></span>
+        {%- endif -%}
+        {{- entry.month_display -}}
+      </a>
+    </li>
+    <div class="category collapse {{ 'show' if expand }}" id={{ entry.month }}>
+    {%- endif %}
+    {% set active = cur_date.id == entry.id %}
+    <li class="nav-item">
+      <!-- put the badges first, since chrome sometimes treats float-right weirdly -->
+      <span class="badge indicator float-right">
+        <span class="data-span" data-var="open">{{ cur_date.n_open if active else entry.n_open }}</span>
+        <span>/</span>
+        <span class="data-span" data-var="waiting">{{ cur_date.n_waiting if active else entry.n_waiting }}</span>
+        <span>/</span>
+        <span class="data-span" data-var="finished">{{ cur_date.n_finished if active else entry.n_finished }}</span>
+      </span>
+      <a class="nav-link p-0 {{ 'active' if active }}" href={{ url_for("dashboard", dbdate=entry.id) }}>{{ entry.display }}</a>
+    </li>
+  {%- set ns.last_month = entry.month -%}
+  {%- endfor -%}
+</ul>
+{% endmacro %}

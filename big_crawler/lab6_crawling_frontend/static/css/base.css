@@ -163,29 +163,27 @@ textarea {
   border-bottom-right-radius: 1rem;
 }
 
-.dashboard .impact-indicator {
+.dashboard .impact-indicator,
+.dashboard .impact-indicator:hover {
+  text-decoration: none;
+  color: inherit;
+}
+
+.dashboard .impact-indicator span:first-child {
   font-size: 5rem;
   line-height: 1.5rem;
 }
 
-.impact-indicator *,
-.impact-indicator *:hover {
-  text-decoration: none;
-  font-size: initial;
-  line-height: normal;
-  color: inherit;
-}
-
 /* use bootstraps color-variables for danger warning and success */
-.impact-indicator.high {
+.impact-indicator.high * {
   color: var(--danger);
 }
 
-.impact-indicator.medium {
+.impact-indicator.medium * {
   color: var(--warning);
 }
 
-.impact-indicator.low {
+.impact-indicator.low * {
   color: var(--success);
 }
 
@@ -208,13 +206,19 @@ textarea {
   color: var(--dashboard-font-color);
 }
 
-.dashboard .overflow-ellipsis {
+.overflow-ellipsis {
   text-overflow: ellipsis;
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
   overflow: hidden;
   max-height: 6rem; 
+}
+
+.overflow-ellipsis-oneline {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .dashboard .progress {

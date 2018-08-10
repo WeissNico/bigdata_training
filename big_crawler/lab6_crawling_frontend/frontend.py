@@ -38,10 +38,8 @@ def search():
 
     search_result = list()
     for doc in data:
-        text = utility.safe_dict_access(doc, ["highlight", "text"],
-                                        None)
-        hl_tags = utility.safe_dict_access(doc, ["highlight", "tags"],
-                                           None)
+        text = utility.safe_dict_access(doc, ["highlight", "text"], None)
+        hl_tags = utility.safe_dict_access(doc, ["highlight", "tags"], None)
         if (text is not None or hl_tags is not None):
             link = utility.safe_dict_access(doc, ["_source", "baseUrl"])
             id = utility.safe_dict_access(doc, ["_id"], "no id")
@@ -108,11 +106,7 @@ def dashboard(dbdate=None):
     # create mockuments :)
     mock.set_seed(db_date)
     documents = mock.get_or_create_documents(db_date, num=None)
-    status_freqs = utility.frequencies(documents, lambda doc: doc["status"])
-    current = mock.create_mock_date(db_date,
-                                    n_open=status_freqs.get("open", 0),
-                                    n_waiting=status_freqs.get("waiting", 0),
-                                    n_finished=status_freqs.get("finished", 0))
+    cur_date = mock.create_mock_date(db_date)
     # create some mock calendar
     calendar = [mock.create_mock_date(d)
                 for d in utility.generate_date_range(db_date)]
@@ -122,11 +116,11 @@ def dashboard(dbdate=None):
     desc = request.args.get("desc", "True").lower() == "true"
 
     documents = utility.sort_documents(documents, sort_key=sort_by, desc=desc)
-    columns = ["type", "impact", "category", "source", "document", "change",
+    columns = ["impact", "type", "category", "source", "document", "change",
                "quantity", "status"]
     return render_template("dashboard.html",
                            calendar=calendar,
-                           current=current,
+                           cur_date=cur_date,
                            documents=documents,
                            columntitles=columns,
                            sort_by=(sort_by, desc))
@@ -160,6 +154,44 @@ def document_set_status(doc_id):
     doc["status"] = status
     mock.set_document(doc_id, doc)
     return jsonify(status=status, success=True)
+
+
+@app.route("/document/<doc_id>/connections")
+def document_connections(doc_id):
+    """Shows the connections of the given document in a dashboard-view.
+
+    Args:
+        doc_id (str): the id of the document, whose connections should be
+            displayed.
+
+    Request Args:
+        sortby (str): category to sort by, defaults to impact.
+        desc (str): whether the search should be descending or ascending,
+            defaults to 'True'.
+    """
+
+    doc = mock.get_document(doc_id)
+    doc_date = date.fromisoformat(doc["date_id"])
+    cur_date = mock.create_mock_date(doc_date)
+    calendar = [mock.create_mock_date(d)
+                for d in utility.generate_date_range(doc_date)]
+    connected = mock.get_or_create_connected(doc_id)
+
+    # create sort order on the documents
+    sort_by = request.args.get("sortby", "impact")
+    desc = request.args.get("desc", "True").lower() == "true"
+
+    connected = utility.sort_documents(connected, sort_key=sort_by, desc=desc)
+    columns = ["date", "type", "category", "source", "document", "impact",
+               "no. of references", "quantity"]
+
+    return render_template("connections.html",
+                           calendar=calendar,
+                           cur_date=cur_date,
+                           cur_doc=doc,
+                           documents=connected,
+                           columntitles=columns,
+                           sort_by=(sort_by, desc))
 
 
 @app.route("/searchdialog")
@@ -274,6 +306,43 @@ def delete_seed():
     elastic.delete_seed(doc_id)
 
     return "delete successfully"
+
+
+@app.template_filter('pluralize')
+def pluralize(number, singular="", plural="s"):
+    """ A pluralize filter for the jinja2 templates.
+
+    Args:
+        number (int): the number.
+
+    Returns:
+        str: the given plural ending for the given number form.
+
+    """
+    if number == 1:
+        return singular
+    else:
+        return plural
+
+
+@app.template_filter('titlecase')
+def titlecase(sentence):
+    """A titlecase filter for the jinja2 templates.
+
+    The standard "title" doesn't quite cut it.
+
+    Args:
+        sentence (str): the word or words that should be titlecased.
+    """
+    def _titlecase(word):
+        if word in special:
+            return word
+        else:
+            return word.title()
+
+    special = ["the", "of", "in", "on", "at", "from"]
+
+    return " ".join(map(_titlecase, sentence.split()))
 
 
 if __name__ == "__main__":

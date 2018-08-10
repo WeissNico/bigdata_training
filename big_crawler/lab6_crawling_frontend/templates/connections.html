@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% import "macros.html" as macros %}
+{% block title %}Sherlock - Connections{% endblock %}
+{% block head %} {{ super() }} {% endblock%}
+{% block sidebar %}
+  {{ macros.dashboards_sidebar(cur_date, calendar) }}
+{% endblock %}
+{% block content %}
+<h1>Impact on {{ documents|length }} Document{{ documents|length|pluralize }}
+  <a class="btn btn-secondary float-right" id="btnReturn" href={{ url_for("dashboard", dbdate=cur_date.id) }}>
+    <span class="fas fa-undo"></span>
+  </a>
+</h1>
+<div class="row">
+  <div class="col-1 text-right">of</div>
+  <div class="col-lg-7 col-md-11 overflow-ellipsis-oneline">
+    <a href={{ url_for("document_download", doc_id=cur_doc.id) }} target="_blank">
+      {{ cur_doc.document }}
+    </a>
+  </div>
+</div>
+<div class="row">
+  <div class="col-1 text-right">from</div>
+  <div class="col-lg-7 col-md-11">
+    <a href={{ url_for("dashboard", dbdate=cur_doc.date_id) }}>
+      {{ cur_doc.display_date }}
+    </a>
+  </div>
+</div>
+{% macro document_table(cur_docs, sort_prefix="new") %}
+<table class="dashboard table table-hover table-responsive-lg">
+  <thead>
+    <tr>
+      {% for title in columntitles %}
+      <th scope="col"> 
+        {% if sort_by[0] == title %}
+          <a href={{ url_for("document_connections", doc_id=cur_doc.id, sortby=title, desc=(not sort_by[1])) }}>
+            {{ title|titlecase }} 
+            <span class="fas fa-sort-{{ 'down' if sort_by[1] else 'up' }}"></span>
+          </a>
+        {% else %}
+          <a href={{ url_for("document_connections", doc_id=cur_doc.id, sortby=title, desc=True) }}>
+            {{ title|titlecase }} 
+            <span class="fas fa-sort"></span>
+          </a>
+        {% endif %}
+      </th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for doc in cur_docs %}
+    <tr>
+      <td>
+        <a href={{ url_for("dashboard", dbdate=doc.date_id) }}>
+          {{ doc.display_date }}
+        </a>
+      </td>
+      <td>{{ doc.type }}</td>
+      <!-- impact indicator -->
+      <td>{{ doc.category }}</td>
+      <!-- source and document links -->
+      <td>
+        <div class="overflow-ellipsis">
+          <a href={{ doc.source }} target="_blank">{{ doc.source }}</a>
+        </div> 
+      </td>
+      <td>
+        <div class="overflow-ellipsis">
+          <a href={{ url_for("document_download", doc_id=doc.id) }} target="_blank">{{ doc.document }}</a>
+        </div>
+      </td>
+      <td>
+        <div class="impact-indicator {{ doc.connections[cur_doc.id].impact }} mt-3">
+          {{ doc.impact|capitalize|first }}
+          </br>
+          <span>{{ doc.impact|capitalize }}</span>
+        </div>
+      </td>
+      <td>
+        <div class="references">
+          <span>{{ doc.connections[cur_doc.id].refs }}</span>
+        </div>
+      </td>
+      <td>
+        <div class="quantity">
+          <span>{{ "{:,}".format(doc.quantity.words) }}</span>
+          <span>words</span>
+        </div>
+        <div class="quantity">
+          <span>{{ "{:,}".format(doc.quantity.lines) }}</span>
+          <span>lines</span>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+{{ document_table(documents) }}
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src={{ url_for("static", filename="js/dashboard.js") }}></script>
+{% endblock %}
