@@ -4,7 +4,11 @@ some objects too feed our frontend with.
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import random
+import calendar
 from collections import OrderedDict
+from datetime import date, timedelta
+
+import utility as ut
 
 TYPES = ["Regulation", "Guideline", "Directive", "FAQ", "Article"]
 IMPACTS = ["high", "medium", "low"]
@@ -84,6 +88,39 @@ def set_document(doc_id, doc):
     MOCK_MEMORY_DB[int(doc_id)] = doc
 
 
+def create_random_date(year=None, month=None, min_date=None, max_date=None):
+    """Creates a random date using the provided constraints.
+
+    Args:
+        year (int): which year this date should be placed in.
+            Defaults to None.
+        month (int): which month this date should be placed in.
+            Defaults to None.
+        min_date (datetime.date): the minimum age this date should become.
+            Defaults to None, which equals one year before today.
+        max_date (datetime.date): the maximum date this date should become.
+            Defaults to None, which equals now.
+
+    Returns:
+        datetime.date: a new random date.
+    """
+    if min_date is None:
+        min_date = date.today() - timedelta(days=365)
+    if max_date is None:
+        max_date = date.today()
+    if year is None:
+        year = random.randint(min_date.year, max_date.year)
+    elif 1970 > year > 2100:
+        raise ValueError(f"Year should lie between 1970 and 2100, not {year}.")
+    if month is None:
+        month = random.randint(min_date.month, max_date.month)
+    elif 1 > year > 12:
+        raise ValueError(f"Month should lie between 1 and 12, not {month}.")
+
+    day = random.randint(1, calendar.monthlen(year, month))
+    return date(year, month, day)
+
+
 def create_mock_date(cur_date, **kwargs):
     """Creates a mocked date object.
 
@@ -94,18 +131,24 @@ def create_mock_date(cur_date, **kwargs):
     Returns:
         dict: some mock date object.
     """
-    doc = {
+    mock_date = {
         "id": cur_date.strftime("%Y-%m-%d"),
         "display": cur_date.strftime("%d/%m/%Y"),
         "month": cur_date.strftime("%m-%Y"),
         "month_display": cur_date.strftime("%B %Y"),
-        "n_open": random.randint(0, 5),
-        "n_waiting": random.randint(0, 5),
-        "n_finished": random.randint(0, 5)
     }
+    # get mocked docs for this date
+    docs = get_documents(cur_date)
+    if docs:
+        freqs = ut.frequencies(docs, key=lambda x: x["status"])
+        for st in ["open", "waiting", "finished"]:
+            mock_date[f"n_{st}"] = freqs.get(st, 0)
+    else:
+        for st in ["open", "waiting", "finished"]:
+            mock_date[f"n_{st}"] = random.randint(0, 5)
 
-    doc.update(kwargs)
-    return doc
+    mock_date.update(kwargs)
+    return mock_date
 
 
 def create_mockument(cur_date, **kwargs):
@@ -127,6 +170,7 @@ def create_mockument(cur_date, **kwargs):
         new_id = keys[-1] + 1
     doc["id"] = new_id
     doc["date_id"] = cur_date.strftime("%Y-%m-%d")
+    doc["display_date"] = cur_date.strftime("%d/%m/%Y")
     doc["new"] = not mod
     doc["type"] = random.choice(TYPES)
     doc["impact"] = random.choice(IMPACTS)
@@ -178,3 +222,52 @@ def get_or_create_documents(cur_date, num):
         for i in range(diff):
             create_mockument(cur_date)
     return get_documents(cur_date)
+
+
+def create_connected_documents(doc_id, num=None):
+    """Creates a random number of connected documents, using all other docs.
+
+    Args:
+        doc_id (str): the current documents id.
+        num (int): the number of random documents.
+            Defaults to None, which means 1-20 documents.
+
+    Returns:
+        list: a list of connected documents, holding the keys:
+            `[date, type, category, source, document, impact,
+            number of references, quantity]`
+    """
+    if num is None:
+        num = random.randint(1, 20)
+    documents = []
+    for i in range(1, num):
+        new_doc = create_mockument(create_random_date())
+        refs = i * random.randint(1, 5)
+        impact = IMPACTS[refs // 100]
+
+        new_doc["connections"] = {
+            doc_id: {
+                "doc_id": doc_id,
+                "refs": refs,
+                "impact": impact
+            }
+        }
+        documents.append(new_doc)
+    return documents
+
+
+def get_or_create_connected(doc_id):
+    """Returns all connected documents or creates some mocked ones.
+
+    Args:
+        doc_id (int): the document whose connections should be found.
+
+    Returns:
+        list: a list of connected documents.
+    """
+    connected = [doc for doc in MOCK_MEMORY_DB.values()
+                 if ut.safe_dict_access(doc, ["connections", "doc_id"], -1)
+                 == doc_id]
+    if not connected:
+        return create_connected_documents(doc_id)
+    return connected
