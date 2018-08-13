@@ -23,7 +23,7 @@
   <div class="col-1 text-right">from</div>
   <div class="col-lg-7 col-md-11">
     <a href={{ url_for("dashboard", dbdate=cur_doc.date_id) }}>
-      {{ cur_doc.display_date }}
+      {{ cur_doc.date|engldate }}
     </a>
   </div>
 </div>
@@ -53,7 +53,7 @@
     <tr>
       <td>
         <a href={{ url_for("dashboard", dbdate=doc.date_id) }}>
-          {{ doc.display_date }}
+          {{ doc.date|engldate }}
         </a>
       </td>
       <td>{{ doc.type }}</td>
@@ -61,45 +61,33 @@
       <td>{{ doc.category }}</td>
       <!-- source and document links -->
       <td>
-        <div class="overflow-ellipsis">
-          <a href={{ doc.source }} target="_blank">{{ doc.source }}</a>
-        </div> 
+        {{ macros.document_entry(doc) }}
       </td>
       <td>
-        <div class="overflow-ellipsis">
-          <a href={{ url_for("document_download", doc_id=doc.id) }} target="_blank">{{ doc.document }}</a>
-        </div>
-      </td>
-      <td>
-        <div class="impact-indicator {{ doc.connections[cur_doc.id].impact }} mt-3">
-          {{ doc.impact|capitalize|first }}
-          </br>
-          <span>{{ doc.impact|capitalize }}</span>
+        <div class="similarity">
+          <span>{{ doc.connections[cur_doc.id].similarity|decimalnumber(3) }}</span>
         </div>
       </td>
       <td>
-        <div class="references">
-          <span>{{ doc.connections[cur_doc.id].refs }}</span>
-        </div>
-      </td>
-      <td>
-        <div class="quantity">
-          <span>{{ "{:,}".format(doc.quantity.words) }}</span>
-          <span>words</span>
-        </div>
-        <div class="quantity">
-          <span>{{ "{:,}".format(doc.quantity.lines) }}</span>
-          <span>lines</span>
-        </div>
+        {{ macros.quantity_entry(doc) }}
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 {% endmacro %}
-{{ document_table(documents) }}
+<div class="row">
+  <div class="col-lg-8 col-md-12">
+    {{ document_table(documents) }}
+  </div>
+  <div class="col-lg-4 col-md-12">
+    <!-- TODO, PDF CANVAS HERE -->
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 {{ super() }}
+<!-- include pdf.js for this page -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.0.550/pdf.js" integrity="sha256-vppQRyCpURzV/wRrRCA8qbMDHsta2Ba1GW3SnQhIYto=" crossorigin="anonymous"></script>
 <script src={{ url_for("static", filename="js/dashboard.js") }}></script>
 {% endblock %}
