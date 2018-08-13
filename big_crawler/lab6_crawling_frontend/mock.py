@@ -21,7 +21,7 @@ SOURCES = ["Inhouse",
            "https://bafin.de/sharedDocs/Veroeffentlichungen/DE",
            "https://bis.org/veroeffentlichungen/download/"]
 DOCUMENTS = ["Anwendung der Richtlinie 2007/64/EG im operativen Geschäft",
-             ("Änderungen im Verfahren durch Inkraftsetyung der Richtlinie "
+             ("Änderungen im Verfahren durch Inkraftsetzung der Richtlinie "
               "(EU) 2015/2366"),
              ("RICHTLINIE (EU) 2015/2366 DES EUROPÄISCHEN PARLAMENTS UND DES "
               "RATES vom 25. November 2015 über Zahlungsdienste im Binnenmarkt"
@@ -62,7 +62,7 @@ def get_documents(cur_date):
         list: a list of documents for the given date
     """
     return [doc for doc in MOCK_MEMORY_DB.values()
-            if doc["date_id"] == cur_date.strftime("%Y-%m-%d")]
+            if doc["date"] == cur_date]
 
 
 def get_document(doc_id):
@@ -74,7 +74,7 @@ def get_document(doc_id):
     Returns:
         dict: a saved document, if existant.
     """
-    doc = MOCK_MEMORY_DB.get(int(doc_id), None)
+    doc = MOCK_MEMORY_DB.get(doc_id, None)
     return doc
 
 
@@ -132,10 +132,7 @@ def create_mock_date(cur_date, **kwargs):
         dict: some mock date object.
     """
     mock_date = {
-        "id": cur_date.strftime("%Y-%m-%d"),
-        "display": cur_date.strftime("%d/%m/%Y"),
-        "month": cur_date.strftime("%m-%Y"),
-        "month_display": cur_date.strftime("%B %Y"),
+        "date": cur_date
     }
     # get mocked docs for this date
     docs = get_documents(cur_date)
@@ -164,13 +161,12 @@ def create_mockument(cur_date, **kwargs):
     mod = random.choice((True, False))
     doc = {}
     # this works because of ordered dict
-    new_id = 0
+    new_id = "0"
     keys = list(MOCK_MEMORY_DB.keys())
     if keys:
-        new_id = keys[-1] + 1
+        new_id = str(int(keys[-1]) + 1)
     doc["id"] = new_id
-    doc["date_id"] = cur_date.strftime("%Y-%m-%d")
-    doc["display_date"] = cur_date.strftime("%d/%m/%Y")
+    doc["date"] = cur_date
     doc["new"] = not mod
     doc["type"] = random.choice(TYPES)
     doc["impact"] = random.choice(IMPACTS)
@@ -238,18 +234,15 @@ def create_connected_documents(doc_id, num=None):
             number of references, quantity]`
     """
     if num is None:
-        num = random.randint(1, 20)
+        num = random.randint(1, 10)
     documents = []
     for i in range(1, num):
         new_doc = create_mockument(create_random_date())
-        refs = i * random.randint(1, 5)
-        impact = IMPACTS[refs // 100]
-
+        similarity = random.random() * 0.7 + 0.3
         new_doc["connections"] = {
             doc_id: {
                 "doc_id": doc_id,
-                "refs": refs,
-                "impact": impact
+                "similarity": similarity
             }
         }
         documents.append(new_doc)
@@ -266,8 +259,7 @@ def get_or_create_connected(doc_id):
         list: a list of connected documents.
     """
     connected = [doc for doc in MOCK_MEMORY_DB.values()
-                 if ut.safe_dict_access(doc, ["connections", "doc_id"], -1)
-                 == doc_id]
+                 if doc_id in ut.safe_dict_access(doc, ["connections"], [])]
     if not connected:
         return create_connected_documents(doc_id)
     return connected

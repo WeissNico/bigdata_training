@@ -24,6 +24,7 @@
     <thead>
       <tr>
         {% for title in columntitles %}
+        {% if title %}
         <th scope="col"> 
           {% if sort_by[0] == title %}
             <a href={{ url_for("dashboard", dbdate=cur_date.id, sortby=title, desc=(not sort_by[1])) }}>
@@ -37,32 +38,29 @@
             </a>
           {% endif %}
         </th>
+        {% else %}
+        <th scope="col"></th>
+        {% endif %}
         {% endfor %}
       </tr>
     </thead>
     <tbody>
       {% for doc in cur_docs %}
-      <tr>
+      <tr data-document={{ doc.id }}>
         <!-- impact indicator -->
         <td>
-          <a class="impact-indicator {{ doc.impact }}" href={{ url_for("document_connections", doc_id=doc.id) }}>
+          <a class="impact-indicator {{ doc.impact }}" href={{ url_for("document_connections", doc_id=doc.id) }} title="Impact on other documents" data-var="impact" data-val={{ doc.impact }}>
             <span>{{ doc.impact|capitalize|first }}</span>
             </br>
             <span>{{ doc.impact|capitalize }}</span>
           </a>
         </td>
-        <td>{{ doc.type }}</td>
-        <td>{{ doc.category }}</td>
+        <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="type" title="The type of this document" data-document={{ doc.id }}>{{ doc.type }}</a></td>
+        <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="category" title="The Category of this document (Who is responsible)" data-document={{ doc.id }}>{{ doc.category }}</a></td>
+        <td><a class="btn btn-outline-secondary btn-block" href="#changeModal" data-toggle="modal" title="Change document's properties" data-document={{ doc.id }}><span class="fas fa-edit"></span></a></td>
         <!-- source and document links -->
         <td>
-          <div class="overflow-ellipsis">
-            <a href={{ doc.source }} target="_blank">{{ doc.source }}</a>
-          </div> 
-        </td>
-        <td>
-          <div class="overflow-ellipsis">
-            <a href={{ url_for("document_download", doc_id=doc.id) }} target="_blank">{{ doc.document }}</a>
-          </div>
+          {{ macros.document_entry(doc) }}
         </td>
         <td>
           {% set max_lines = (doc.change.lines_added, doc.change.lines_removed)|max %}
@@ -71,7 +69,7 @@
             <div class="progress-bar progress-bar-striped bg-success" role="progressbar" 
                  aria-valuenow={{ doc.change.lines_added }} aria-valuemin="0" aria-valuemax={{ max_lines }}
                  style="width: {{ add_width if add_width > 0 else 1 }}%;">
-              + {{ "{:,}".format(doc.change.lines_added) }}
+              + {{ doc.change.lines_added|bignumber }}
             </div>
           </div>
           <div class="progress">
@@ -79,22 +77,15 @@
             <div class="progress-bar progress-bar-striped bg-danger }}" role="progressbar"
                  aria-valuenow={{ doc.change.lines_removed }} aria-valuemin="0" aria-valuemax={{ max_lines }}
                  style="width: {{ rem_width if rem_width > 0 else 1 }}%;">
-              - {{ "{:,}".format(doc.change.lines_removed) }}
+              - {{ doc.change.lines_removed|bignumber }}
             </div>
           </div>
         </td>
         <td>
-          <div class="quantity">
-            <span>{{ "{:,}".format(doc.quantity.words) }}</span>
-            <span>words</span>
-          </div>
-          <div class="quantity">
-            <span>{{ "{:,}".format(doc.quantity.lines) }}</span>
-            <span>lines</span>
-          </div>
+          {{ macros.quantity_entry(doc) }}
         </td>
         <td>
-          <button class="btn dropdown-toggle btn-status" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-val={{ doc.status }}></button>
+          <button class="btn dropdown-toggle btn-status" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-var="status" data-val={{ doc.status }}></button>
           <div class="dropdown-menu dropdown-status">
             <a class="dropdown-item dropdown-item-status" href={{ url_for("document_set_status", doc_id=doc.id, status="open") }}>UNREAD</a>
             <a class="dropdown-item dropdown-item-status" href={{ url_for("document_set_status", doc_id=doc.id, status="waiting") }}>ON HOLD</a>
@@ -115,6 +106,79 @@
 </a></h3>
 <div class="collapse show" id="modDocuments">
   {{ document_table(documents|selectattr("new", "eq", False)) }}
+</div>
+
+<!-- MODAL DIALOGS -->
+<!-- Modal for setting the properties -->
+<div class="modal fade" id="changeModal" tabindex="-1" role="dialog" aria-labelledby="changeModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="changeModalLabel">Edit Document's Properties</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-12 overflow-fade" id="documentTitleLink">
+          </div>
+        </div>
+        <form id="changeDocumentPropertiesForm">
+          <input type="hidden" name="id" id="documentId" value="" />
+          <div class="form-row">
+            <div class="col-md-6 col-sm-12 form-group">
+              <label for="changeImpact"><span class="fas fa-signal"></span> Impact</label>
+              <div class="fakeSelect" id="changeImpact">
+                <input type="hidden" name="impact" id="impactValue" data-display="#currentImpactValue" value="high">
+                <button type="button" class="btn btn-outline-secondary btn-block dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                    <span class="sr-only">Toggle Dropdown</span>
+                    <span id="currentImpactValue">High</span>
+                </button>
+                <div class="dropdown-menu dropdown-modal">
+                  <a class="dropdown-item" href="#" data-val="high">High</a>
+                  <a class="dropdown-item" href="#" data-val="medium">Medium</a>
+                  <a class="dropdown-item" href="#" data-val="low">Low</a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="col-md-6 col-sm-12 form-group">
+              <label for="changeType"><span class="fas fa-bars"></span> Type</label>
+              <div class="fakeSelect" id="changeType">
+                <div class="btn-group btn-block">
+                  <input type="text" class="form-control" name="type" id="typeValue" value="Something"/>
+                  <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-reference="parent">
+                      <span class="sr-only">Toggle Dropdown</span>
+                  </button>
+                  <div class="dropdown-menu dropdown-modal">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 col-sm-12 form-group">
+              <label for="changeCategory"><span class="fas fa-envelope"></span> Category</label>
+              <div class="fakeSelect" id="changeCategory">
+                <div class="btn-group btn-block">
+                  <input type="text" class="form-control" name="category" id="categoryValue" value="Something"/>
+                  <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-reference="parent">
+                      <span class="sr-only">Toggle Dropdown</span>
+                  </button>
+                  <div class="dropdown-menu dropdown-modal">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <a class="btn btn-primary" id="changeDocumentPropertiesButton" href={{ url_for("document_set_properties") }}>Change properties</a>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 {% block scripts %}

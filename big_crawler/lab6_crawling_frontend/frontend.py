@@ -116,7 +116,7 @@ def dashboard(dbdate=None):
     desc = request.args.get("desc", "True").lower() == "true"
 
     documents = utility.sort_documents(documents, sort_key=sort_by, desc=desc)
-    columns = ["impact", "type", "category", "source", "document", "change",
+    columns = ["impact", "type", "category", "", "document", "change",
                "quantity", "status"]
     return render_template("dashboard.html",
                            calendar=calendar,
@@ -135,6 +135,16 @@ def document_download(doc_id):
     """
     # right now, just sends some dummy pdf-file
     return send_file("static/dummy.pdf")
+
+
+@app.route("/document/<doc_id>/")
+def document(doc_id):
+    """Returns a documents detail view.
+
+    Args:
+        doc_id (str): the id of the document to reutrn.
+    """
+    return render_template("document.html")
 
 
 @app.route("/document/<doc_id>/set_status")
@@ -156,6 +166,35 @@ def document_set_status(doc_id):
     return jsonify(status=status, success=True)
 
 
+@app.route("/document/set_properties")
+def document_set_properties():
+    """Should update the properties of the document as saved in the database.
+
+    Request Args:
+        docId (str): the documents id, required.
+        impact (str): the impact of the document.
+        type (str): the type of the document.
+        category (str): the category of the document.
+    """
+    doc_id = request.args.get("id", None)
+    if doc_id is None:
+        return jsonify(success=False)
+    doc = mock.get_document(doc_id)
+    update = {}
+    for item in request.args.items():
+        if item[0] not in doc:
+            # don't allow keys, that weren't there.
+            continue
+        if doc[item[0]] == item[1]:
+            continue
+        if item[0] == "impact" and item[1] not in ["high", "medium", "low"]:
+            continue
+        doc[item[0]] = item[1]
+        update[item[0]] = item[1]
+    mock.set_document(doc_id, doc)
+    return jsonify(success=True, update=update)
+
+
 @app.route("/document/<doc_id>/connections")
 def document_connections(doc_id):
     """Shows the connections of the given document in a dashboard-view.
@@ -170,11 +209,10 @@ def document_connections(doc_id):
             defaults to 'True'.
     """
 
-    doc = mock.get_document(doc_id)
-    doc_date = date.fromisoformat(doc["date_id"])
-    cur_date = mock.create_mock_date(doc_date)
+    doc = mock.get_document(str(doc_id))
+    cur_date = mock.create_mock_date(doc["date"])
     calendar = [mock.create_mock_date(d)
-                for d in utility.generate_date_range(doc_date)]
+                for d in utility.generate_date_range(doc["date"])]
     connected = mock.get_or_create_connected(doc_id)
 
     # create sort order on the documents
@@ -182,9 +220,10 @@ def document_connections(doc_id):
     desc = request.args.get("desc", "True").lower() == "true"
 
     connected = utility.sort_documents(connected, sort_key=sort_by, desc=desc)
-    columns = ["date", "type", "category", "source", "document", "impact",
-               "no. of references", "quantity"]
+    columns = ["date", "type", "category", "document", "similarity",
+               "quantity"]
 
+    print(doc, connected)
     return render_template("connections.html",
                            calendar=calendar,
                            cur_date=cur_date,
@@ -308,8 +347,8 @@ def delete_seed():
     return "delete successfully"
 
 
-@app.template_filter('pluralize')
-def pluralize(number, singular="", plural="s"):
+@app.template_filter("pluralize")
+def filter_pluralize(number, singular="", plural="s"):
     """ A pluralize filter for the jinja2 templates.
 
     Args:
@@ -325,8 +364,8 @@ def pluralize(number, singular="", plural="s"):
         return plural
 
 
-@app.template_filter('titlecase')
-def titlecase(sentence):
+@app.template_filter("titlecase")
+def filter_titlecase(sentence):
     """A titlecase filter for the jinja2 templates.
 
     The standard "title" doesn't quite cut it.
@@ -343,6 +382,110 @@ def titlecase(sentence):
     special = ["the", "of", "in", "on", "at", "from"]
 
     return " ".join(map(_titlecase, sentence.split()))
+
+
+@app.template_filter("bignumber")
+def filter_bignumber(number):
+    """A filter for the jinja2 templates, printing big numbers in format.
+
+    Args:
+        number (number): some big number.
+
+    Returns:
+        str: a formatted number
+    """
+    if number >= 1000000:
+        return f"{number/1000000:.1f} M"
+    elif number >= 1000:
+        return f"{number/1000:.1f} K"
+    else:
+        return f"{number}"
+
+
+@app.template_filter("decimalnumber")
+def filter_decimal(number, places=2):
+    """A filter for the jinja2 templates, printing decimal numbers in format.
+
+    Args:
+        number (number): some big number.
+        places (int): number of places after the comma, defaults to 2.
+
+    Returns:
+        str: a formatted number
+    """
+    return f"{number:.{places}f}"
+
+
+@app.template_filter("domainextract")
+def filter_domainextract(domain):
+    """Extracts the domain name of a complex link.
+
+    Returns the word if domain is not a link.
+
+    Args:
+        domain (str): some link.
+
+    Returns:
+        str: the base domain.
+    """
+    # TODO make this not stupid :)
+    parts = domain.split("/")
+    relevant = [p for p in parts if "." in p]
+    if len(relevant) > 0:
+        return relevant[0]
+    return parts[0]
+
+
+@app.template_filter("isodate")
+def filter_isodate(some_date):
+    """Returns the ISO date format of a given date.
+
+    Args:
+        some_date (datetime.date): the given date object.
+
+    Returns:
+        str: the ISO date (YYYY-MM-DD)
+    """
+    return some_date.strftime("%Y-%m-%d")
+
+
+@app.template_filter("engldate")
+def filter_engldate(some_date):
+    """Returns the english date format of a given date.
+
+    Args:
+        some_date (datetime.date): the given date object.
+
+    Returns:
+        str: the english date (DD/MM/YYYY)
+    """
+    return some_date.strftime("%d/%m/%Y")
+
+
+@app.template_filter("isomonth")
+def filter_isomonth(some_date):
+    """Returns the ISO month format of a given date.
+
+    Args:
+        some_date (datetime.date): the given date object.
+
+    Returns:
+        str: the ISO month (YYYY-MM)
+    """
+    return some_date.strftime("%Y-%m")
+
+
+@app.template_filter("displaymonth")
+def filter_displaymonth(some_date):
+    """Returns a human readable english month format of a given date.
+
+    Args:
+        some_date (datetime.date): the given date object.
+
+    Returns:
+        str: the english date (Month YYYY)
+    """
+    return some_date.strftime("%B %Y")
 
 
 if __name__ == "__main__":

@@ -15,8 +15,8 @@
       otherwise this won't work as expected -#}
   {%- set ns = namespace(last_month=None) %}
   {%- for entry in calendar %}
-    {%- set expand = cur_date.month == entry.month %}
-    {%- if ns.last_month != entry.month %}
+    {%- set expand = cur_date.date|isomonth == entry.date|isomonth %}
+    {%- if ns.last_month != entry.date|isomonth %}
     </div>
     <li class="nav-item">
       <!-- put the badges first, since chrome sometimes treats float-right weirdly -->
@@ -28,18 +28,18 @@
         <span class="data-span" data-var="finished">{{ entry.n_finished }}</span>
       </span>
       <a class="cat-link {{ 'active' if expand }}" data-toggle="collapse"
-        href={{ "#" + entry.month }} aria-expanded={{ expand }}>
+        href={{ "#" + entry.date|isomonth }} aria-expanded={{ expand }}>
         {%- if expand -%}
           <span class="fas fa-caret-down"></span>
         {%- else -%}
           <span class="fas fa-caret-right"></span>
         {%- endif -%}
-        {{- entry.month_display -}}
+        {{- entry.date|displaymonth -}}
       </a>
     </li>
-    <div class="category collapse {{ 'show' if expand }}" id={{ entry.month }}>
+    <div class="category collapse {{ 'show' if expand }}" id={{ entry.date|isomonth }}>
     {%- endif %}
-    {% set active = cur_date.id == entry.id %}
+    {% set active = cur_date.date|isodate == entry.date|isodate %}
     <li class="nav-item">
       <!-- put the badges first, since chrome sometimes treats float-right weirdly -->
       <span class="badge indicator float-right">
@@ -49,9 +49,37 @@
         <span>/</span>
         <span class="data-span" data-var="finished">{{ cur_date.n_finished if active else entry.n_finished }}</span>
       </span>
-      <a class="nav-link p-0 {{ 'active' if active }}" href={{ url_for("dashboard", dbdate=entry.id) }}>{{ entry.display }}</a>
+      <a class="nav-link p-0 {{ 'active' if active }}" href={{ url_for("dashboard", dbdate=entry.date|isodate ) }}>{{ entry.date|engldate }}</a>
     </li>
-  {%- set ns.last_month = entry.month -%}
+  {%- set ns.last_month = entry.date|isomonth -%}
   {%- endfor -%}
 </ul>
+{% endmacro %}
+
+{% macro document_entry(doc) %}
+<div class="document-title text-left">
+  <div class="overflow-fade">
+    <a href={{ url_for( "document", doc_id=doc.id) }} target="_blank" data-var="title">{{ doc.document }}</a>
+  </div>
+  <div class="btn-group mt-1">
+    <a class="btn btn-outline-secondary btn-block" href={{ doc.source }} target="_blank" title="Show source document">
+      <span class="fas fa-{{ 'home' if doc.source|lower == 'inhouse' else 'link' }}"></span>
+      <span>Source: {{ doc.source|domainextract }}</span>
+    </a>
+    <a class="btn btn-outline-secondary" href={{ url_for( "document_download", doc_id=doc.id) }} target="_blank" title="Show saved document">
+      <span class="fas fa-file-pdf"></span>
+    </a>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro quantity_entry(doc) %}
+<div class="quantity" data-var="wordcount">
+  <span>{{ doc.quantity.words|bignumber }}</span>
+  <span>words</span>
+</div>
+<div class="quantity" data-var="linecount">
+  <span>{{ doc.quantity.lines|bignumber }}</span>
+  <span>lines</span>
+</div>
 {% endmacro %}

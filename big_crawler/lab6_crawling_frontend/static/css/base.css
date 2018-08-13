@@ -206,19 +206,10 @@ textarea {
   color: var(--dashboard-font-color);
 }
 
-.overflow-ellipsis {
-  text-overflow: ellipsis;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  word-break: break-word;
-  overflow: hidden;
-  max-height: 6rem; 
-}
-
-.overflow-ellipsis-oneline {
+.overflow-fade {
   text-overflow: ellipsis;
   overflow: hidden;
-  white-space: nowrap;
+  max-height: 3rem; 
 }
 
 .dashboard .progress {
@@ -252,9 +243,20 @@ textarea {
   text-align: left;
 }
 
-.dashboard .btn {
+.dashboard .btn-status {
   border: none;
   border-radius: 0.5rem;
   min-height: 5rem;
   min-width: 7rem;
+}
+
+.table-entry {
+  font-size: 130%;
+  font-weight: bold;
+  color: var(--dashboard-font-color);
+}
+
+.table-entry:hover {
+  color: var(--dashboard-font-color);
+  text-decoration: none;
 }
