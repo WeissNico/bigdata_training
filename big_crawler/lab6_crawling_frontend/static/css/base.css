@@ -260,3 +260,94 @@ textarea {
   color: var(--dashboard-font-color);
   text-decoration: none;
 }
+
+.word-cloud .word.size-1 {
+  font-size: 1rem;
+}
+
+.word-cloud .word.size-2 {
+  font-size: 1.2rem;
+}
+
+.word-cloud .word.size-3 {
+  font-size: 1.4rem;
+}
+
+.word-cloud .word.size-4 {
+  font-size: 1.6rem;
+}
+
+.word-cloud .word.size-5 {
+  font-size: 1.8rem;
+}
+
+.similarity {
+  font-size: 130%;
+  font-weight: bold;
+  color: var(--dashboard-font-color);
+}
+
+.similarity.low {
+  color: var(--danger);
+}
+
+.similarity.medium {
+  color: var(--warning);
+}
+
+.similarity.high {
+  color: var(--success);
+}
+
+.modal-dialog.fullscreen {
+  height: 90%;
+  max-height: 90%;
+  width: 95%;
+  max-width: 95%;
+  padding: 0;
+  margin: 2rem auto;
+}
+
+.modal-dialog.fullscreen .modal-content {
+  height: 100%;
+  width: 100%;
+  margin: 0.5rem;
+}
+
+.modal-dialog.fullscreen .modal-body {
+  display: flex;
+}
+
+.pdf-sidepane {
+  position: relative;
+  padding: 0.5rem 0;
+  width: 100%;
+}
+
+@supports ((position: -webkit-sticky) or (position: sticky)) {
+  .pdf-sidepane {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 4rem;
+  }
+}
+
+.aspect-container {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  padding: 0 0 145% 0;
+  border: 1px solid var(--dashboard-font-color);
+}
+
+.aspect-container > .aspect-clear {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pdf-fullscreen {
+  flex: 1;
+}

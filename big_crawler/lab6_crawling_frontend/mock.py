@@ -4,7 +4,6 @@ some objects too feed our frontend with.
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import random
-import calendar
 from collections import OrderedDict
 from datetime import date, timedelta
 
@@ -42,6 +41,13 @@ DOCUMENTS = ["Anwendung der Richtlinie 2007/64/EG im operativen Geschäft",
               "Verordnung (EU) Nr. 646/2012"),
              ("Principles for effective risk data aggregation and risk "
               "reporting")]
+WORDS = ["management", "aggregation", "principle", "bank", "Verordnung",
+         "Richtlinie", "Kredite", "Risko", "risk", "Zahlungsdienstleister",
+         "Mitgliedsstaaten", "Europäische Union", "european", "Zahler",
+         "Zahlungsdienstnutzer", "Artikel", "Kommission", "Verordnung",
+         "Vorhaben", "Wertpapierrecht", "Kapitalmarkt", "Richtlinienvorschlag",
+         "Bankaufsichtsrecht", "Aufsichtsrat", "Aufsichtsbehörden", "credits",
+         "securities", "national", "international"]
 STATUS = ["open", "waiting", "finished"]
 
 MOCK_MEMORY_DB = OrderedDict()
@@ -69,7 +75,7 @@ def get_document(doc_id):
     """Returns a mockument with a given id.
 
     Args:
-        doc_id (int): the documents id.
+        doc_id (str): the documents id.
 
     Returns:
         dict: a saved document, if existant.
@@ -82,20 +88,16 @@ def set_document(doc_id, doc):
     """Sets a mockument to a given id.
 
     Args:
-        doc_id (int): the documents id.
+        doc_id (str): the documents id.
         doc (dict): the new document.
     """
-    MOCK_MEMORY_DB[int(doc_id)] = doc
+    MOCK_MEMORY_DB[doc_id] = doc
 
 
-def create_random_date(year=None, month=None, min_date=None, max_date=None):
+def create_random_date(min_date=None, max_date=None):
     """Creates a random date using the provided constraints.
 
     Args:
-        year (int): which year this date should be placed in.
-            Defaults to None.
-        month (int): which month this date should be placed in.
-            Defaults to None.
         min_date (datetime.date): the minimum age this date should become.
             Defaults to None, which equals one year before today.
         max_date (datetime.date): the maximum date this date should become.
@@ -104,21 +106,16 @@ def create_random_date(year=None, month=None, min_date=None, max_date=None):
     Returns:
         datetime.date: a new random date.
     """
+    YEAR = timedelta(days=365)
+
     if min_date is None:
-        min_date = date.today() - timedelta(days=365)
+        min_date = date.today() - YEAR
     if max_date is None:
         max_date = date.today()
-    if year is None:
-        year = random.randint(min_date.year, max_date.year)
-    elif 1970 > year > 2100:
-        raise ValueError(f"Year should lie between 1970 and 2100, not {year}.")
-    if month is None:
-        month = random.randint(min_date.month, max_date.month)
-    elif 1 > year > 12:
-        raise ValueError(f"Month should lie between 1 and 12, not {month}.")
 
-    day = random.randint(1, calendar.monthlen(year, month))
-    return date(year, month, day)
+    delta = max_date - min_date
+    days = random.randint(0, delta.days)
+    return (min_date + timedelta(days=days))
 
 
 def create_mock_date(cur_date, **kwargs):
@@ -186,6 +183,19 @@ def create_mockument(cur_date, **kwargs):
     doc["change"] = {"lines_added": num_lines_add,
                      "lines_removed": num_lines_rem}
     doc["status"] = random.choice(STATUS)
+    # make up some frequent words for the word cloud
+    words = {}
+    for i in range(random.randrange(50, 100)):
+        word = random.choice(WORDS)
+        freq = words.get(word, 0)
+        words[word] = freq + 1
+    minimum = 1
+    maximum = max(words.values())
+    if maximum > 1:
+        words = {w: (v - minimum) / (maximum - minimum)
+                 for w, v in words.items()}
+
+    doc["words"] = words
 
     # put in the remaining kwargs
     doc.update(kwargs)

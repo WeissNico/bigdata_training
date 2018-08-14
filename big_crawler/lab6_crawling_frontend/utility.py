@@ -9,15 +9,38 @@ from datetime import date, timedelta
 
 ORDER_STATUS = {"open": 2, "waiting": 1, "finished": 0}
 ORDER_IMPACT = {"high": 2, "medium": 1, "low": 0}
+
+
+def _fw(func):
+    """Stupid consumer for unused kwargs."""
+    def _kw_consumer(**kwargs):
+        return func
+    return _kw_consumer
+
+
+def _get_similarity(other_doc="0", **kwargs):
+    """Function to extract the similarity.
+
+    Args:
+        other_doc (str): the id of the document for comparison.
+        **kwargs (dict): kwargs that will be consumed silently.
+    """
+    def _similarity_access(doc):
+        return safe_dict_access(doc, ["connections", other_doc, "similarity"])
+    return _similarity_access
+
+
 SORT_KEYS = {
-    "type": lambda doc: doc["type"],
-    "impact": lambda doc: ORDER_IMPACT[doc["impact"]],
-    "category": lambda doc: doc["category"],
-    "source": lambda doc: doc["source"],
-    "document": lambda doc: doc["document"],
-    "change": lambda doc: doc["change"]["lines_added"],
-    "quantity": lambda doc: doc["quantity"]["words"],
-    "status": lambda doc: ORDER_STATUS[doc["status"]]
+    "date": _fw(lambda doc: doc["date"]),
+    "type": _fw(lambda doc: doc["type"]),
+    "impact": _fw(lambda doc: ORDER_IMPACT[doc["impact"]]),
+    "category": _fw(lambda doc: doc["category"]),
+    "source": _fw(lambda doc: doc["source"]),
+    "document": _fw(lambda doc: doc["document"]),
+    "change": _fw(lambda doc: doc["change"]["lines_added"]),
+    "quantity": _fw(lambda doc: doc["quantity"]["words"]),
+    "similarity": _get_similarity,
+    "status": _fw(lambda doc: ORDER_STATUS[doc["status"]])
 }
 
 
@@ -74,7 +97,7 @@ def generate_date_range(incl_date=None, desc=True):
     yield end
 
 
-def sort_documents(documents, sort_key=None, desc=True):
+def sort_documents(documents, sort_key=None, desc=True, **kwargs):
     """Sorts the documents given by a provided sort key.
 
     Uses the sort key mapping as defined in `utility.SORT_KEYS`.
@@ -84,6 +107,7 @@ def sort_documents(documents, sort_key=None, desc=True):
         sort_key (str): a string for sorting, as present in `utility.SORT_KEYS`
             Defaults to None, which will just return documents.
         desc (bool): whether the list should be descending or not.
+        **kwargs (dict): keyword args, that might be consumed by the sortfunc.
 
     Returns:
         list: the documents in a returned fashion.
@@ -93,7 +117,7 @@ def sort_documents(documents, sort_key=None, desc=True):
     if sort_func is None:
         return documents
 
-    return sorted(documents, key=sort_func, reverse=desc)
+    return sorted(documents, key=sort_func(**kwargs), reverse=desc)
 
 
 def safe_dict_access(dictionary, keys, default=None):
