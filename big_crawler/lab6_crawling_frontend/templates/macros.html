@@ -59,7 +59,7 @@
 {% macro document_entry(doc) %}
 <div class="document-title text-left">
   <div class="overflow-fade">
-    <a href={{ url_for( "document", doc_id=doc.id) }} target="_blank" data-var="title">{{ doc.document }}</a>
+    <a href={{ url_for( "document", doc_id=doc.id) }} target="_blank" title="{{ doc.document }}" data-var="title">{{ doc.document }}</a>
   </div>
   <div class="btn-group mt-1">
     <a class="btn btn-outline-secondary btn-block" href={{ doc.source }} target="_blank" title="Show source document">
@@ -82,4 +82,33 @@
   <span>{{ doc.quantity.lines|bignumber }}</span>
   <span>lines</span>
 </div>
+{% endmacro %}
+
+{% macro back_button(doc_id) %}
+<a class="btn btn-secondary float-right" id="btnReturn" href="{{ url_for('dashboard', dbdate=doc_id) }}">
+  <span class="fas fa-long-arrow-alt-left"></span>
+</a>
+{% endmacro %}
+
+{% macro word_cloud(word_freqs) %}
+<div class="word-cloud card mt-2" id="wordCloud">
+  <h5 class="card-header">Word cloud</h5>
+  <div class="card-body lead">
+  {% for word, freq in word_freqs.items() %}
+    <span class="word size-{{ freq|from(0, 1)|to(1, 5) }}">
+      {{ word }}
+    </span>
+  {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro include_pdf(doc_id) %}
+<object class="pdf-container" data="{{ url_for('document_download', doc_id=doc_id) }}"
+        type="application/pdf" width="100%" height="100%" data-base-url="{{ url_for('document_download', doc_id=doc_id) }}">
+  This browser does not support PDFs. Please download the PDF to view it:
+  <a href="{{ url_for('document_download', doc_id=doc_id) }}">
+    <span class="fas fa-file-pdf"></span> Download PDF
+  </a>
+</object>
 {% endmacro %}

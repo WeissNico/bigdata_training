@@ -209,21 +209,20 @@ def document_connections(doc_id):
             defaults to 'True'.
     """
 
-    doc = mock.get_document(str(doc_id))
+    doc = mock.get_document(doc_id)
     cur_date = mock.create_mock_date(doc["date"])
     calendar = [mock.create_mock_date(d)
                 for d in utility.generate_date_range(doc["date"])]
     connected = mock.get_or_create_connected(doc_id)
 
     # create sort order on the documents
-    sort_by = request.args.get("sortby", "impact")
+    sort_by = request.args.get("sortby", "similarity")
     desc = request.args.get("desc", "True").lower() == "true"
 
-    connected = utility.sort_documents(connected, sort_key=sort_by, desc=desc)
-    columns = ["date", "type", "category", "document", "similarity",
-               "quantity"]
+    connected = utility.sort_documents(connected, sort_key=sort_by, desc=desc,
+                                       other_doc=doc_id)
+    columns = ["date", "type", "document", "quantity", "similarity"]
 
-    print(doc, connected)
     return render_template("connections.html",
                            calendar=calendar,
                            cur_date=cur_date,
@@ -486,6 +485,61 @@ def filter_displaymonth(some_date):
         str: the english date (Month YYYY)
     """
     return some_date.strftime("%B %Y")
+
+
+@app.template_filter("from")
+def filter_from(number, minimum=0, maximum=1):
+    """Returns a dict holding the clip number, it's minimum and it's maximum.
+
+    Args:
+        number (float): the number to assess.
+        minimum (float): the minimum value for the number.
+        maximum (float): the maximum value for the number.
+
+    Returns:
+        dict: a dict with the keys: `number`, `minimum` and `maximum`.
+    """
+    ret = {
+        "minimum": minimum,
+        "maximum": maximum
+    }
+    if number < minimum:
+        ret["number"] = minimum
+    elif number > maximum:
+        ret["number"] = maximum
+    else:
+        ret["number"] = number
+    return ret
+
+
+@app.template_filter("to")
+def filter_to(obj, start_or_list, end=None):
+    """Returns a dict holding the clip number, it's minimum and it's maximum.
+
+    Args:
+        obj (dict): a dict holding a number, and it's range, as returned by
+            `from`.
+        start_or_list (int or list): either a number, as start of a range,
+            or an iterable.
+        end (int): the end of a range (included).
+
+    Returns:
+        object: the object onto which the `obj["number"]` was mapped.
+    """
+    mapping = start_or_list
+    if end is not None:
+        mapping = list(range(start_or_list, end + 1))
+
+    delta = obj["maximum"] - obj["minimum"]
+    length = len(mapping)
+    baskets = [obj["minimum"] + (i+1) * (delta/length) for i in range(length)]
+
+    print(baskets)
+    for basket, mapped in zip(baskets, mapping):
+        if obj["number"] < basket:
+            return mapped
+    # this case should normally not match, but just in case...
+    return mapping[-1]
 
 
 if __name__ == "__main__":

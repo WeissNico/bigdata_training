@@ -7,14 +7,12 @@
 {% endblock %}
 {% block content %}
 <h1>Impact on {{ documents|length }} Document{{ documents|length|pluralize }}
-  <a class="btn btn-secondary float-right" id="btnReturn" href={{ url_for("dashboard", dbdate=cur_date.id) }}>
-    <span class="fas fa-undo"></span>
-  </a>
+  {{ macros.back_button(cur_doc.date|isodate) }}
 </h1>
 <div class="row">
   <div class="col-1 text-right">of</div>
-  <div class="col-lg-7 col-md-11 overflow-ellipsis-oneline">
-    <a href={{ url_for("document_download", doc_id=cur_doc.id) }} target="_blank">
+  <div class="col-lg-7 col-md-11 overflow-fade">
+    <a href={{ url_for("document_download", doc_id=cur_doc.id) }} target="_blank" title="{{ cur_doc.document }}">
       {{ cur_doc.document }}
     </a>
   </div>
@@ -22,9 +20,14 @@
 <div class="row">
   <div class="col-1 text-right">from</div>
   <div class="col-lg-7 col-md-11">
-    <a href={{ url_for("dashboard", dbdate=cur_doc.date_id) }}>
+    <a href={{ url_for("dashboard", dbdate=cur_doc.date|isodate) }}>
       {{ cur_doc.date|engldate }}
     </a>
+  </div>
+</div>
+<div class="row">
+  <div class="col-12">
+    {{ macros.word_cloud(cur_doc.words) }}
   </div>
 </div>
 {% macro document_table(cur_docs, sort_prefix="new") %}
@@ -50,26 +53,26 @@
   </thead>
   <tbody>
     {% for doc in cur_docs %}
-    <tr>
+    <tr data-document="{{ doc.id }}">
       <td>
-        <a href={{ url_for("dashboard", dbdate=doc.date_id) }}>
+        <a href="{{ url_for('dashboard', dbdate=doc.date|isodate) }}">
           {{ doc.date|engldate }}
         </a>
       </td>
-      <td>{{ doc.type }}</td>
-      <!-- impact indicator -->
-      <td>{{ doc.category }}</td>
+      <td><span class="table-entry">{{ doc.type }}</span></td>
       <!-- source and document links -->
       <td>
         {{ macros.document_entry(doc) }}
       </td>
-      <td>
-        <div class="similarity">
-          <span>{{ doc.connections[cur_doc.id].similarity|decimalnumber(3) }}</span>
-        </div>
-      </td>
+      <!-- quantity -->
       <td>
         {{ macros.quantity_entry(doc) }}
+      </td>
+      <!-- similarity measure -->
+      <td>
+        <div class="similarity {{ doc.connections[cur_doc.id].similarity|from(0, 1)|to(['low', 'medium', 'high']) }}">
+          <span>{{ doc.connections[cur_doc.id].similarity|decimalnumber(3) }}</span>
+        </div>
       </td>
     </tr>
     {% endfor %}
@@ -82,12 +85,40 @@
   </div>
   <div class="col-lg-4 col-md-12">
     <!-- TODO, PDF CANVAS HERE -->
+    <div class="pdf-sidepane">
+      <button class="btn btn-secondary btn-block py-2 my-2" data-toggle="modal" data-target="#fullscreenModal" data-document="0">
+        <span class="fas fa-expand-arrows-alt"></span> Fullscreen
+      </button>
+      <div class="aspect-container">
+        <div class="aspect-clear">
+        {{ macros.include_pdf("0") }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DIALOGS -->
+<div class="modal fade" id="fullscreenModal" tabindex="-1" role="dialog" aria-labelledby="fullscreenModalLabel" aria-hidden="true">
+  <div class="modal-dialog fullscreen" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="fullscreenModalLabel">Fullscreen PDF</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="pdf-fullscreen">
+          {{ macros.include_pdf("0") }}
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
 {{ super() }}
-<!-- include pdf.js for this page -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.0.550/pdf.js" integrity="sha256-vppQRyCpURzV/wRrRCA8qbMDHsta2Ba1GW3SnQhIYto=" crossorigin="anonymous"></script>
 <script src={{ url_for("static", filename="js/dashboard.js") }}></script>
+<script src={{ url_for("static", filename="js/connections.js") }}></script>
 {% endblock %}
