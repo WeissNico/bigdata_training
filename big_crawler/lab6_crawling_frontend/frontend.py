@@ -10,6 +10,7 @@ from settings import (ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORT,
 from elastic import Elastic
 import utility
 import mock
+import diff
 
 
 es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
@@ -147,6 +148,81 @@ def document(doc_id):
     return render_template("document.html")
 
 
+@app.route("/document/<doc_id>/connections")
+def document_connections(doc_id):
+    """Shows the connections of the given document in a dashboard-view.
+
+    Args:
+        doc_id (str): the id of the document, whose connections should be
+            displayed.
+
+    Request Args:
+        sortby (str): category to sort by, defaults to impact.
+        desc (str): whether the search should be descending or ascending,
+            defaults to 'True'.
+    """
+    doc = mock.get_document(doc_id)
+    cur_date = mock.create_mock_date(doc["date"])
+    calendar = [mock.create_mock_date(d)
+                for d in utility.generate_date_range(doc["date"])]
+    connected = mock.get_or_create_connected(doc_id)
+
+    # create sort order on the documents
+    sort_by = request.args.get("sortby", "similarity")
+    desc = request.args.get("desc", "True").lower() == "true"
+
+    connected = utility.sort_documents(connected, sort_key=sort_by, desc=desc,
+                                       other_doc=doc_id)
+    columns = ["date", "type", "document", "quantity", "similarity"]
+
+    return render_template("connections.html",
+                           calendar=calendar,
+                           cur_date=cur_date,
+                           cur_doc=doc,
+                           documents=connected,
+                           columntitles=columns,
+                           sort_by=(sort_by, desc))
+
+
+@app.route("/document/<doc_id>/diff")
+def document_diff(doc_id):
+    """Displays the diff views for the given document.
+
+    Provides a possibility to set the version of the document, to compare to.
+
+    Args:
+        doc_id (str): the id of the document, which should be compared
+            to another.
+
+    Request Args:
+        compare_to (str): the id of the other document which should be in the
+            comparison.
+    """
+    doc = mock.get_document(doc_id)
+    cur_date = mock.create_mock_date(doc["date"])
+    calendar = [mock.create_mock_date(d)
+                for d in utility.generate_date_range(doc["date"])]
+
+    versions = mock.get_or_create_versions(doc_id)
+    compare_to = request.args.get("compare_to", None)
+    other = None
+    # when nothing is given for comparison, take the latest document
+    if compare_to is None:
+        other = sorted(versions, key=lambda x: x["date"], reverse=True)[0]
+    else:
+        # otherwise get the one with the right id
+        other = [d for d in versions if d["id"] == compare_to][0]
+    diffs = diff.get_unified_diff(doc, other)
+
+    return render_template("diff.html",
+                           calendar=calendar,
+                           cur_date=cur_date,
+                           cur_doc=doc,
+                           other_doc=other,
+                           versions=versions,
+                           diff_texts=diffs)
+
+
 @app.route("/document/<doc_id>/set_status")
 def document_set_status(doc_id):
     """Should update the status of the document as saved in the database.
@@ -193,43 +269,6 @@ def document_set_properties():
         update[item[0]] = item[1]
     mock.set_document(doc_id, doc)
     return jsonify(success=True, update=update)
-
-
-@app.route("/document/<doc_id>/connections")
-def document_connections(doc_id):
-    """Shows the connections of the given document in a dashboard-view.
-
-    Args:
-        doc_id (str): the id of the document, whose connections should be
-            displayed.
-
-    Request Args:
-        sortby (str): category to sort by, defaults to impact.
-        desc (str): whether the search should be descending or ascending,
-            defaults to 'True'.
-    """
-
-    doc = mock.get_document(doc_id)
-    cur_date = mock.create_mock_date(doc["date"])
-    calendar = [mock.create_mock_date(d)
-                for d in utility.generate_date_range(doc["date"])]
-    connected = mock.get_or_create_connected(doc_id)
-
-    # create sort order on the documents
-    sort_by = request.args.get("sortby", "similarity")
-    desc = request.args.get("desc", "True").lower() == "true"
-
-    connected = utility.sort_documents(connected, sort_key=sort_by, desc=desc,
-                                       other_doc=doc_id)
-    columns = ["date", "type", "document", "quantity", "similarity"]
-
-    return render_template("connections.html",
-                           calendar=calendar,
-                           cur_date=cur_date,
-                           cur_doc=doc,
-                           documents=connected,
-                           columntitles=columns,
-                           sort_by=(sort_by, desc))
 
 
 @app.route("/searchdialog")
@@ -401,6 +440,21 @@ def filter_bignumber(number):
         return f"{number}"
 
 
+@app.template_filter("sign")
+def filter_sign(number):
+    """A filter for the jinja2 templates, printing just the sign of a number.
+
+    Args:
+        number (number): some number.
+
+    Returns:
+        str: either '+' or '-' dependent on the number.
+    """
+    if number < 0:
+        return "-"
+    return "+"
+
+
 @app.template_filter("decimalnumber")
 def filter_decimal(number, places=2):
     """A filter for the jinja2 templates, printing decimal numbers in format.
@@ -534,7 +588,6 @@ def filter_to(obj, start_or_list, end=None):
     length = len(mapping)
     baskets = [obj["minimum"] + (i+1) * (delta/length) for i in range(length)]
 
-    print(baskets)
     for basket, mapped in zip(baskets, mapping):
         if obj["number"] < basket:
             return mapped

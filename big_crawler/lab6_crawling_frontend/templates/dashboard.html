@@ -63,23 +63,7 @@
           {{ macros.document_entry(doc) }}
         </td>
         <td>
-          {% set max_lines = (doc.change.lines_added, doc.change.lines_removed)|max %}
-          <div class="progress">
-            {% set add_width = doc.change.lines_added / max_lines * 100|int %}
-            <div class="progress-bar progress-bar-striped bg-success" role="progressbar" 
-                 aria-valuenow={{ doc.change.lines_added }} aria-valuemin="0" aria-valuemax={{ max_lines }}
-                 style="width: {{ add_width if add_width > 0 else 1 }}%;">
-              + {{ doc.change.lines_added|bignumber }}
-            </div>
-          </div>
-          <div class="progress">
-            {% set rem_width = doc.change.lines_removed / max_lines * 100|int %}
-            <div class="progress-bar progress-bar-striped bg-danger }}" role="progressbar"
-                 aria-valuenow={{ doc.change.lines_removed }} aria-valuemin="0" aria-valuemax={{ max_lines }}
-                 style="width: {{ rem_width if rem_width > 0 else 1 }}%;">
-              - {{ doc.change.lines_removed|bignumber }}
-            </div>
-          </div>
+          {{ macros.change_entry(doc) }}
         </td>
         <td>
           {{ macros.quantity_entry(doc) }}

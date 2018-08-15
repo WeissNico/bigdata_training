@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "macros.html" as macros %}
+{% block title %}Sherlock - Modifications{% endblock %}
+{% block head %} {{ super() }} {% endblock%}
+{% block sidebar %}
+  {{ macros.dashboards_sidebar(cur_date, calendar) }}
+{% endblock %}
+{% block content %}
+<h1>Modifications
+  {{ macros.back_button(cur_doc.date|isodate) }}
+</h1>
+<div class="row">
+  <div class="col-1 text-right">of</div>
+  <div class="col-lg-7 col-md-11 overflow-fade">
+    <a href={{ url_for("document_download", doc_id=cur_doc.id) }} target="_blank" title="{{ cur_doc.document }}">
+      {{ cur_doc.document }}
+    </a>
+  </div>
+</div>
+<div class="row">
+  <div class="col-1 text-right">from</div>
+  <div class="col-lg-7 col-md-11">
+    <a href={{ url_for("dashboard", dbdate=cur_doc.date|isodate) }}>
+      {{ cur_doc.date|engldate }}
+    </a>
+  </div>
+</div>
+{{ macros.diff_view(diff_texts) }}
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src={{ url_for("static", filename="js/dashboard.js") }}></script>
+{% endblock %}

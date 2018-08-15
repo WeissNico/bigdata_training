@@ -4,6 +4,7 @@ some objects too feed our frontend with.
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import random
+import os
 from collections import OrderedDict
 from datetime import date, timedelta
 
@@ -240,8 +241,6 @@ def create_connected_documents(doc_id, num=None):
 
     Returns:
         list: a list of connected documents, holding the keys:
-            `[date, type, category, source, document, impact,
-            number of references, quantity]`
     """
     if num is None:
         num = random.randint(1, 10)
@@ -263,7 +262,7 @@ def get_or_create_connected(doc_id):
     """Returns all connected documents or creates some mocked ones.
 
     Args:
-        doc_id (int): the document whose connections should be found.
+        doc_id (str): the document whose connections should be found.
 
     Returns:
         list: a list of connected documents.
@@ -273,3 +272,94 @@ def get_or_create_connected(doc_id):
     if not connected:
         return create_connected_documents(doc_id)
     return connected
+
+
+def add_text_to_doc(doc_id, fname, folder=None):
+    """Adds a text to a given document and saves it in the memory-db.
+
+    Args:
+        doc_id (str): the document, to which the text should be added.
+        fname (str): the name of the file containing the text.
+        folder (str): the folder of the file. Defaults to None, which points to
+            'lab6_crawling_frontend'.
+
+    Returns:
+        dict: the updated document.
+    """
+    if folder is None:
+        folder = os.path.join("big_crawler", "lab6_crawling_frontend")
+
+    content = None
+    with open(os.path.join(folder, fname), "r") as fl:
+        content = fl.read()
+    doc = get_document(doc_id)
+    doc["text"] = content
+    set_document(doc_id, doc)
+    return doc
+
+
+def create_versions(doc_id, num=None):
+    """Creates a random number of previous document versions.
+
+    Args:
+        doc_id (str): the document, for which the previous versions should be
+            created.
+        num (int): the number of random documents.
+            Defaults to None, which means 1-4 documents.
+
+    Returns:
+        list: a list of documents which share the same title, source and type
+    """
+    doc = get_document(doc_id)
+
+    start = doc["date"]
+    end = None
+    if not doc["new"]:
+        start = None
+        end = doc["date"]
+
+    # a NEW document from today can't have previous versions.
+    if start == date.today():
+        return []
+
+    if num is None:
+        num = random.randint(1, 4)
+
+    documents = []
+    for i in range(num):
+        new_doc = create_mockument(create_random_date(min_date=start,
+                                                      max_date=end),
+                                   document=doc["document"],
+                                   type=doc["type"], source=doc["source"],
+                                   new=False)
+        add_text_to_doc(new_doc["id"], "dummy_text_mod.txt")
+        documents.append(new_doc)
+    # not completely correct, since all docs are marked as modified...
+    return documents
+
+
+def get_or_create_versions(doc_id):
+    """Returns all documents, that have the same title, source and type.
+
+    Args:
+        doc_id (str): the id of the document, whose versions should be found.
+
+    Returns:
+        list: a list of documents, which are versions of each other.
+    """
+    def _filter_func(cur_doc):
+        def _func(doc):
+            return ((doc["document"] == cur_doc["document"]) and
+                    (doc["source"] == cur_doc["source"]) and
+                    (doc["type"] == cur_doc["type"]) and
+                    (doc["id"] != cur_doc["id"]))
+        return _func
+
+    cur_doc = add_text_to_doc(doc_id, "dummy_text.txt")
+    docs = [add_text_to_doc(did, "dummy_text_mod.txt")
+            for did, doc in MOCK_MEMORY_DB.items()
+            if _filter_func(cur_doc)(doc)]
+
+    if not docs:
+        docs = create_versions(doc_id)
+    return docs

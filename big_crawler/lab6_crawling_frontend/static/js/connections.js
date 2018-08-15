@@ -14,7 +14,7 @@ function changePDF(event, docId) {
     // assume 'object', change on 'iframe'
     var baseUrl = $(this).data("base-url");
     $(this).prop("data", baseUrl.replace("0", docId));
-    $(this).children("a").prop("href", baseUrl.replace("0", docId));
+    $(this).descendants("a").prop("href", baseUrl.replace("0", docId));
 }
 
 $(".pdf-container").on("custom.change.pdf", changePDF);
