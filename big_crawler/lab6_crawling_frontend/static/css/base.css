@@ -5,6 +5,10 @@
   --dashboard-font-color: #000;
   --dashboard-highlight-color: #333;
   --dashboard-inactive-color: var(--sidebar-inactive-color);
+  --diff-border-color: #555;
+  --diff-crossout-color: rgba(136, 136, 136, 0.425);
+  --diff-highlight-left-color: rgba(63, 199, 63, 0.349);
+  --diff-highlight-right-color: rgba(255, 88, 88, 0.411);
 }
 
 .margin-top, .padding-top {
@@ -225,6 +229,11 @@ textarea {
   color: var(--dashboard-font-color);
 }
 
+.click-wrapper,
+.click-wrapper:hover {
+  text-decoration: none;
+}
+
 .dashboard .quantity {
   white-space: nowrap;
   text-align: right;
@@ -350,4 +359,26 @@ textarea {
 
 .pdf-fullscreen {
   flex: 1;
+}
+
+.diff {
+  font-family: monospace;
+}
+
+.diff .diff-number {
+  text-align: right;
+  min-width: 3rem;
+  border-right: 1px solid var(--diff-border-color);
+}
+
+.diff.diff-left .highlight {
+  background-color: var(--diff-highlight-left-color);
+}
+
+.diff.diff-right .highlight {
+  background-color: var(--diff-highlight-right-color);
+}
+
+.diff .crossout {
+  background-color: var(--diff-crossout-color);
 }
