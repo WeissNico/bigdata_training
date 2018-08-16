@@ -22,12 +22,12 @@ class Elastic():
         #    'text': 'Elasticsearch: cool. bonsai cool.',
         #    'timestamp': datetime.now(),
         #}
-        res = self.es.index(index="testcase", doc_type='nutch', id=doc_id, body=doc)
+        res = self.es.index(index="eurlex", doc_type='nutch', id=doc_id, body=doc)
 
         return res
 
 
+    def exist_document(self, baseUrl, hash):
+        result = self.es.search(index="eurlex", body={"query": {"bool": {"should": [{"match": {"baseUrl.keyword": baseUrl}},{"match": {"hash.keyword": hash}}]}}, "_source": ["baseUrl", "hash", "version"]})
+        return result['hits']['total']
 
-
-
-#res = es1.indices.delete(index='test', ignore=[400, 404])

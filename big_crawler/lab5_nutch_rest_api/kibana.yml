@@ -38,7 +38,7 @@ items:
             - name: "ELASTICSEARCH_USERNAME"
               value: "admin"              
             - name: "ELASTICSEARCH_PASSWORD"
-              value: "RYZUAYORFMEGJRCT" 
+              value: "RYZUAYORFMEGJRCT"            
             ports:
               - containerPort: 5601
                 name: http

@@ -46,11 +46,8 @@ for name, url in names_urls:
             pdf.close()
             print("Download: "+url)
 
-
         except:
             continue
-
-
 
     else:
         print(url)
