@@ -56,10 +56,22 @@
 </ul>
 {% endmacro %}
 
+{% macro document_link(doc) %}
+<a href="{{ url_for('document', doc_id=doc.id) }}" title="{{ doc.document }}" data-var="title">
+  {{ doc.document }}
+</a>
+{% endmacro %}
+
+{% macro dashboard_link(doc) %}
+<a href="{{ url_for('dashboard', dbdate=doc.date|isodate) }}" title="Dashboard {{ doc.date|engldate }}">
+  {{ doc.date|engldate }}
+</a>
+{% endmacro %}
+
 {% macro document_entry(doc) %}
 <div class="document-title text-left">
   <div class="overflow-fade">
-    <a href={{ url_for( "document", doc_id=doc.id) }} target="_blank" title="{{ doc.document }}" data-var="title">{{ doc.document }}</a>
+    {{ document_link(doc) }}
   </div>
   <div class="btn-group mt-1">
     <a class="btn btn-outline-secondary btn-block" href={{ doc.source }} target="_blank" title="Show source document">
@@ -86,27 +98,59 @@
 
 {% macro change_entry(doc) %}
 {% set max_lines = (doc.change.lines_added, doc.change.lines_removed)|max %}
-<a class="click-wrapper" href="{{ url_for('document_diff', doc_id=doc.id) }}">
+<a class="click-wrapper" href="{{ url_for('document_diff', doc_id=doc.id) if not doc.new else '#'}}">
   {{ progress_bar(doc.change.lines_added, max_lines) }}
   {{ progress_bar(-doc.change.lines_removed, max_lines) }}
 </a>
 {% endmacro %}
 
 {% macro quantity_entry(doc) %}
-  <div class="quantity" data-var="wordcount">
-    <span>{{ doc.quantity.words|bignumber }}</span>
-    <span>words</span>
-  </div>
-  <div class="quantity" data-var="linecount">
-    <span>{{ doc.quantity.lines|bignumber }}</span>
-    <span>lines</span>
-  </div>
-  {% endmacro %}
+<div class="quantity" data-var="wordcount">
+  <span>{{ doc.quantity.words|bignumber }}</span>
+  <span>words</span>
+</div>
+<div class="quantity" data-var="linecount">
+  <span>{{ doc.quantity.lines|bignumber }}</span>
+  <span>lines</span>
+</div>
+{% endmacro %}
 
-  {% macro back_button(doc_id) %}
-  <a class="btn btn-secondary float-right" id="btnReturn" href="{{ url_for('dashboard', dbdate=doc_id) }}">
+{% macro back_button(doc_id) %}
+<a class="btn btn-secondary btn-nav float-right" id="btnReturn" href="{{ url_for('dashboard', dbdate=doc_id) }}" title="Back to dashboard">
   <span class="fas fa-long-arrow-alt-left"></span>
 </a>
+{% endmacro %}
+
+{% macro up_button() %}
+<a class="btn-naked btn-top" href="#topAnchor" title="Back to top">
+  <span class="fas fa-chevron-circle-up"></span>
+</a>
+{% endmacro %}
+
+{% macro badge(class="badge-primary", var="", content="") %}
+    <span class="badge {{ class }}" data-var="{{ var }}">{{ content }}</span>
+{% endmacro %}
+
+{% macro title_row(title, date=None) %}
+{# expects badges as varargs #}
+<div class="row">
+  <div class="col-11">
+    <h1>{{ title }}
+      {%- if varargs -%}
+      <span class="badges">
+        {%- for badge in varargs -%}
+          {{- badge -}}
+        {%- endfor -%}
+      </span>
+      {%- endif -%}
+    </h1>
+  </div>
+  <div class="col-1">
+    {% if date %}
+    {{ back_button(date|isodate) }}
+    {% endif %}
+  </div>
+</div>
 {% endmacro %}
 
 {% macro word_cloud(word_freqs) %}
@@ -135,25 +179,22 @@
 
 {% macro diff_lines(lines) %}
   {%- for line in lines -%}
-  <div class="diff-line {{ 'highlight' if line.mark }} {{ 'crossout' if line.num == ':' }}">
-    <span class="diff-number">{{- line.num -}} </span>
-    <span class="diff-text">
-      {{- line.line -}}
-    </span>
-  </div>
+  <li value="{{- line.num -}}" class="diff-line {{ line.mark }}">
+    {{- line.line -}}
+  </li>
   {%- endfor -%}
 {% endmacro %}
 
 {% macro diff_version(version, block_num=1) %}
 <div class="card my-1">
-  <h6 class="card-header p-1">
-    <button class="btn btn-link m-0 p-1" data-toggle="collapse" data-target=".collapse.block-{{ block_num }}">
-      Lines #{{ version[0]["num"] }} to #{{ version[-1]["num"] }}:
-    </button>
-  </h6>
+  <div class="card-header align-middle" data-toggle="collapse" data-target=".collapse.block-{{ block_num }}">
+    <h6 class="d-inline-block m-0">Lines #{{version[0]["num"] }} to #{{ version[-1]["num"] }}</h6>
+  </div>
   <div class="collapse block-{{ block_num }} show">
-    <div class="card-body">
-    {{- diff_lines(version) -}}
+    <div class="card-body p-2">
+      <ol class="code-numbered">
+      {{- diff_lines(version) -}}
+      </ol>
     </div>
   </div>
 </div>
@@ -174,4 +215,22 @@
   </div>
 </div>
 {% endfor %}
+{% endmacro %}
+
+{% macro version_selector(versions, doc_id, other_doc=None) %}
+<button type="button" class="btn btn-outline-primary dropdown-toggle p-1" data-toggle="dropdown" aria-expanded="false">
+    <span class="sr-only">Toggle Dropdown</span>
+    {% if other_doc == None %}
+    {{ versions[0].date|engldate }}
+    {% else %}
+    {{ other_doc.date|engldate }}
+    {% endif %}
+</button>
+<div class="dropdown-menu">
+  {% for version in versions %}
+  <a class="dropdown-item" href="{{ url_for('document_diff', doc_id=doc_id, compare_to=version.id) }}">
+    {{ version.date|engldate }}
+  </a>
+  {% endfor %}
+</div>
 {% endmacro %}

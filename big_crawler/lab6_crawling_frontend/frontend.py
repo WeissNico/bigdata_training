@@ -203,22 +203,24 @@ def document_diff(doc_id):
     calendar = [mock.create_mock_date(d)
                 for d in utility.generate_date_range(doc["date"])]
 
-    versions = mock.get_or_create_versions(doc_id)
+    versions = sorted(mock.get_or_create_versions(doc_id),
+                      key=lambda x: x["date"], reverse=True)
     compare_to = request.args.get("compare_to", None)
     other = None
     # when nothing is given for comparison, take the latest document
     if compare_to is None:
-        other = sorted(versions, key=lambda x: x["date"], reverse=True)[0]
+        other = versions[0]
     else:
         # otherwise get the one with the right id
         other = [d for d in versions if d["id"] == compare_to][0]
-    diffs = diff.get_unified_diff(doc, other)
+    diffs, change = diff.get_unified_diff(doc, other)
 
     return render_template("diff.html",
                            calendar=calendar,
                            cur_date=cur_date,
                            cur_doc=doc,
                            other_doc=other,
+                           change=change,
                            versions=versions,
                            diff_texts=diffs)
 

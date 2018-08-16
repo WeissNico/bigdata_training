@@ -6,13 +6,10 @@
   {{ macros.dashboards_sidebar(cur_date, calendar) }}
 {% endblock %}
 {% block content %}
-<h1>Dashboard {{ cur_date.display }}
-  <span class="badges">
-    <span class="badge badge-danger" data-var="open">{{ cur_date.n_open }}</span>
-    <span class="badge badge-warning" data-var="waiting">{{ cur_date.n_waiting }}</span>
-    <span class="badge badge-success" data-var="finished">{{ cur_date.n_finished }}</span>
-  </span>
-</h1>
+{{ macros.title_row("Dashboard {}".format(cur_date.date|engldate), None,
+    macros.badge("badge-danger", "open", cur_date.n_open),
+    macros.badge("badge-warning", "waiting", cur_date.n_waiting),
+    macros.badge("badge-success", "finished", cur_date.n_finished)) }}
 <!-- new documents -->
 <h3><a class="dashboard-header" data-toggle="collapse" href="#newDocuments">
   <span class="fas fa-caret-down"></span>

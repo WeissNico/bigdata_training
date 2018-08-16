@@ -17,7 +17,7 @@ def _get_unified_diff(doc, other):
     current_text = doc["text"].splitlines()
     former_text = other["text"].splitlines()
 
-    return difflib.unified_diff(current_text, former_text)
+    return difflib.unified_diff(former_text, current_text)
 
 
 def _get_diff(doc, other):
@@ -56,7 +56,9 @@ def _parse_context_line(line):
         else:
             groupings[-1].append(int(group))
 
-    groupings = [g.append(1) for g in groupings if len(g) < 3]
+    for g in groupings:
+        if len(g) < 3:
+            g.append(1)
     ret = {g[0]: {"start": g[1], "length": g[2]} for g in groupings}
     return ret
 
@@ -75,21 +77,23 @@ def _process_unified_diff(deltas):
     dict. The dict-keys stand for the two versions '+' (right) and '-' (left).
     The values of these versions are arrays in the following format:
 
-    `[{"num": 1, "mark": True, "line": "text of first line"},
-      {"num": 2, "mark": True, "line": "text of second line"},
-      {"num": '.', "mark": False, "line": ""},
-      {"num": '.', "mark": False, "line": ""},
-      {"num": '.', "mark": False, "line": ""},
-      {"num": 3, "mark": False, "line": "text of third line"}]`
+    `[{"num": 1, "mark": "highlight", "line": "text of first line"},
+      {"num": 2, "mark": "highlight", "line": "text of second line"},
+      {"num": '.', "mark": "crossout", "line": ""},
+      {"num": '.', "mark": "crossout", "line": ""},
+      {"num": '.', "mark": "crossout", "line": ""},
+      {"num": 3, "mark": "", "line": "text of third line"}]`
 
     Args:
         deltas (str): the lines of the context diff.
 
     Returns:
-        list: a list of tuples in the give format.
+        tuple: a list of dicts in the given format and a dict holding the
+            changes.
     """
     blocks = []
     line_nums = {"+": 0, "-": 0}
+    change = {"+": 0, "-": 0}
     cur_dict = None
 
     # skip the first two lines that contain +++ and --- respectively
@@ -108,15 +112,17 @@ def _process_unified_diff(deltas):
             for s in ["+", "-"]:
                 # do it for both files.
                 line_nums[s] += 1
-                cur_dict[s].append({"num": line_nums[s], "mark": False,
+                cur_dict[s].append({"num": line_nums[s], "mark": "",
                                     "line": d[1:]})
         elif d[0] in ["+", "-"]:
             s = d[0]
             line_nums[s] += 1
-            cur_dict[s].append({"num": line_nums[s], "mark": True,
+            change[s] += 1
+            cur_dict[s].append({"num": line_nums[s], "mark": "highlight",
                                 "line": d[1:]})
-            cur_dict[_not(s)].append({"num": ':', "mark": False, "line": ""})
-    return blocks
+            cur_dict[_not(s)].append({"num": 0, "mark": "crossout",
+                                      "line": " "})
+    return blocks, change
 
 
 def get_diff(doc, other):
@@ -159,9 +165,9 @@ def get_diff_texts(doc, other):
 
     `[{"num": 1, "mark": True, "line": "text of first line"},
       {"num": 2, "mark": True, "line": "text of second line"},
-      {"num": ' ', "mark": False, "line": ""},
-      {"num": ' ', "mark": False, "line": ""},
-      {"num": ' ', "mark": False, "line": ""},
+      {"num": 0, "mark": False, "line": ""},
+      {"num": 0, "mark": False, "line": ""},
+      {"num": 0, "mark": False, "line": ""},
       {"num": 3, "mark": False, "line": "text of third line"}]`
 
     Returns:
@@ -176,17 +182,17 @@ def get_diff_texts(doc, other):
             for i in range(2):
                 # do it for both files.
                 line_counters[i] += 1
-                ret[i].append({"num": line_counters[i], "mark": False,
+                ret[i].append({"num": line_counters[i], "mark": "",
                                "line": line["line"]})
         else:
             cur = line["type"]
             line_counters[cur-1] += 1
             ret[cur-1].append({"num": line_counters[cur-1],
-                               "mark": True,
+                               "mark": "highlight",
                                "line": line["line"]})
-            ret[cur % 2].append({"num": ':',
-                                 "mark": False,
-                                 "line": ""})
+            ret[cur % 2].append({"num": 0,
+                                 "mark": "crossout",
+                                 "line": " "})
     return ret
 
 
@@ -197,19 +203,19 @@ def get_unified_diff(doc, other):
     dict. The dict-keys stand for the two versions '+' (right) and '-' (left).
     The values of these versions are arrays in the following format:
 
-    `[{"num": 1, "mark": True, "line": "text of first line"},
-      {"num": 2, "mark": True, "line": "text of second line"},
-      {"num": '.', "mark": False, "line": ""},
-      {"num": '.', "mark": False, "line": ""},
-      {"num": '.', "mark": False, "line": ""},
-      {"num": 3, "mark": False, "line": "text of third line"}]`
+    `[{"num": 1, "mark": "highlight", "line": "text of first line"},
+      {"num": 2, "mark": "highlight", "line": "text of second line"},
+      {"num": '.', "mark": "crossout", "line": ""},
+      {"num": '.', "mark": "crossout", "line": ""},
+      {"num": '.', "mark": "crossout", "line": ""},
+      {"num": 3, "mark": "", "line": "text of third line"}]`
 
     Args:
         doc (dict): the left document of this comparison.
         other (dict): the right document of this comparison.
 
     Returns:
-        list: a list of tuples in the give format.
+        tuple: a list of dicts in the given format, and a dict of changes.
     """
     deltas = _get_unified_diff(doc, other)
     return _process_unified_diff(deltas)
