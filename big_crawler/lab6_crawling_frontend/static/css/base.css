@@ -5,10 +5,12 @@
   --dashboard-font-color: #000;
   --dashboard-highlight-color: #333;
   --dashboard-inactive-color: var(--sidebar-inactive-color);
-  --diff-border-color: #555;
-  --diff-crossout-color: rgba(136, 136, 136, 0.425);
-  --diff-highlight-left-color: rgba(63, 199, 63, 0.349);
-  --diff-highlight-right-color: rgba(255, 88, 88, 0.411);
+  --diff-number-color: #eee;
+  --diff-border-color: var(--primary);
+  --diff-line-color: #fff;
+  --diff-highlight-left-color: rgb(191, 249, 162);
+  --diff-highlight-right-color: rgb(255, 165, 147);
+  --diff-crossout-color: rgb(209, 209, 209);
 }
 
 .margin-top, .padding-top {
@@ -259,6 +261,28 @@ textarea {
   min-width: 7rem;
 }
 
+.btn-nav {
+  padding: auto;
+  margin: 0.1rem;
+}
+
+.btn-naked {
+  font-size: 2rem;
+  color: var(--dashboard-inactive-color);
+  border: none;
+  padding: 0.1rem 0.6rem;
+}
+
+.btn-naked:hover {
+  color: var(--sidebar-active-color);
+  text-decoration: none;
+}
+
+#topAnchor {
+  position: absolute;
+  top: -4rem;
+}
+
 .table-entry {
   font-size: 130%;
   font-weight: bold;
@@ -268,6 +292,22 @@ textarea {
 .table-entry:hover {
   color: var(--dashboard-font-color);
   text-decoration: none;
+}
+
+dl.document-data {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+
+dl.document-data > dt {
+  text-align: right;
+  width: 12%;
+}
+
+dl.document-data > dd {
+  padding-left: 0.6rem;
+  width: 88%;
 }
 
 .word-cloud .word.size-1 {
@@ -327,18 +367,32 @@ textarea {
   display: flex;
 }
 
-.pdf-sidepane {
+.sticky {
   position: relative;
-  padding: 0.5rem 0;
-  width: 100%;
+}
+
+.sticky-bottom {
+  position: relative;
 }
 
 @supports ((position: -webkit-sticky) or (position: sticky)) {
-  .pdf-sidepane {
+  .sticky {
     position: -webkit-sticky;
     position: sticky;
+    /* add 4rem because of sticky header */
     top: 4rem;
   }
+
+  .sticky-bottom {
+    position: -webkit-sticky;
+    position: sticky;
+    bottom: 4rem;
+  }
+}
+
+.pdf-sidepane {
+  padding: 0.5rem 0;
+  width: 100%;
 }
 
 .aspect-container {
@@ -361,24 +415,39 @@ textarea {
   flex: 1;
 }
 
+ol.code-numbered {
+  background-color: var(--diff-number-color);
+  margin: 0;
+}
+
 .diff {
   font-family: monospace;
 }
 
-.diff .diff-number {
-  text-align: right;
-  min-width: 3rem;
-  border-right: 1px solid var(--diff-border-color);
-}
-
-.diff.diff-left .highlight {
+.diff.diff-left li.highlight {
   background-color: var(--diff-highlight-left-color);
 }
 
-.diff.diff-right .highlight {
+.diff.diff-right li.highlight {
   background-color: var(--diff-highlight-right-color);
 }
 
-.diff .crossout {
+.diff li.crossout {
   background-color: var(--diff-crossout-color);
+  list-style-type: none;
+}
+
+.diff li.crossout::before {
+  content: "/";
+  visibility: hidden;
+}
+
+.diff li {
+  background-color: var(--diff-line-color);
+  border-left: 2px solid var(--diff-border-color);
+  padding-left: 0.5rem;
+}
+
+.diff li:nth-child(odd) {
+  filter: brightness(97%);
 }

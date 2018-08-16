@@ -6,23 +6,25 @@
   {{ macros.dashboards_sidebar(cur_date, calendar) }}
 {% endblock %}
 {% block content %}
-<h1>Modifications
-  {{ macros.back_button(cur_doc.date|isodate) }}
-</h1>
+{{ macros.title_row("Modifications", cur_doc.date,
+                    macros.badge("badge-success", content="+ {}".format(change["+"])),
+                    macros.badge("badge-danger", content="- {}".format(change["-"]))) }}
 <div class="row">
-  <div class="col-1 text-right">of</div>
-  <div class="col-lg-7 col-md-11 overflow-fade">
-    <a href={{ url_for("document_download", doc_id=cur_doc.id) }} target="_blank" title="{{ cur_doc.document }}">
-      {{ cur_doc.document }}
-    </a>
+  <div class="col-lg-6 col-md-12">
+    <dl class="document-data">
+      <dt>Current</dt>
+      <dd class="overflow-fade">{{ macros.document_link(cur_doc) }}</dd>
+      <dt>from</dt>
+      <dd>{{ macros.dashboard_link(cur_doc) }}</dd>
+    </dl>
   </div>
-</div>
-<div class="row">
-  <div class="col-1 text-right">from</div>
-  <div class="col-lg-7 col-md-11">
-    <a href={{ url_for("dashboard", dbdate=cur_doc.date|isodate) }}>
-      {{ cur_doc.date|engldate }}
-    </a>
+  <div class="col-lg-6 col-md-12">
+    <dl class="document-data">
+      <dt>Former</dt>
+      <dd class="overflow-fade">{{ macros.document_link(other_doc) }}</dd>
+      <dt>from</dt>
+      <dd>{{ macros.version_selector(versions, cur_doc.id, other_doc) }}</dd>
+    </dl>
   </div>
 </div>
 {{ macros.diff_view(diff_texts) }}
@@ -30,4 +32,5 @@
 {% block scripts %}
 {{ super() }}
 <script src={{ url_for("static", filename="js/dashboard.js") }}></script>
+<script src={{ url_for("static", filename="js/diff.js") }}></script>
 {% endblock %}

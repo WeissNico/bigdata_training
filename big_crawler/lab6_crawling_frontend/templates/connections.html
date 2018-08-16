@@ -6,23 +6,16 @@
   {{ macros.dashboards_sidebar(cur_date, calendar) }}
 {% endblock %}
 {% block content %}
-<h1>Impact on {{ documents|length }} Document{{ documents|length|pluralize }}
-  {{ macros.back_button(cur_doc.date|isodate) }}
-</h1>
+
+{{ macros.title_row("Impact on {} Document{}".format(documents|length, documents|length|pluralize), cur_doc.date) }}</h1>
 <div class="row">
-  <div class="col-1 text-right">of</div>
-  <div class="col-lg-7 col-md-11 overflow-fade">
-    <a href={{ url_for("document_download", doc_id=cur_doc.id) }} target="_blank" title="{{ cur_doc.document }}">
-      {{ cur_doc.document }}
-    </a>
-  </div>
-</div>
-<div class="row">
-  <div class="col-1 text-right">from</div>
-  <div class="col-lg-7 col-md-11">
-    <a href={{ url_for("dashboard", dbdate=cur_doc.date|isodate) }}>
-      {{ cur_doc.date|engldate }}
-    </a>
+  <div class="col-lg-8 col-md-12">
+    <dl class="document-data">
+      <dt>of</dt>
+      <dd class="overflow-fade">{{ macros.document_link(cur_doc) }}</dd>
+      <dt>from</dt>
+      <dd>{{ macros.dashboard_link(cur_doc) }}</dd>
+    </dl>
   </div>
 </div>
 <div class="row">
@@ -55,9 +48,7 @@
     {% for doc in cur_docs %}
     <tr data-document="{{ doc.id }}">
       <td>
-        <a href="{{ url_for('dashboard', dbdate=doc.date|isodate) }}">
-          {{ doc.date|engldate }}
-        </a>
+        {{ macros.dashboard_link(doc) }}
       </td>
       <td><span class="table-entry">{{ doc.type }}</span></td>
       <!-- source and document links -->
@@ -84,8 +75,7 @@
     {{ document_table(documents) }}
   </div>
   <div class="col-lg-4 col-md-12">
-    <!-- TODO, PDF CANVAS HERE -->
-    <div class="pdf-sidepane">
+    <div class="pdf-sidepane sticky">
       <button class="btn btn-secondary btn-block py-2 my-2" data-toggle="modal" data-target="#fullscreenModal" data-document="0">
         <span class="fas fa-expand-arrows-alt"></span> Fullscreen
       </button>
