@@ -24,18 +24,18 @@ collection.remove({})
 #"https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32014L0057&from=DE",
 #"https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:32015L2366&from=EN"]
 
-documents = get_new_documents()
+documents = get_new_documents() #get new Documents from the eurlex-site
 seed_list = []
 for doc in documents:
     seed_list.append(doc['link'])
 
-status = crawlerSites(seedList= seed_list, collectionId="test", counter=2)
+status = crawlerSites(seedList= seed_list, collectionId="test", counter=2)  #crawle site new sites
 if status != 1:
     raise RuntimeError
 #load data to elastic
 
 cursor = collection.find({})
-for document in cursor:
+for document in cursor: #insert new crawled sites into elastic
     try:
         metadata = ""
 
@@ -54,7 +54,7 @@ for document in cursor:
                 except Exception as e:
                     print(traceback.format_exc())
 
-        if not document.get('content'):
+        if not document.get('content'):  #if the site was not properly parsed it get ignored
             print('not')
             continue
         hash_object = hashlib.sha256(document.get('content'))
@@ -78,7 +78,7 @@ for document in cursor:
             }
 
             doc_id = hash+'#'+str(time.time())#document['_id']
-            elastic.insert_dokument(doc=doc, doc_id=doc_id)
+            elastic.insert_dokument(doc=doc, doc_id=doc_id)   #push into elastic,... the id is the hash + a timestamp
 
         #if document.get('inlinks')!= None:
         #    binary = document['content']
