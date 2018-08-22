@@ -5,7 +5,7 @@
 <h6 class="sidebar-heading">Dashboards</h6>
 <ul class="nav flex-column">
   <li class="nav-item">
-      <a class="cat-link" href={{ url_for("dashboard") }}>
+      <a class="cat-link" href="{{ url_for('dashboard') }}">
         <span class="fas fa-home"></span>
         Current
       </a>
@@ -28,7 +28,7 @@
         <span class="data-span" data-var="finished">{{ entry.n_finished }}</span>
       </span>
       <a class="cat-link {{ 'active' if expand }}" data-toggle="collapse"
-        href={{ "#" + entry.date|isomonth }} aria-expanded={{ expand }}>
+        href="{{ '#' + entry.date|isomonth }}" aria-expanded="{{ expand }}">
         {%- if expand -%}
           <span class="fas fa-caret-down"></span>
         {%- else -%}
@@ -37,7 +37,7 @@
         {{- entry.date|displaymonth -}}
       </a>
     </li>
-    <div class="category collapse {{ 'show' if expand }}" id={{ entry.date|isomonth }}>
+    <div class="category collapse {{ 'show' if expand }}" id="{{ entry.date|isomonth }}">
     {%- endif %}
     {% set active = cur_date.date|isodate == entry.date|isodate %}
     <li class="nav-item">
@@ -49,7 +49,7 @@
         <span>/</span>
         <span class="data-span" data-var="finished">{{ cur_date.n_finished if active else entry.n_finished }}</span>
       </span>
-      <a class="nav-link p-0 {{ 'active' if active }}" href={{ url_for("dashboard", dbdate=entry.date|isodate ) }}>{{ entry.date|engldate }}</a>
+      <a class="nav-link p-0 {{ 'active' if active }}" href="{{ url_for('dashboard', dbdate=entry.date|isodate ) }}">{{ entry.date|engldate }}</a>
     </li>
   {%- set ns.last_month = entry.date|isomonth -%}
   {%- endfor -%}
@@ -78,9 +78,56 @@
       <span class="fas fa-{{ 'home' if doc.source|lower == 'inhouse' else 'link' }}"></span>
       <span>Source: {{ doc.source|domainextract }}</span>
     </a>
-    <a class="btn btn-outline-secondary" href={{ url_for( "document_download", doc_id=doc.id) }} target="_blank" title="Show saved document">
+    <a class="btn btn-outline-secondary" href="{{ url_for( 'document_download', doc_id=doc.id) }}" target="_blank" title="Show saved document">
       <span class="fas fa-file-pdf"></span>
     </a>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro status_button(doc) %}
+<button class="btn dropdown-toggle btn-status" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-var="status" data-val="{{ doc.status }}">
+  <span class="fas fa-2x fa-cog fa-spin"></span>
+  <span class="button-text"></span>
+</button>
+<div class="dropdown-menu dropdown-status">
+  <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc.id) }}" data-val="open">UNREAD</a>
+  <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc.id) }}" data-val="waiting">ON HOLD</a>
+  <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc.id) }}" data-val="finished">ASSIGNED</a>
+</div>
+{% endmacro %}
+
+{% macro fake_select_fixed(title, options, value=None) %}
+{% set title_low = title|lower %}
+{% set val = options|map("pair")|selectattr(0, "eq", value)|first|dflt(options|first)|pair %}
+<div class="fakeSelect" id="{{ title_low }}Select">
+  <input type="hidden" name="{{ title_low }}" id="{{ title_low }}Value" data-display="#current{{ title|title }}Value" value="{{ val|first }}">
+  <button type="button" class="btn btn-outline-secondary btn-block dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+      <span class="sr-only">Toggle Dropdown</span>
+      <span id="current{{ title|titlecase }}Value">{{ val|last }}</span>
+  </button>
+  <div class="dropdown-menu dropdow-fake-select">
+  {% for opt in options|map("pair") %}
+    <a class="dropdown-item" href="#" data-val="{{ opt|first }}">{{ opt|last }}</a>
+  {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{% macro fake_select_text(title, options, value=None) %}
+{% set title_low = title|lower %}
+{% set val = options|map("pair")|selectattr(0, "eq", value)|first|dflt(options|first)|pair %}
+<div class="fakeSelect" id="{{ title_low }}Select">
+  <div class="btn-group btn-block">
+    <input type="text" class="form-control" name="{{ title_low }}" id="{{ title_low }}Value" value="{{ val|last }}"/>
+    <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-reference="parent">
+        <span class="sr-only">Toggle Dropdown</span>
+    </button>
+    <div class="dropdown-menu dropdown-fake-select">
+    {% for opt in options|map("pair") %}
+      <a class="dropdown-item" href="#" data-val="{{ opt|first }}">{{ opt|last }}</a>
+    {% endfor %}
+    </div>
   </div>
 </div>
 {% endmacro %}
@@ -134,8 +181,8 @@
 {% macro title_row(title, date=None) %}
 {# expects badges as varargs #}
 <div class="row">
-  <div class="col-11">
-    <h1>{{ title }}
+  <div class="col-11 overflow-ellipsis">
+    <h1 title="{{ title }}">{{ title }}
       {%- if varargs -%}
       <span class="badges">
         {%- for badge in varargs -%}
@@ -153,22 +200,31 @@
 </div>
 {% endmacro %}
 
-{% macro word_cloud(word_freqs) %}
-<div class="word-cloud card mt-2" id="wordCloud">
-  <h5 class="card-header">Word cloud</h5>
-  <div class="card-body lead">
-  {% for word, freq in word_freqs.items() %}
-    <span class="word size-{{ freq|from(0, 1)|to(1, 5) }}">
-      {{ word }}
+{% macro word_cloud(word_freqs, title="WordCloud", edit=None) %}
+<div class="word-cloud card mt-2" id="{{ kwargs.id }}">
+  <div class="card-header">
+    <h5 class="m-0 align-middle">
+      {{ title }}
+      {% if edit %}
+      <button class="btn btn-primary float-right" data-toggle="modal" data-target="{{ edit }}" data-cloud="#{{ kwargs.id }}">
+        <span class="fas fa-edit"></span>
+      </button>
+      {% endif %}
+    </h5>
+  </div>
+  <div class="cloud-container card-body lead">
+  {%- for word, freq in [("proto", 1)] + word_freqs.items()|list %}
+    <span class="word size-{{ freq|from(0, 1)|to(1, 5) }}  {{ 'proto' if loop.index0 == 0 }}" data-val="{{ word }}">
+      {{- word -}}
     </span>
-  {% endfor %}
+  {%- endfor -%}
   </div>
 </div>
 {% endmacro %}
 
 {% macro include_pdf(doc_id) %}
 <object class="pdf-container" data="{{ url_for('document_download', doc_id=doc_id) }}"
-        type="application/pdf" width="100%" height="100%" data-base-url="{{ url_for('document_download', doc_id='0') }}">
+        type="application/pdf" width="100%" height="100%" data-base-url="{{ url_for('document_download', doc_id='%') }}">
   <h6>PDF-Preview</h6>
   This browser does not support PDF-Embedding. Please download the PDF to view it:
   <a href="{{ url_for('document_download', doc_id=doc_id) }}">
@@ -232,5 +288,48 @@
     {{ version.date|engldate }}
   </a>
   {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro version_list(doc_id, versions) %}
+{% if versions %}
+<ul class="list-group">
+  {% for version in versions %}
+  <li class="list-group-item">
+      <a class="text-nowrap mr-3" href="{{ url_for('document', doc_id=version.id) }}" title="{{ version.document }}">
+        <span class="fas fa-file"></span>
+        <span>Document from {{ version.date|engldate }}</span>
+      </a>
+      <a class="text-nowrap" href="{{ url_for('document_diff', doc_id=doc_id, compare_to=version.id) }}" title="Compare to this version">
+        <span class="fas fa-copy"></span>
+        <span>Compare</span>
+      </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<span class="fas fa-none"></span>
+<span>No previous versions found.</span>
+{% endif %}
+{% endmacro %}
+
+{% macro edit_list(items, add_url="#", remove_url="#") %}
+<div class="editable-list">
+  <div class="btn-group btn-block my-2">
+    <input type="text" name="newItem" class="item-input form-control" placeholder="new item" />
+    <a href="{{ add_url }}" class="item-add btn btn-success" name="addItem">
+      <span class="fas fa-plus"></span>
+    </a>
+  </div>
+  <ul class="list-group">
+    {% for item in ["proto"] + items %}
+    <li class="list-group-item {{ 'proto' if loop.index0 == 0 }}" data-key="{{ loop.index0 }}" data-val="{{ item }}">
+      <span class="item-text">{{ item }}</span>
+      <a href="{{ remove_url }}" data-target="{{ item }}" class="item-delete text-danger float-right">
+        <span class="fas fa-trash"></span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
 </div>
 {% endmacro %}

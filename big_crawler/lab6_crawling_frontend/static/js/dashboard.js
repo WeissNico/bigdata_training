@@ -1,65 +1,5 @@
 // Adds custom functionality to the dashboard.html site.
 // Author: Johannes Mueller <j.mueller@reply.de>
-var STATUS_MAPPING = {"open": {text: "UNREAD", color: "danger", rank: 0},
-                      "waiting": {text: "ON HOLD", color: "warning", rank: 1},
-                      "finished": {text: "ASSIGNED", color: "success", rank: 2}
-                     };
-
-function changeCaret(event){
-    // changes the caret of the cat-links according to the expansion of the
-    // referenced div.
-    // `event` describes the input-event
-    var $catLink = $(event.target);
-    var $collapse = $($catLink.prop("hash"));
-    var $caret = $catLink.children(".fas");
-    var toggled = $collapse.hasClass("show");
-    $caret.toggleClass("fa-caret-down", !toggled);
-    $caret.toggleClass("fa-caret-right", toggled);
-}
-
-function accumulateJobs(event) {
-    // accumulates all the open jobs of a month and updates the display-badges.
-    // `event` describes the originally triggered event, its target describes
-    //      the month, which the jobs should be accumulated for.
-    var $monthDiv = $(event.target);
-    var $monthLink = $monthDiv.prev(".nav-item");
-    var sums = {"open": 0, "waiting": 0, "finished": 0};
-    $monthDiv.children(".nav-item").each(function() {
-        $(this).find(".badge.indicator").children(".data-span")
-         .each(function() {
-            sums[$(this).data("var")] += parseInt($(this).text())
-        });
-    });
-    $monthLink.find(".data-span").each(function() {
-        $(this).html(sums[$(this).data("var")]);
-    });
-    $monthLink.find(".badge.indicator").trigger("custom.change.badges");
-}
-
-function changeIndicatorColors(event) {
-    // changes the color of the given indicator.
-    // `element` refers to an indicator badge (.badge.indicator)
-    var $badge = $(event.target);
-    var $dataSpans = $badge.find(".data-span");
-    var classes = Object.values(STATUS_MAPPING).map(el => `badge-${el.color}`)
-                                               .join(" ");
-    var values = $dataSpans.map(function(_, el) {
-        return {
-            type: $(el).data("var"),
-            number: $(el).text()
-        };
-    }).get();
-    var mode = values.reduce(function(acc, val) {
-        // continue, when there are 0 occurences
-        if (val.number == 0) return acc;
-        if (STATUS_MAPPING[val.type].rank < STATUS_MAPPING[acc].rank) {
-            acc = val.type;
-        }
-        return acc;
-    }, "finished");
-    var mapping = STATUS_MAPPING[mode];
-    $badge.removeClass(classes).addClass(`badge-${mapping.color}`);
-}
 
 function updateBadges() {
     // updates all the related badges, should be triggered, when the button
@@ -106,7 +46,9 @@ function changeStatusButtonColor(event) {
     var classes = Object.values(STATUS_MAPPING).map(el => `btn-${el.color}`).join(" ");
     var mapping = STATUS_MAPPING[$button.data("val")]
     $button.removeClass(classes).addClass(`btn-${mapping.color}`);
-    $button.html(mapping.text);
+    $button.children(".button-text").html(mapping.text);
+    // show or hide the spinner
+    $button.children(".fas").toggle($button.data("val") === "");
 }
 
 function changeButton(event) {
@@ -114,31 +56,18 @@ function changeButton(event) {
     // `event` refers to the original input event.
     var $link = $(event.target);
     var $button = $link.parent(".dropdown-status").prev(".btn");
-    $.ajax({
-        type: 'GET',
-        url: $link.prop("href"),
-        success: function(response) {
+    // set data-value to nothing, which should show the loading spinner
+    $button.data("val", "");
+    $button.trigger("custom.change.val")
+    // reset in the success function
+    jsonPost($link.prop("href"), [{name: "status", value: $link.data("val")}],
+        function (response) {
             if (response.success) {
-                $button.data("val", response.status);
+                $button.data("val", response.update.status);
                 $button.trigger("custom.change.val")
                 updateBadges();
             }
-        }
-    });
-    event.preventDefault();
-}
-
-function changeInputElement(event) {
-    // changes the preceding input element, when clicking on a dropdown-item.
-    // `event` references the original click event.
-    var $trigger = $(event.target);
-    var $input = $trigger.parent(".dropdown-menu").prevAll("input");
-    $input.val($trigger.data("val"));
-    // if a data-display attribute is set, find the element with this id and
-    // set it's html accordingly
-    if ($input.data("display")) {
-        $($input.data("display")).html($trigger.text());
-    }
+        });
     event.preventDefault();
 }
 
@@ -196,19 +125,15 @@ function changeProperties(event) {
     var docId = $form.find("#documentId").val();
     var $tr = $(`tr[data-document='${docId}'`);
 
-    $.ajax({
-        type: "GET",
-        url: $link.prop("href"),
-        data: formData,
-        success: function(response) {
+    jsonPost($link.prop("href").replace("%25", docId), formData,
+        function (response) {
             if (response.success) {
                 for (key in response.update) {
-                    $tr.find(`[data-var=${key}]`).data("val", response.update[key]);
-                    $tr.find(`[data-var=${key}]`).trigger("custom.change.val");
+                    $tr.find(`[data-var='${key}']`).data("val", response.update[key]);
+                    $tr.find(`[data-var='${key}']`).trigger("custom.change.val");
                 }
             }
-        }
-    });
+        });
     event.preventDefault();
     $modal.modal("hide");
 }
@@ -217,17 +142,11 @@ function changeProperties(event) {
 $(".btn-status").on("custom.change.val", changeStatusButtonColor);
 $(".table-entry").on("custom.change.val", changeTableEntry);
 $(".impact-indicator").on("custom.change.val", changeImpactIndicator);
-$(".badge.indicator").on("custom.change.badges", changeIndicatorColors);
-$(".category").on("custom.change.badges", accumulateJobs);
 
-$(".cat-link").click(changeCaret);
 $(".dashboard-header").click(changeCaret);
 $(".dashboard .dropdown-item-status").click(changeButton);
 
-$(".fakeSelect .dropdown-item").click(changeInputElement);
 $("#changeModal").on("show.bs.modal", showChangeModal);
 $("#changeDocumentPropertiesButton").click(changeProperties);
 
 $(".dashboard .btn-status").trigger("custom.change.val");
-$(".badge.indicator").trigger("custom.change.badges");
-$(".category").trigger("custom.change.badges");

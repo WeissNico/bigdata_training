@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% import "macros.html" as macros %}
+{% block title %}Sherlock - {{ cur_doc.document }}{% endblock %}
+{% block head %} {{ super() }} {% endblock%}
+{% block sidebar %}
+  {{ macros.dashboards_sidebar(cur_date, calendar) }}
+{% endblock %}
+{% block content %}
+
+{% macro document_table(doc) %}
+<table class="document-table table table-responsive" data-document="{{ doc.id }}">
+  <tr data-var="document">
+    <th class="width-1-3" scope="row">
+      <span class="fas fa-font"></span>
+      Title
+    </th>
+    <td class="width-2-3">
+      {{ macros.document_link(doc) }}
+    </td>
+  </tr>
+  <tr data-var="dashboard">
+    <th scope="row">
+      <span class="fas fa-calendar"></span>
+      Date
+    </th>
+    <td>
+      {{ macros.dashboard_link(doc) }}
+    </td>
+  </tr>
+  <tr data-var="source">
+    <th scope="row">
+      {% if doc.source|lower == "inhouse" %}
+      <span class="fas fa-home"></span>
+      {% else %}
+      <span class="fas fa-link"></span>
+      {% endif %}
+      Document source
+    </th>
+    <td>
+      <div class="overflow-link">
+        <a href="{{ doc.source }}" target="_blank">
+          {{ doc.source }}
+        </a>
+      </div>
+    </td>
+  </tr>
+  <tr data-var="quantity">
+    <th scope="row">
+      <span class="fas fa-text-height"></span>
+      Quantity
+    </th>
+    <td>
+      {{ macros.quantity_entry(doc) }}
+    </td>
+  </tr>
+  <tr data-var="impact">
+    <th scope="row">
+      <span class="fas fa-signal"></span>
+      Impact
+    </th>
+    <td>
+      {{ macros.fake_select_fixed("Impact", [("high", "High"), ("medium", "Medium"), ("low", "Low")], doc.impact) }}
+    </td>
+  </tr>
+  <tr data-var="type">
+    <th scope="row">
+      <span class="fas fa-bars"></span>
+      Type
+    </th>
+    <td>
+      {{ macros.fake_select_text("Type", types, doc.type) }}
+    </td>
+  </tr>
+  <tr data-var="category">
+    <th scope="row">
+      <span class="fas fa-book"></span>
+      Category
+    </th>
+    <td>
+      {{ macros.fake_select_text("Category", categories, doc.category) }}
+    </td>
+  </tr>
+  <tr data-var="status">
+    <th scope="row">
+      <span class="fas fa-traffic-light"></span>
+      Status
+    </th>
+    <td>
+      {{ macros.fake_select_fixed("Status", [("open", "UNREAD"), ("waiting", "ON HOLD"), ("finished", "ASSIGNED")], doc.status) }}
+    </td>
+  </tr>
+  <tr data-var="versions">
+    <th scope="row">
+      <span class="fas fa-code-branch"></span>
+      Versions
+    </th>
+    <td>
+      {{ macros.version_list(cur_doc.id, versions) }}
+    </td>
+  </tr>
+</table>
+{% endmacro %}
+
+{{ macros.title_row("Document detail", cur_doc.date) }}</h1>
+<div class="row">
+  <div class="col-lg-7 col-md-12">
+    <div class="row">
+      <div class="col-12">
+      {{ document_table(cur_doc) }}
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-12">
+      {{ macros.word_cloud(cur_doc.keywords, "Contained Keywords", "#keywordModal", id="keywords") }}
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-12">
+      {{ macros.word_cloud(cur_doc.entities, "Contained Entities", "#keywordModal", id="entities") }}
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-lg-4 offset-lg-4 col-md-6 mt-2">
+        <a href="{{ url_for('document', doc_id=cur_doc.id) }}" class="btn btn-secondary btn-block" id="cancelButton">
+          Revert changes
+        </a>
+      </div>
+      <div class="col-lg-4 col-md-6 mt-2">
+        <a href="{{ url_for('document_set_properties', doc_id=cur_doc.id) }}" class="btn btn-primary btn-block" id="saveButton">
+          <span class="fas fa-save"></span>
+          Save changes
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5 col-md-12">
+    <div class="pdf-sidepane sticky">
+      <button class="btn btn-secondary btn-block py-2 my-2" data-toggle="modal" data-target="#fullscreenModal" data-document="cur_doc.id">
+        <span class="fas fa-expand-arrows-alt"></span> Fullscreen
+      </button>
+      <div class="aspect-container">
+        <div class="aspect-clear">
+        {{ macros.include_pdf(cur_doc.id) }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DIALOGS -->
+<!-- For fullscreen pdf -->
+<div class="modal fade" id="fullscreenModal" tabindex="-1" role="dialog" aria-labelledby="fullscreenModalLabel" aria-hidden="true">
+  <div class="modal-dialog fullscreen" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="fullscreenModalLabel">Fullscreen PDF</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="pdf-fullscreen">
+          {{ macros.include_pdf("0") }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- for adding keywords -->
+<div class="modal fade" id="keywordModal" tabindex="-1" role="dialog" aria-labelledby="keywordModalLabel" aria-hidden="true">
+  <div class="modal-dialog keywords" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="keywordModalLabel">Edit <span>Keywords</span></h5>
+        <input type="hidden" id="wordcloudId" value="" />
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+      {{ macros.edit_list([],
+                          url_for('document_add_words', doc_id=cur_doc.id),
+                          url_for('document_remove_words', doc_id=cur_doc.id)) }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/edit-list.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fake-select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/document.js') }}"></script>
+{% endblock %}

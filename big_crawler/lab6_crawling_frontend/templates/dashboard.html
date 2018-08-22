@@ -10,83 +10,84 @@
     macros.badge("badge-danger", "open", cur_date.n_open),
     macros.badge("badge-warning", "waiting", cur_date.n_waiting),
     macros.badge("badge-success", "finished", cur_date.n_finished)) }}
-<!-- new documents -->
-<h3><a class="dashboard-header" data-toggle="collapse" href="#newDocuments">
-  <span class="fas fa-caret-down"></span>
-  New
-</a></h3>
-<div class="collapse show" id="newDocuments">
-  {% macro document_table(cur_docs, sort_prefix="new") %}
-  <table class="dashboard table table-hover table-responsive-lg">
-    <thead>
-      <tr>
-        {% for title in columntitles %}
-        {% if title %}
-        <th scope="col"> 
-          {% if sort_by[0] == title %}
-            <a href={{ url_for("dashboard", dbdate=cur_date.date|isodate, sortby=title, desc=(not sort_by[1])) }}>
-              {{ title|titlecase }} 
-              <span class="fas fa-sort-{{ 'down' if sort_by[1] else 'up' }}"></span>
-            </a>
-          {% else %}
-            <a href={{ url_for("dashboard", dbdate=cur_date.date|isodate, sortby=title, desc=True) }}>
-              {{ title|titlecase }} 
-              <span class="fas fa-sort"></span>
-            </a>
-          {% endif %}
-        </th>
-        {% else %}
-        <th scope="col"></th>
-        {% endif %}
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for doc in cur_docs %}
-      <tr data-document={{ doc.id }}>
-        <!-- impact indicator -->
-        <td>
-          <a class="impact-indicator {{ doc.impact }}" href={{ url_for("document_connections", doc_id=doc.id) }} title="Impact on other documents" data-var="impact" data-val={{ doc.impact }}>
-            <span>{{ doc.impact|capitalize|first }}</span>
-            </br>
-            <span>{{ doc.impact|capitalize }}</span>
+<!-- table macro -->
+{% macro document_table(cur_docs, sort_prefix="new") %}
+<table class="dashboard table table-hover table-responsive-lg">
+  <thead>
+    <tr>
+      {% for title in columntitles %}
+      {% if title %}
+      <th scope="col"> 
+        {% if sort_by[0] == title %}
+          <a href={{ url_for("dashboard", dbdate=cur_date.date|isodate, sortby=title, desc=(not sort_by[1])) }}>
+            {{ title|titlecase }} 
+            <span class="fas fa-sort-{{ 'down' if sort_by[1] else 'up' }}"></span>
           </a>
-        </td>
-        <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="type" title="The type of this document" data-document={{ doc.id }}>{{ doc.type }}</a></td>
-        <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="category" title="The Category of this document (Who is responsible)" data-document={{ doc.id }}>{{ doc.category }}</a></td>
-        <td><a class="btn btn-outline-secondary btn-block" href="#changeModal" data-toggle="modal" title="Change document's properties" data-document={{ doc.id }}><span class="fas fa-edit"></span></a></td>
-        <!-- source and document links -->
-        <td>
-          {{ macros.document_entry(doc) }}
-        </td>
-        <td>
-          {{ macros.change_entry(doc) }}
-        </td>
-        <td>
-          {{ macros.quantity_entry(doc) }}
-        </td>
-        <td>
-          <button class="btn dropdown-toggle btn-status" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-var="status" data-val={{ doc.status }}></button>
-          <div class="dropdown-menu dropdown-status">
-            <a class="dropdown-item dropdown-item-status" href={{ url_for("document_set_status", doc_id=doc.id, status="open") }}>UNREAD</a>
-            <a class="dropdown-item dropdown-item-status" href={{ url_for("document_set_status", doc_id=doc.id, status="waiting") }}>ON HOLD</a>
-            <a class="dropdown-item dropdown-item-status" href={{ url_for("document_set_status", doc_id=doc.id, status="finished") }}>ASSIGNED</a>
-          </div>
-        </td>
-      </tr>
+        {% else %}
+          <a href={{ url_for("dashboard", dbdate=cur_date.date|isodate, sortby=title, desc=True) }}>
+            {{ title|titlecase }} 
+            <span class="fas fa-sort"></span>
+          </a>
+        {% endif %}
+      </th>
+      {% else %}
+      <th scope="col"></th>
+      {% endif %}
       {% endfor %}
-    </tbody>
-  </table>
-  {% endmacro %}
-  {{ document_table(documents|selectattr("new", "eq", True)) }}
-</div>
-<!-- modified documends -->
-<h3><a class="dashboard-header" data-toggle="collapse" href="#modDocuments">
-  <span class="fas fa-caret-down"></span>
-  Modified
+    </tr>
+  </thead>
+  <tbody>
+    {% for doc in cur_docs %}
+    <tr data-document={{ doc.id }}>
+      <!-- impact indicator -->
+      <td>
+        <a class="impact-indicator {{ doc.impact }}" href="{{ url_for('document_connections', doc_id=doc.id) }}" title="Impact on other documents" data-var="impact" data-val={{ doc.impact }}>
+          <span>{{ doc.impact|capitalize|first }}</span>
+          <br />
+          <span>{{ doc.impact|capitalize }}</span>
+        </a>
+      </td>
+      <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="type" title="The type of this document" data-document={{ doc.id }}>{{ doc.type }}</a></td>
+      <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="category" title="The Category of this document (Who is responsible)" data-document={{ doc.id }}>{{ doc.category }}</a></td>
+      <td><a class="btn btn-outline-secondary btn-block" href="#changeModal" data-toggle="modal" title="Change document's properties" data-document={{ doc.id }}><span class="fas fa-edit"></span></a></td>
+      <!-- source and document links -->
+      <td>
+        {{ macros.document_entry(doc) }}
+      </td>
+      <td>
+        {{ macros.change_entry(doc) }}
+      </td>
+      <td>
+        {{ macros.quantity_entry(doc) }}
+      </td>
+      <td>
+        {{ macros.status_button(doc) }}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+<!-- new documents -->
+{% set new_docs = documents|selectattr('new', 'eq', True)|list %}
+{% set has_new_docs = new_docs|length > 0 %}
+<h3><a class="dashboard-header" data-toggle="collapse" href="#newDocuments">
+  <span class="fas fa-caret-{{ 'down' if has_new_docs else 'right' }}"></span>
+  New ({{ new_docs|length }})
 </a></h3>
-<div class="collapse show" id="modDocuments">
-  {{ document_table(documents|selectattr("new", "eq", False)) }}
+<div class="collapse {{ 'show' if has_new_docs }}" id="newDocuments">
+  {{ document_table(new_docs) }}
+</div>
+<!-- modified documents -->
+{% set mod_docs = documents|selectattr('new', 'eq', False)|list %}
+{% set has_mod_docs = mod_docs|length > 0 %}
+<h3><a class="dashboard-header" data-toggle="collapse" href="#modDocuments">
+  <span class="fas fa-caret-{{ 'down' if has_mod_docs else 'right' }}"></span>
+  Modified ({{ mod_docs|length }})
+</a></h3>
+<div class="collapse {{ 'show' if has_mod_docs }}" id="modDocuments">
+  {{ document_table(mod_docs) }}
 </div>
 
 <!-- MODAL DIALOGS -->
@@ -109,54 +110,25 @@
           <input type="hidden" name="id" id="documentId" value="" />
           <div class="form-row">
             <div class="col-md-6 col-sm-12 form-group">
-              <label for="changeImpact"><span class="fas fa-signal"></span> Impact</label>
-              <div class="fakeSelect" id="changeImpact">
-                <input type="hidden" name="impact" id="impactValue" data-display="#currentImpactValue" value="high">
-                <button type="button" class="btn btn-outline-secondary btn-block dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-                    <span class="sr-only">Toggle Dropdown</span>
-                    <span id="currentImpactValue">High</span>
-                </button>
-                <div class="dropdown-menu dropdown-modal">
-                  <a class="dropdown-item" href="#" data-val="high">High</a>
-                  <a class="dropdown-item" href="#" data-val="medium">Medium</a>
-                  <a class="dropdown-item" href="#" data-val="low">Low</a>
-                </div>
-              </div>
+              <label for="impactSelect"><span class="fas fa-signal"></span> Impact</label>
+              {{ macros.fake_select_fixed("Impact", [("high", "High"), ("medium", "Medium"), ("low", "Low")]) }}
             </div>
           </div>
           <div class="form-row">
             <div class="col-md-6 col-sm-12 form-group">
-              <label for="changeType"><span class="fas fa-bars"></span> Type</label>
-              <div class="fakeSelect" id="changeType">
-                <div class="btn-group btn-block">
-                  <input type="text" class="form-control" name="type" id="typeValue" value="Something"/>
-                  <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-reference="parent">
-                      <span class="sr-only">Toggle Dropdown</span>
-                  </button>
-                  <div class="dropdown-menu dropdown-modal">
-                  </div>
-                </div>
-              </div>
+              <label for="typeSelect"><span class="fas fa-bars"></span> Type</label>
+              {{ macros.fake_select_text("Type", types) }}
             </div>
             <div class="col-md-6 col-sm-12 form-group">
-              <label for="changeCategory"><span class="fas fa-envelope"></span> Category</label>
-              <div class="fakeSelect" id="changeCategory">
-                <div class="btn-group btn-block">
-                  <input type="text" class="form-control" name="category" id="categoryValue" value="Something"/>
-                  <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-reference="parent">
-                      <span class="sr-only">Toggle Dropdown</span>
-                  </button>
-                  <div class="dropdown-menu dropdown-modal">
-                  </div>
-                </div>
-              </div>
+              <label for="categorySelect"><span class="fas fa-book"></span> Category</label>
+              {{ macros.fake_select_text("Category", categories) }}
             </div>
           </div>
         </form>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        <a class="btn btn-primary" id="changeDocumentPropertiesButton" href={{ url_for("document_set_properties") }}>Change properties</a>
+        <a class="btn btn-primary" id="changeDocumentPropertiesButton" href="{{ url_for('document_set_properties', doc_id='%') }}">Change properties</a>
       </div>
     </div>
   </div>
@@ -164,5 +136,6 @@
 {% endblock %}
 {% block scripts %}
 {{ super() }}
-<script src={{ url_for("static", filename="js/dashboard.js") }}></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fake-select.js') }}"></script>
 {% endblock %}

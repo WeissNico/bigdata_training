@@ -31,6 +31,5 @@
 {% endblock %}
 {% block scripts %}
 {{ super() }}
-<script src={{ url_for("static", filename="js/dashboard.js") }}></script>
-<script src={{ url_for("static", filename="js/diff.js") }}></script>
+<script src="{{ url_for('static', filename='js/diff.js') }}"></script>
 {% endblock %}
