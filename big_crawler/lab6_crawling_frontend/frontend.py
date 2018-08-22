@@ -124,6 +124,8 @@ def dashboard(dbdate=None):
                            cur_date=cur_date,
                            documents=documents,
                            columntitles=columns,
+                           types=sorted(mock.TYPES),
+                           categories=sorted(mock.CATEGORIES),
                            sort_by=(sort_by, desc))
 
 
@@ -145,7 +147,20 @@ def document(doc_id):
     Args:
         doc_id (str): the id of the document to reutrn.
     """
-    return render_template("document.html")
+    doc = mock.get_document(doc_id)
+    cur_date = mock.create_mock_date(doc["date"])
+    calendar = [mock.create_mock_date(d)
+                for d in utility.generate_date_range(doc["date"])]
+    versions = sorted(mock.get_or_create_versions(doc_id),
+                      key=lambda x: x["date"], reverse=True)
+
+    return render_template("document.html",
+                           calendar=calendar,
+                           cur_date=cur_date,
+                           cur_doc=doc,
+                           types=sorted(mock.TYPES),
+                           categories=sorted(mock.CATEGORIES),
+                           versions=versions)
 
 
 @app.route("/document/<doc_id>/connections")
@@ -225,7 +240,7 @@ def document_diff(doc_id):
                            diff_texts=diffs)
 
 
-@app.route("/document/<doc_id>/set_status")
+@app.route("/document/<doc_id>/set_status", methods=["GET", "POST"])
 def document_set_status(doc_id):
     """Should update the status of the document as saved in the database.
 
@@ -244,31 +259,83 @@ def document_set_status(doc_id):
     return jsonify(status=status, success=True)
 
 
-@app.route("/document/set_properties")
-def document_set_properties():
-    """Should update the properties of the document as saved in the database.
+@app.route("/document/<doc_id>/add_words", methods=["POST"])
+def document_add_words(doc_id):
+    """Adds new words to the document.
+
+    Args:
+        doc_id (str): the id of the document to reutrn.
 
     Request Args:
-        docId (str): the documents id, required.
-        impact (str): the impact of the document.
-        type (str): the type of the document.
-        category (str): the category of the document.
+        words (list): a list of words that should be added.
+            Count will be set to one
     """
-    doc_id = request.args.get("id", None)
-    if doc_id is None:
-        return jsonify(success=False)
     doc = mock.get_document(doc_id)
+    words = request.get_json().get("words", None)
+    for i, word in enumerate(words):
+        # don't update words that already exist
+        if word in doc["words"]:
+            del words[i]
+            continue
+        doc["words"][word] = 1
+    mock.set_document(doc_id, doc)
+    return jsonify(words=words, success=True)
+
+
+@app.route("/document/<doc_id>/remove_words", methods=["POST"])
+def document_remove_words(doc_id):
+    """Removes keywords from the document.
+
+    Args:
+        doc_id (str): the id of the document to return.
+
+    Request Args:
+        words (list): a list of words that should be removed.
+    """
+    doc = mock.get_document(doc_id)
+    words = request.get_json().get("words", [])
+
+    for i, word in enumerate(words):
+        # don't remove words that do not exist
+        if word not in doc["words"]:
+            del words[i]
+            continue
+        del doc["words"][word]
+    mock.set_document(doc_id, doc)
+    return jsonify(words=words, success=True)
+
+
+@app.route("/document/<doc_id>/set_properties", methods=["POST"])
+def document_set_properties(doc_id):
+    """Should update the properties of the document as saved in the database.
+
+    Args:
+        doc_id (str): the id of the document to return.
+
+    Request Args:
+
+    """
+    doc = mock.get_document(doc_id)
+    if doc is None:
+        return jsonify(success=False)
+
     update = {}
-    for item in request.args.items():
-        if item[0] not in doc:
+    for item in request.get_json():
+        if item["name"] not in doc:
             # don't allow keys, that weren't there.
             continue
-        if doc[item[0]] == item[1]:
+        if item["name"] == "impact" and (item["value"] not in
+                                         ["high", "medium", "low"]):
             continue
-        if item[0] == "impact" and item[1] not in ["high", "medium", "low"]:
+        elif item["name"] == "status" and (item["value"] not in
+                                           ["open", "waiting", "finished"]):
             continue
-        doc[item[0]] = item[1]
-        update[item[0]] = item[1]
+        elif item["name"] in ["keywords", "entities"]:
+            doc[item["name"]] = {key: doc[item["name"]].get(key, 1)
+                                 for key in item["value"]}
+        else:
+            doc[item["name"]] = item["value"]
+        update[item["name"]] = item["value"]
     mock.set_document(doc_id, doc)
     return jsonify(success=True, update=update)
 
@@ -404,6 +471,43 @@ def filter_pluralize(number, singular="", plural="s"):
         return plural
 
 
+@app.template_filter("pair")
+def filter_pair(value):
+    """A filter for jinja2 templates, that makes a tuple out of a single value.
+
+    It simply duplicates the given word, if it is a single value,
+    if it already is a tuple, return the tuple.
+
+    Args:
+        value (any): object that should be duplicated.
+
+    Returns:
+        tuple: a tuple either `(value, value)` or simply `value`.
+    """
+    if isinstance(value, (tuple, list)) and len(value) == 2:
+        return tuple(value)
+
+    return (value, value)
+
+
+@app.template_filter("dflt")
+def filter_default(value, default):
+    """A filter for jinja2 templates, that returns a default value.
+
+    If the value is falsy, returns the default value.
+
+    Args:
+        value (any): object that should be checked.
+        default (any): default value for that object.
+
+    Returns:
+        any: `default` or `value`.
+    """
+    if value:
+        return value
+    return default
+
+
 @app.template_filter("titlecase")
 def filter_titlecase(sentence):
     """A titlecase filter for the jinja2 templates.
@@ -412,16 +516,19 @@ def filter_titlecase(sentence):
 
     Args:
         sentence (str): the word or words that should be titlecased.
+
+    Returns:
+        str: the sentenced with all words in titlecase.
     """
     def _titlecase(word):
         if word in special:
             return word
         else:
-            return word.title()
+            return word[:1].upper() + word[1:]
 
-    special = ["the", "of", "in", "on", "at", "from"]
+    special = ["the", "of", "in", "on", "at", "from", "a", "an"]
 
-    return " ".join(map(_titlecase, sentence.split()))
+    return " ".join([_titlecase(p) for p in sentence.split()])
 
 
 @app.template_filter("bignumber")
