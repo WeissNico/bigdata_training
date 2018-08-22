@@ -42,16 +42,35 @@ DOCUMENTS = ["Anwendung der Richtlinie 2007/64/EG im operativen Geschäft",
               "Verordnung (EU) Nr. 646/2012"),
              ("Principles for effective risk data aggregation and risk "
               "reporting")]
-WORDS = ["management", "aggregation", "principle", "bank", "Verordnung",
-         "Richtlinie", "Kredite", "Risko", "risk", "Zahlungsdienstleister",
-         "Mitgliedsstaaten", "Europäische Union", "european", "Zahler",
-         "Zahlungsdienstnutzer", "Artikel", "Kommission", "Verordnung",
-         "Vorhaben", "Wertpapierrecht", "Kapitalmarkt", "Richtlinienvorschlag",
-         "Bankaufsichtsrecht", "Aufsichtsrat", "Aufsichtsbehörden", "credits",
-         "securities", "national", "international"]
+KEYWORDS = ["management", "aggregation", "principle", "bank", "Verordnung",
+            "Richtlinie", "Kredite", "Risko", "risk", "Zahlungsdienstleister",
+            "Mitgliedsstaaten", "Europäische Union", "european", "Zahler",
+            "Zahlungsdienstnutzer", "Artikel", "Kommission", "Verordnung",
+            "Vorhaben", "Wertpapierrecht", "Kapitalmarkt",
+            "Richtlinienvorschlag", "Bankaufsichtsrecht", "Aufsichtsrat",
+            "Aufsichtsbehörden", "credits", "securities", "national",
+            "international"]
+ENTITIES = ["Deutsche Bank", "BAFIN", "HSBC Bank", "Europäische Union", "EU",
+            "Deutsche Bundesbank", "EZB"]
 STATUS = ["open", "waiting", "finished"]
 
 MOCK_MEMORY_DB = OrderedDict()
+
+
+def _random_frequencies(pool, min_reps=50, max_reps=100):
+    """Create a dict with random normalized frequencies."""
+    words = []
+    for i in range(random.randrange(min_reps, max_reps)):
+        words.append(random.choice(pool))
+    freqs = ut.frequencies(words)
+    minimum = min(freqs.values())
+    maximum = max(freqs.values())
+    if maximum-minimum == 0:
+        freqs = {w: 1 for w, v in freqs.items()}
+        return freqs
+    freqs = {w: (v - minimum) / (maximum - minimum)
+             for w, v in freqs.items()}
+    return freqs
 
 
 def set_seed(cur_date):
@@ -185,18 +204,9 @@ def create_mockument(cur_date, **kwargs):
                      "lines_removed": num_lines_rem}
     doc["status"] = random.choice(STATUS)
     # make up some frequent words for the word cloud
-    words = {}
-    for i in range(random.randrange(50, 100)):
-        word = random.choice(WORDS)
-        freq = words.get(word, 0)
-        words[word] = freq + 1
-    minimum = 1
-    maximum = max(words.values())
-    if maximum > 1:
-        words = {w: (v - minimum) / (maximum - minimum)
-                 for w, v in words.items()}
 
-    doc["words"] = words
+    doc["keywords"] = _random_frequencies(KEYWORDS, min_reps=10, max_reps=30)
+    doc["entities"] = _random_frequencies(ENTITIES, min_reps=3, max_reps=10)
 
     # put in the remaining kwargs
     doc.update(kwargs)
@@ -338,8 +348,33 @@ def create_versions(doc_id, num=None):
     return documents
 
 
+def get_versions(doc_id):
+    """Returns all documents, that have the same title, source and type.
+
+    Args:
+        doc_id (str): the id of the document, whose versions should be found.
+
+    Returns:
+        list: a list of documents, which are versions of each other.
+    """
+    def _filter_func(cur_doc):
+        def _func(doc):
+            return ((doc["document"] == cur_doc["document"]) and
+                    (doc["source"] == cur_doc["source"]) and
+                    (doc["type"] == cur_doc["type"]) and
+                    (doc["id"] != cur_doc["id"]))
+        return _func
+
+    cur_doc = get_document(doc_id)
+    docs = [doc for doc in MOCK_MEMORY_DB.values()
+            if _filter_func(cur_doc)(doc)]
+    return docs
+
+
 def get_or_create_versions(doc_id):
     """Returns all documents, that have the same title, source and type.
+
+    If they don't exist, creates a random amount of versions.
 
     Args:
         doc_id (str): the id of the document, whose versions should be found.
