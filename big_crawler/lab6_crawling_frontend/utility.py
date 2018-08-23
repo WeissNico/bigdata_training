@@ -145,6 +145,30 @@ def safe_dict_access(dictionary, keys, default=None):
         return default
 
 
+def dict_construct(dictionary, mapping):
+    """Creates a dict out of an old one, by accessing the keys in a safe way.
+
+    If a mapping looks like: `{"key_new": (["key_1", "key_2", "key_3"], 0)}`
+    the resulting dict will be structured as follows:
+    `{"key_new": dictionary["key_1"]["key_2"]["key_3"]}`
+    If one of the keys is not present, it will be mapped to `0` (as given in
+    the tuple).
+
+    Args:
+        dictionary (dict): the (nested) dictionary that should be accessed.
+        mapping (dict): the mapping describing how the translation should
+            be processed. See description above.
+
+    Returns:
+        dict: a resulting new dict.
+    """
+    new_dict = {}
+    for key, tupl in mapping.items():
+        opt = safe_dict_access(dictionary, *tupl)
+        new_dict[key] = opt
+    return new_dict
+
+
 def frequencies(some_list, key=None):
     """Returns the frequencies of unique items in a list.
 

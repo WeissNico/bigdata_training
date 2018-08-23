@@ -1,66 +1,51 @@
 from datetime import date
+import logging
 
 from flask import (Flask, request, redirect, render_template, url_for,
                    send_file, jsonify)
 
-from elasticsearch import Elasticsearch, RequestsHttpConnection
-from settings import (ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORT,
-                      ELASTICSEARCH_HOST, ELASTICSEARCH_PORT)
-
-from elastic import Elastic
-import utility
+import settings as conf
+import utility as ut
+import elastic
 import mock
 import diff
 
 
-es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
 app = Flask(__name__)
-elastic = Elastic()
+es = elastic.Elastic(conf.ELASTICSEARCH_HOST,
+                     conf.ELASTICSEARCH_PORT,
+                     (conf.ELASTICSEARCH_USER, conf.ELASTICSEARCH_PASSWORT))
 
 
-@app.route("/search", methods=['GET', 'POST'])
+@app.route("/search", methods=["GET", "POST"])
 def search():
     # get search keywords
-    search_text = request.args.get('search')
-    auth = (ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORT)
-    es = Elasticsearch(host=ELASTICSEARCH_HOST,
-                       port=ELASTICSEARCH_PORT,
-                       connection_class=RequestsHttpConnection,
-                       use_ssl=True,
-                       timeout=220,
-                       max_retries=10, retry_on_timeout=True,
-                       http_auth=auth)
-    # res = requests.get(ELASTIC_URL+"/=")
-    s_body = {"query": {"simple_query_string": {"query": search_text}},
-              "highlight": {"fields": {"*": {"pre_tags": ["<b>"],
-                                             "post_tags": ["</b>"]}}}}
-    results = es.search(index="testcase", body=s_body)
-    data = [doc for doc in results['hits']['hits']]
+    search_text = request.args.get("search", "")
+    data = es.search_documents(search_text)
 
     search_result = list()
     for doc in data:
-        text = utility.safe_dict_access(doc, ["highlight", "text"], None)
-        hl_tags = utility.safe_dict_access(doc, ["highlight", "tags"], None)
-        if (text is not None or hl_tags is not None):
-            link = utility.safe_dict_access(doc, ["_source", "baseUrl"])
-            id = utility.safe_dict_access(doc, ["_id"], "no id")
-            filename = utility.safe_dict_access(doc, ["_source", "title"],
-                                                None)
-            if not filename:
-                filename = "no title"
-            date = utility.safe_dict_access(doc,
-                                            ["_source", "metadata", "date"],
-                                            "no date")
-            if text is None:
-                text = utility.safe_dict_access(doc, ["_source", "text"],
-                                                "no text")
-            # shorten text
-            text = text[0][:200]
-            tags = utility.safe_dict_access(doc, ["_source", "tags"], [])
-            print(f"{filename}) {tags}")
+        highlight = ut.dict_construct(doc, {
+            "text": (["highlight", "text"], None),
+            "tags": (["highlight", "tags"], None)
+        })
+        ret_doc = ut.dict_construct(doc, {
+            "link": (["_source", "baseUrl"], "#"),
+            "id": (["_id"], "no_id"),
+            "filename": (["_source", "title"], "no title"),
+            "date": (["_source", "metadata", "date"], "no date"),
+            "text": (["_source", "text"], []),
+            "tags": (["_source", "tags"], []),
+        })
 
-            search_result.append({'id': id, 'filename': filename, 'date': date,
-                                  'text': text, 'tags': tags, 'link': link})
+        # update the set keys for the search
+        if (highlight["text"] is not None or highlight["tags"] is not None):
+            if highlight["text"] is not None:
+                ret_doc["text"] = highlight["text"]
+            # shorten text
+            ret_doc["text"] = ret_doc["text"][0][:200]
+            logging.debug("Appending '{filename}': {tags}".format(**ret_doc))
+            search_result.append(ret_doc)
 
     return render_template('search.html', results=search_result)
 
@@ -75,7 +60,7 @@ def nutch():
 
     return render_template('nutch.html', results=search_results)
     '''
-    res = elastic.get_seeds()
+    res = es.get_seeds()
     return render_template('seeds.html', seeds=res)
 
 
@@ -110,13 +95,13 @@ def dashboard(dbdate=None):
     cur_date = mock.create_mock_date(db_date)
     # create some mock calendar
     calendar = [mock.create_mock_date(d)
-                for d in utility.generate_date_range(db_date)]
+                for d in ut.generate_date_range(db_date)]
 
     # create sort order on the documents
     sort_by = request.args.get("sortby", "impact")
     desc = request.args.get("desc", "True").lower() == "true"
 
-    documents = utility.sort_documents(documents, sort_key=sort_by, desc=desc)
+    documents = ut.sort_documents(documents, sort_key=sort_by, desc=desc)
     columns = ["impact", "type", "category", "", "document", "change",
                "quantity", "status"]
     return render_template("dashboard.html",
@@ -150,7 +135,7 @@ def document(doc_id):
     doc = mock.get_document(doc_id)
     cur_date = mock.create_mock_date(doc["date"])
     calendar = [mock.create_mock_date(d)
-                for d in utility.generate_date_range(doc["date"])]
+                for d in ut.generate_date_range(doc["date"])]
     versions = sorted(mock.get_or_create_versions(doc_id),
                       key=lambda x: x["date"], reverse=True)
 
@@ -179,15 +164,15 @@ def document_connections(doc_id):
     doc = mock.get_document(doc_id)
     cur_date = mock.create_mock_date(doc["date"])
     calendar = [mock.create_mock_date(d)
-                for d in utility.generate_date_range(doc["date"])]
+                for d in ut.generate_date_range(doc["date"])]
     connected = mock.get_or_create_connected(doc_id)
 
     # create sort order on the documents
     sort_by = request.args.get("sortby", "similarity")
     desc = request.args.get("desc", "True").lower() == "true"
 
-    connected = utility.sort_documents(connected, sort_key=sort_by, desc=desc,
-                                       other_doc=doc_id)
+    connected = ut.sort_documents(connected, sort_key=sort_by, desc=desc,
+                                  other_doc=doc_id)
     columns = ["date", "type", "document", "quantity", "similarity"]
 
     return render_template("connections.html",
@@ -216,7 +201,7 @@ def document_diff(doc_id):
     doc = mock.get_document(doc_id)
     cur_date = mock.create_mock_date(doc["date"])
     calendar = [mock.create_mock_date(d)
-                for d in utility.generate_date_range(doc["date"])]
+                for d in ut.generate_date_range(doc["date"])]
 
     versions = sorted(mock.get_or_create_versions(doc_id),
                       key=lambda x: x["date"], reverse=True)
@@ -411,7 +396,7 @@ def remove_tag():
     doc_id = request.form['doc_id']
     tag = request.form['tag']
 
-    elastic.remove_tag(tag, doc_id)
+    es.remove_tag(tag, doc_id)
 
     return "remove successfully"
 
@@ -421,7 +406,7 @@ def add_tag():
     doc_id = request.form['doc_id']
     tag = request.form['tag']
 
-    elastic.update_tag(tag, doc_id)
+    es.update_tag(tag, doc_id)
 
     return "update successfully"
 
@@ -440,7 +425,7 @@ def add_seed():
         "doc_id": doc_id
     }
 
-    elastic.set_seed(seed)
+    es.set_seed(seed)
 
     return "update successfully"
 
@@ -449,7 +434,7 @@ def add_seed():
 def delete_seed():
     doc_id = request.form['doc_id']
 
-    elastic.delete_seed(doc_id)
+    es.delete_seed(doc_id)
 
     return "delete successfully"
 
