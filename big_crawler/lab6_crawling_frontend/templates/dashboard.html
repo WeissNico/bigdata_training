@@ -19,12 +19,12 @@
       {% if title %}
       <th scope="col"> 
         {% if sort_by[0] == title %}
-          <a href={{ url_for("dashboard", dbdate=cur_date.date|isodate, sortby=title, desc=(not sort_by[1])) }}>
+          <a href="{{ url_for('dashboard', dbdate=cur_date.date|isodate, sortby=title, desc=(not sort_by[1])) }}">
             {{ title|titlecase }} 
             <span class="fas fa-sort-{{ 'down' if sort_by[1] else 'up' }}"></span>
           </a>
         {% else %}
-          <a href={{ url_for("dashboard", dbdate=cur_date.date|isodate, sortby=title, desc=True) }}>
+          <a href="{{ url_for('dashboard', dbdate=cur_date.date|isodate, sortby=title, desc=True) }}">
             {{ title|titlecase }} 
             <span class="fas fa-sort"></span>
           </a>
@@ -38,18 +38,18 @@
   </thead>
   <tbody>
     {% for doc in cur_docs %}
-    <tr data-document={{ doc.id }}>
+    <tr data-document={{ doc._id }}>
       <!-- impact indicator -->
       <td>
-        <a class="impact-indicator {{ doc.impact }}" href="{{ url_for('document_connections', doc_id=doc.id) }}" title="Impact on other documents" data-var="impact" data-val={{ doc.impact }}>
+        <a class="impact-indicator {{ doc.impact }}" href="{{ url_for('document_connections', doc_id=doc._id) }}" title="Impact on other documents" data-var="impact" data-val={{ doc.impact }}>
           <span>{{ doc.impact|capitalize|first }}</span>
           <br />
           <span>{{ doc.impact|capitalize }}</span>
         </a>
       </td>
-      <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="type" title="The type of this document" data-document={{ doc.id }}>{{ doc.type }}</a></td>
-      <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="category" title="The Category of this document (Who is responsible)" data-document={{ doc.id }}>{{ doc.category }}</a></td>
-      <td><a class="btn btn-outline-secondary btn-block" href="#changeModal" data-toggle="modal" title="Change document's properties" data-document={{ doc.id }}><span class="fas fa-edit"></span></a></td>
+      <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="type" title="The type of this document" data-document={{ doc._id }}>{{ doc.type }}</a></td>
+      <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="category" title="The Category of this document (Who is responsible)" data-document={{ doc._id }}>{{ doc.category }}</a></td>
+      <td><a class="btn btn-outline-secondary btn-block" href="#changeModal" data-toggle="modal" title="Change document's properties" data-document={{ doc._id }}><span class="fas fa-edit"></span></a></td>
       <!-- source and document links -->
       <td>
         {{ macros.document_entry(doc) }}

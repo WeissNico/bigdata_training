@@ -1,20 +1,26 @@
 from datetime import date
 import logging
 
+import elastic
+from pymongo import MongoClient
 from flask import (Flask, request, redirect, render_template, url_for,
                    send_file, jsonify)
 
 import settings as conf
 import utility as ut
-import elastic
-import mock
+import mock as mck
 import diff
 
 
 app = Flask(__name__)
+# connect to the elasticDB
 es = elastic.Elastic(conf.ELASTICSEARCH_HOST,
                      conf.ELASTICSEARCH_PORT,
                      (conf.ELASTICSEARCH_USER, conf.ELASTICSEARCH_PASSWORT))
+# connect to the mongoDB
+client = MongoClient("mongodb://159.122.175.139:30017")
+db = client["crawler"]
+mock = mck.Mocker(db.mockuments)
 
 
 @app.route("/search", methods=["GET", "POST"])
@@ -81,21 +87,20 @@ def dashboard(dbdate=None):
             defaults to 'True'.
     """
     if dbdate is None:
-        db_date = date.today()
+        db_date = ut.from_date()
     else:
         try:
-            db_date = date.fromisoformat(dbdate)
+            db_date = ut.from_date(date.fromisoformat(dbdate))
         except ValueError as err:
             # when an invalid string is provided
-            db_date = date.today()
+            db_date = ut.from_date()
 
     # create mockuments :)
     mock.set_seed(db_date)
     documents = mock.get_or_create_documents(db_date, num=None)
-    cur_date = mock.create_mock_date(db_date)
     # create some mock calendar
-    calendar = [mock.create_mock_date(d)
-                for d in ut.generate_date_range(db_date)]
+    calendar = mock.get_or_create_calendar(db_date)
+    cur_date = mock.get_or_create_date(db_date)
 
     # create sort order on the documents
     sort_by = request.args.get("sortby", "impact")
@@ -109,8 +114,8 @@ def dashboard(dbdate=None):
                            cur_date=cur_date,
                            documents=documents,
                            columntitles=columns,
-                           types=sorted(mock.TYPES),
-                           categories=sorted(mock.CATEGORIES),
+                           types=sorted(mck.TYPES),
+                           categories=sorted(mck.CATEGORIES),
                            sort_by=(sort_by, desc))
 
 
@@ -133,9 +138,8 @@ def document(doc_id):
         doc_id (str): the id of the document to reutrn.
     """
     doc = mock.get_document(doc_id)
-    cur_date = mock.create_mock_date(doc["date"])
-    calendar = [mock.create_mock_date(d)
-                for d in ut.generate_date_range(doc["date"])]
+    calendar = mock.get_or_create_calendar(doc["date"])
+    cur_date = mock.get_or_create_date(doc["date"])
     versions = sorted(mock.get_or_create_versions(doc_id),
                       key=lambda x: x["date"], reverse=True)
 
@@ -143,8 +147,8 @@ def document(doc_id):
                            calendar=calendar,
                            cur_date=cur_date,
                            cur_doc=doc,
-                           types=sorted(mock.TYPES),
-                           categories=sorted(mock.CATEGORIES),
+                           types=sorted(mck.TYPES),
+                           categories=sorted(mck.CATEGORIES),
                            versions=versions)
 
 
@@ -162,9 +166,8 @@ def document_connections(doc_id):
             defaults to 'True'.
     """
     doc = mock.get_document(doc_id)
-    cur_date = mock.create_mock_date(doc["date"])
-    calendar = [mock.create_mock_date(d)
-                for d in ut.generate_date_range(doc["date"])]
+    calendar = mock.get_or_create_calendar(doc["date"])
+    cur_date = mock.get_or_create_date(doc["date"])
     connected = mock.get_or_create_connected(doc_id)
 
     # create sort order on the documents
@@ -199,12 +202,13 @@ def document_diff(doc_id):
             comparison.
     """
     doc = mock.get_document(doc_id)
-    cur_date = mock.create_mock_date(doc["date"])
-    calendar = [mock.create_mock_date(d)
-                for d in ut.generate_date_range(doc["date"])]
+    calendar = mock.get_or_create_calendar(doc["date"])
+    cur_date = mock.get_or_create_date(doc["date"])
 
     versions = sorted(mock.get_or_create_versions(doc_id),
                       key=lambda x: x["date"], reverse=True)
+    # document needs to be reloaded...
+    doc = mock.get_document(doc_id)
     compare_to = request.args.get("compare_to", None)
     other = None
     # when nothing is given for comparison, take the latest document
@@ -212,7 +216,7 @@ def document_diff(doc_id):
         other = versions[0]
     else:
         # otherwise get the one with the right id
-        other = [d for d in versions if d["id"] == compare_to][0]
+        other = [d for d in versions if str(d["_id"]) == compare_to][0]
     diffs, change = diff.get_unified_diff(doc, other)
 
     return render_template("diff.html",
@@ -230,7 +234,7 @@ def document_set_status(doc_id):
     """Should update the status of the document as saved in the database.
 
     Args:
-        doc_id (str): the id of the document to reutrn.
+        doc_id (str): the id of the document to return.
 
     Request Args:
         status (str): one of `open`, `waiting` or `finished`
@@ -240,7 +244,7 @@ def document_set_status(doc_id):
     if status not in ["open", "waiting", "finished"]:
         return jsonify(success=False)
     doc["status"] = status
-    mock.set_document(doc_id, doc)
+    mock.set_document(doc, doc_id)
     return jsonify(status=status, success=True)
 
 
@@ -321,7 +325,7 @@ def document_set_properties(doc_id):
         else:
             doc[item["name"]] = item["value"]
         update[item["name"]] = item["value"]
-    mock.set_document(doc_id, doc)
+    mock.set_document(doc, doc_id)
     return jsonify(success=True, update=update)
 
 
@@ -437,6 +441,20 @@ def delete_seed():
     es.delete_seed(doc_id)
 
     return "delete successfully"
+
+
+@app.template_filter("str")
+def filter_str(obj):
+    """A str filter for the jinja2 templates.
+
+    Args:
+        number (int): the number.
+
+    Returns:
+        str: the stringified object.
+
+    """
+    return str(obj)
 
 
 @app.template_filter("pluralize")

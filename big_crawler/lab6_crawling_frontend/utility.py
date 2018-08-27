@@ -5,7 +5,7 @@ Author: Johannes Mueller <j.mueller@reply.de>
 """
 
 import functools
-from datetime import date, timedelta
+import datetime as dt
 
 ORDER_STATUS = {"open": 2, "waiting": 1, "finished": 0}
 ORDER_IMPACT = {"high": 2, "medium": 1, "low": 0}
@@ -62,12 +62,12 @@ def get_year_range(incl_date=None):
     HALF_YEAR = FULL_YEAR // 2
 
     if incl_date is None:
-        end_date = date.today()
+        end_date = from_date()
     else:
-        end_date = incl_date + timedelta(days=HALF_YEAR)
-        if end_date > date.today():
-            end_date = date.today()
-    start_date = end_date - timedelta(days=FULL_YEAR)
+        end_date = incl_date + dt.timedelta(days=HALF_YEAR)
+        if end_date > from_date():
+            end_date = from_date()
+    start_date = end_date - dt.timedelta(days=FULL_YEAR)
     return start_date, end_date
 
 
@@ -86,9 +86,9 @@ def generate_date_range(incl_date=None, desc=True):
         date: a date for each day for one year.
     """
     start, end = get_year_range(incl_date)
-    step = timedelta(days=1)
+    step = dt.timedelta(days=1)
     if desc:
-        step = timedelta(days=-1)
+        step = dt.timedelta(days=-1)
         start, end = end, start
     cur_date = start
     while cur_date != end:
@@ -189,3 +189,17 @@ def frequencies(some_list, key=None):
 
     counts = functools.reduce(_count_unique, some_list, {})
     return counts
+
+
+def from_date(a_date=None):
+    """Returns a given date as a datetime.datetime, time set to 00:00:00.0000
+
+    Args:
+        a_date (datetime.date): some date, defaults to None, which equals
+            today's date.
+    Returns:
+        datetime.datetime: todays date.
+    """
+    if a_date is None:
+        a_date = dt.date.today()
+    return dt.datetime.combine(a_date, dt.time.min)

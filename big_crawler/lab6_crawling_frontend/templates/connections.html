@@ -30,12 +30,12 @@
       {% for title in columntitles %}
       <th scope="col"> 
         {% if sort_by[0] == title %}
-          <a href="{{ url_for('document_connections', doc_id=cur_doc.id, sortby=title, desc=(not sort_by[1])) }}">
+          <a href="{{ url_for('document_connections', doc_id=cur_doc._id, sortby=title, desc=(not sort_by[1])) }}">
             {{ title|titlecase }} 
             <span class="fas fa-sort-{{ 'down' if sort_by[1] else 'up' }}"></span>
           </a>
         {% else %}
-          <a href="{{ url_for('document_connections', doc_id=cur_doc.id, sortby=title, desc=True) }}">
+          <a href="{{ url_for('document_connections', doc_id=cur_doc._id, sortby=title, desc=True) }}">
             {{ title|titlecase }} 
             <span class="fas fa-sort"></span>
           </a>
@@ -45,8 +45,9 @@
     </tr>
   </thead>
   <tbody>
+    {% set cur_id = cur_doc._id|str %}
     {% for doc in cur_docs %}
-    <tr data-document="{{ doc.id }}">
+    <tr data-document="{{ doc._id }}">
       <td>
         {{ macros.dashboard_link(doc) }}
       </td>
@@ -61,8 +62,8 @@
       </td>
       <!-- similarity measure -->
       <td>
-        <div class="similarity {{ doc.connections[cur_doc.id].similarity|from(0, 1)|to(['low', 'medium', 'high']) }}">
-          <span>{{ doc.connections[cur_doc.id].similarity|decimalnumber(3) }}</span>
+        <div class="similarity {{ doc.connections[cur_id].similarity|from(0, 1)|to(['low', 'medium', 'high']) }}">
+          <span>{{ doc.connections[cur_id].similarity|decimalnumber(3) }}</span>
         </div>
       </td>
     </tr>

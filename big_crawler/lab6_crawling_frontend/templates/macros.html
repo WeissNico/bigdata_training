@@ -57,7 +57,7 @@
 {% endmacro %}
 
 {% macro document_link(doc) %}
-<a href="{{ url_for('document', doc_id=doc.id) }}" title="{{ doc.document }}" data-var="title">
+<a href="{{ url_for('document', doc_id=doc._id) }}" title="{{ doc.document }}" data-var="title">
   {{ doc.document }}
 </a>
 {% endmacro %}
@@ -69,6 +69,7 @@
 {% endmacro %}
 
 {% macro document_entry(doc) %}
+<p hidden>{{ doc }}</p>
 <div class="document-title text-left">
   <div class="overflow-fade">
     {{ document_link(doc) }}
@@ -78,7 +79,7 @@
       <span class="fas fa-{{ 'home' if doc.source|lower == 'inhouse' else 'link' }}"></span>
       <span>Source: {{ doc.source|domainextract }}</span>
     </a>
-    <a class="btn btn-outline-secondary" href="{{ url_for( 'document_download', doc_id=doc.id) }}" target="_blank" title="Show saved document">
+    <a class="btn btn-outline-secondary" href="{{ url_for( 'document_download', doc_id=doc._id) }}" target="_blank" title="Show saved document">
       <span class="fas fa-file-pdf"></span>
     </a>
   </div>
@@ -91,9 +92,9 @@
   <span class="button-text"></span>
 </button>
 <div class="dropdown-menu dropdown-status">
-  <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc.id) }}" data-val="open">UNREAD</a>
-  <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc.id) }}" data-val="waiting">ON HOLD</a>
-  <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc.id) }}" data-val="finished">ASSIGNED</a>
+  <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc._id) }}" data-val="open">UNREAD</a>
+  <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc._id) }}" data-val="waiting">ON HOLD</a>
+  <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc._id) }}" data-val="finished">ASSIGNED</a>
 </div>
 {% endmacro %}
 
@@ -145,7 +146,7 @@
 
 {% macro change_entry(doc) %}
 {% set max_lines = (doc.change.lines_added, doc.change.lines_removed)|max %}
-<a class="click-wrapper" href="{{ url_for('document_diff', doc_id=doc.id) if not doc.new else '#'}}">
+<a class="click-wrapper" href="{{ url_for('document_diff', doc_id=doc._id) if not doc.new else '#'}}">
   {{ progress_bar(doc.change.lines_added, max_lines) }}
   {{ progress_bar(-doc.change.lines_removed, max_lines) }}
 </a>
@@ -284,7 +285,7 @@
 </button>
 <div class="dropdown-menu">
   {% for version in versions %}
-  <a class="dropdown-item" href="{{ url_for('document_diff', doc_id=doc_id, compare_to=version.id) }}">
+  <a class="dropdown-item" href="{{ url_for('document_diff', doc_id=doc_id, compare_to=version._id) }}">
     {{ version.date|engldate }}
   </a>
   {% endfor %}
@@ -296,11 +297,11 @@
 <ul class="list-group">
   {% for version in versions %}
   <li class="list-group-item">
-      <a class="text-nowrap mr-3" href="{{ url_for('document', doc_id=version.id) }}" title="{{ version.document }}">
+      <a class="text-nowrap mr-3" href="{{ url_for('document', doc_id=version._id) }}" title="{{ version.document }}">
         <span class="fas fa-file"></span>
         <span>Document from {{ version.date|engldate }}</span>
       </a>
-      <a class="text-nowrap" href="{{ url_for('document_diff', doc_id=doc_id, compare_to=version.id) }}" title="Compare to this version">
+      <a class="text-nowrap" href="{{ url_for('document_diff', doc_id=doc_id, compare_to=version._id) }}" title="Compare to this version">
         <span class="fas fa-copy"></span>
         <span>Compare</span>
       </a>
