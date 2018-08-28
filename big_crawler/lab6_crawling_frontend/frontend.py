@@ -130,13 +130,9 @@ def document_download(doc_id):
     """
     doc = mock.get_document(doc_id)
     if doc and "content" in doc:
-<<<<<<< HEAD
         return send_file(io.BytesIO(doc["content"]),
                          attachment_filename="source.pdf",
                          mimetype="application/pdf")
-=======
-        return send_file(doc["content"], attachment_filename="source.pdf")
->>>>>>> 2d550eb66a4017c8aeeaa243cb4c311e5e3448dc
     return send_file("static/dummy.pdf")
     # right now, just sends some dummy pdf-file
 
@@ -741,4 +737,4 @@ def filter_to(obj, start_or_list, end=None):
 if __name__ == "__main__":
     # app = create_app(config.DATABASE_URI, debug=True)
     app.debug = True
-    app.run()
+    app.run(host="0.0.0.0", port="80")
