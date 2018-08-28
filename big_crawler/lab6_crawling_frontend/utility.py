@@ -39,9 +39,16 @@ SORT_KEYS = {
     "document": _fw(lambda doc: doc["document"]),
     "change": _fw(lambda doc: doc["change"]["lines_added"]),
     "quantity": _fw(lambda doc: doc["quantity"]["words"]),
+    "reading time": _fw(lambda doc: doc["reading_time"]),
     "similarity": _get_similarity,
     "status": _fw(lambda doc: ORDER_STATUS[doc["status"]])
 }
+
+
+TIME_FACTORS = {"FAQ": 0.9,
+                "Article": 1.1,
+                "Directive": 1.5,
+                "Regulation": 1.6}
 
 
 def get_year_range(incl_date=None):
@@ -203,3 +210,32 @@ def from_date(a_date=None):
     if a_date is None:
         a_date = dt.date.today()
     return dt.datetime.combine(a_date, dt.time.min)
+
+
+def get_reading_time(doc):
+    """Returns a reading time for a given number of lines.
+
+    Args:
+        doc (dict): the document in question.
+
+    Returns:
+        datetime.timedelta: the reading time.
+    """
+    type_factor = TIME_FACTORS.get(doc["type"], 1)
+    return dt.timedelta(seconds=(2 * doc["quantity"]["lines"] * type_factor))
+
+
+def add_reading_time(doc):
+    """Adds the reading time to a document.
+
+    THIS OPERATION UPDATES THE ORIGINAL DICT!
+
+    Args:
+        doc (dict): the document in question.
+
+    Returns:
+        dict: an updated document.
+    """
+    upd = {"reading_time": get_reading_time(doc)}
+    doc.update(upd)
+    return doc

@@ -14,7 +14,7 @@ import utility as ut
 
 TYPES = ["Regulation", "Guideline", "Directive", "FAQ", "Article"]
 IMPACTS = ["high", "medium", "low"]
-CATEGORIES = ["Securities", "Risk management", "General", "?"]
+CATEGORIES = ["Securities", "Risk management", "General", "GDPR"]
 SOURCES = ["Inhouse",
            "https://eur-lex.europa.eu/legal-content/de/txt/",
            "https://voeb.de/download/",
@@ -130,19 +130,22 @@ class Mocker():
             doc_id (str): the documents id. Defaults to None, which just
                 inserts a new document
             doc (dict): the new document.
+
+        Returns:
+            bson.objectid.ObjectId: the id of the inserted or updated document.
+                or None.
         """
         obj_id = None
         try:
             obj_id = bson.objectid.ObjectId(doc_id)
         except bson.errors.InvalidId:
-            pass
-        if obj_id is None:
-            result = self.coll.insert_one(doc)
-            return result.inserted_id is not None
+            obj_id = bson.objectid.ObjectId()
 
         result = self.coll.update_one({"_id": obj_id}, {"$set": doc},
                                       upsert=True)
-        return result.modified_count > 0
+        if result.modified_count > 0 or result.upserted_id is not None:
+            return obj_id
+        return None
 
     def create_random_date(self, min_date=None, max_date=None):
         """Creates a random date using the provided constraints.
@@ -385,8 +388,8 @@ class Mocker():
 
         # put in the remaining kwargs
         doc.update(kwargs)
-        result = self.set_document(doc)
-        return self.get_document(result.inserted_id)
+        doc_id = self.set_document(doc)
+        return self.get_document(doc_id)
 
     def get_or_create_documents(self, cur_date, num):
         """Returns all mockuments for the given date.
