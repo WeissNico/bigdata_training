@@ -72,7 +72,13 @@ function saveSettings(event) {
     event.preventDefault();
 }
 
+function focusInput(event) {
+    var $modal = $(event.currentTarget)
+    $modal.find(".editable-list input[name='newItem']").focus();
+}
+
 $(GLOBAL_OBJ).on("custom.edit-list.remove", removeFromWordcloud);
 $(GLOBAL_OBJ).on("custom.edit-list.add", addToWordcloud);
 $("#keywordModal").on("show.bs.modal", showKeywordModal);
+$("#keywordModal").on("shown.bs.modal", focusInput);
 $("#saveButton").on("click", saveSettings);

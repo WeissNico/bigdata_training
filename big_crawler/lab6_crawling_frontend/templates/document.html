@@ -8,7 +8,7 @@
 {% block content %}
 
 {% macro document_table(doc) %}
-<table class="document-table table table-responsive" data-document="{{ doc.id }}">
+<table class="document-table table table-responsive" data-document="{{ doc._id }}">
   <tr data-var="document">
     <th class="width-1-3" scope="row">
       <span class="fas fa-font"></span>
@@ -95,7 +95,7 @@
       Versions
     </th>
     <td>
-      {{ macros.version_list(cur_doc.id, versions) }}
+      {{ macros.version_list(cur_doc._id, versions) }}
     </td>
   </tr>
 </table>
@@ -121,12 +121,12 @@
     </div>
     <div class="row">
       <div class="col-lg-4 offset-lg-4 col-md-6 mt-2">
-        <a href="{{ url_for('document', doc_id=cur_doc.id) }}" class="btn btn-secondary btn-block" id="cancelButton">
+        <a href="{{ url_for('document', doc_id=cur_doc._id) }}" class="btn btn-secondary btn-block" id="cancelButton">
           Revert changes
         </a>
       </div>
       <div class="col-lg-4 col-md-6 mt-2">
-        <a href="{{ url_for('document_set_properties', doc_id=cur_doc.id) }}" class="btn btn-primary btn-block" id="saveButton">
+        <a href="{{ url_for('document_set_properties', doc_id=cur_doc._id) }}" class="btn btn-primary btn-block" id="saveButton">
           <span class="fas fa-save"></span>
           Save changes
         </a>
@@ -135,12 +135,12 @@
   </div>
   <div class="col-lg-5 col-md-12">
     <div class="pdf-sidepane sticky">
-      <button class="btn btn-secondary btn-block py-2 my-2" data-toggle="modal" data-target="#fullscreenModal" data-document="cur_doc.id">
+      <button class="btn btn-secondary btn-block py-2 my-2" data-toggle="modal" data-target="#fullscreenModal" data-document="cur_doc._id">
         <span class="fas fa-expand-arrows-alt"></span> Fullscreen
       </button>
       <div class="aspect-container">
         <div class="aspect-clear">
-        {{ macros.include_pdf(cur_doc.id) }}
+        {{ macros.include_pdf(cur_doc._id) }}
         </div>
       </div>
     </div>
@@ -180,8 +180,8 @@
       </div>
       <div class="modal-body">
       {{ macros.edit_list([],
-                          url_for('document_add_words', doc_id=cur_doc.id),
-                          url_for('document_remove_words', doc_id=cur_doc.id)) }}
+                          url_for('document_add_words', doc_id=cur_doc._id),
+                          url_for('document_remove_words', doc_id=cur_doc._id)) }}
       </div>
     </div>
   </div>

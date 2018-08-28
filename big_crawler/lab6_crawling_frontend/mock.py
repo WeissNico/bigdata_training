@@ -7,7 +7,8 @@ import random
 import os
 from datetime import date, timedelta
 
-from bson.objectid import ObjectId
+import bson.objectid
+import bson.errors
 
 import utility as ut
 
@@ -115,7 +116,11 @@ class Mocker():
         Returns:
             dict: a saved document, if existant.
         """
-        doc = self.coll.find_one({"_id": ObjectId(doc_id)})
+        try:
+            obj_id = bson.objectid.ObjectId(doc_id)
+        except bson.errors.InvalidId:
+            return None
+        doc = self.coll.find_one({"_id": obj_id})
         return doc
 
     def set_document(self, doc, doc_id=None):
@@ -126,11 +131,16 @@ class Mocker():
                 inserts a new document
             doc (dict): the new document.
         """
-        if doc_id is None:
+        obj_id = None
+        try:
+            obj_id = bson.objectid.ObjectId(doc_id)
+        except bson.errors.InvalidId:
+            pass
+        if obj_id is None:
             result = self.coll.insert_one(doc)
             return result.inserted_id is not None
 
-        result = self.coll.update_one({"_id": ObjectId(doc_id)}, {"$set": doc},
+        result = self.coll.update_one({"_id": obj_id}, {"$set": doc},
                                       upsert=True)
         return result.modified_count > 0
 
@@ -375,8 +385,8 @@ class Mocker():
 
         # put in the remaining kwargs
         doc.update(kwargs)
-        self.set_document(doc)
-        return doc
+        result = self.set_document(doc)
+        return self.get_document(result.inserted_id)
 
     def get_or_create_documents(self, cur_date, num):
         """Returns all mockuments for the given date.
@@ -445,7 +455,7 @@ class Mocker():
             return self.create_connected_documents(doc_id)
         return conn
 
-    def add_text_to_doc(self, doc_id, fname, folder=None):
+    def add_text_to_doc(self, doc_id, fname, folder=None, force=False):
         """Adds a text to a given document and saves it in the memory-db.
 
         Args:
@@ -453,6 +463,7 @@ class Mocker():
             fname (str): the name of the file containing the text.
             folder (str): the folder of the file. Defaults to None, which
                 points to 'lab6_crawling_frontend'.
+            force (bool): whether the text should be overwritten or not.
 
         Returns:
             dict: the updated document.
@@ -464,7 +475,8 @@ class Mocker():
         with open(os.path.join(folder, fname), "r") as fl:
             content = fl.read()
         doc = self.get_document(doc_id)
-        doc["text"] = content
+        if force or "text" not in doc:
+            doc["text"] = content
         self.set_document(doc, doc_id)
         return doc
 

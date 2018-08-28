@@ -20,7 +20,7 @@
 </div>
 <div class="row">
   <div class="col-12">
-    {{ macros.word_cloud(cur_doc.keywords) }}
+    {{ macros.word_cloud(cur_doc.keywords, title="Keywords") }}
   </div>
 </div>
 {% macro document_table(cur_docs, sort_prefix="new") %}

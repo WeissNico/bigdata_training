@@ -85,6 +85,7 @@ function addItemEvent(event) {
     var $list = $link.parents(".editable-list").children("ul.list-group");
 
     var items = $input.val().split(",").map(el => el.trim());
+    $input.val("");
     for (ind in items) {
         addItem($list[0], items[ind]);
         $(GLOBAL_OBJ).trigger("custom.edit-list.add",

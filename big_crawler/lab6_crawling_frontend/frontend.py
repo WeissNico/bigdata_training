@@ -126,8 +126,11 @@ def document_download(doc_id):
     Args:
         doc_id (str): the id of the document to reutrn.
     """
-    # right now, just sends some dummy pdf-file
+    doc = mock.get_document(doc_id)
+    if doc and "content" in doc:
+        return send_file(doc["content"])
     return send_file("static/dummy.pdf")
+    # right now, just sends some dummy pdf-file
 
 
 @app.route("/document/<doc_id>/")

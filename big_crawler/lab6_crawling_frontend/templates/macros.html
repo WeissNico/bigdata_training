@@ -75,8 +75,9 @@
     {{ document_link(doc) }}
   </div>
   <div class="btn-group mt-1">
-    <a class="btn btn-outline-secondary btn-block" href={{ doc.source }} target="_blank" title="Show source document">
-      <span class="fas fa-{{ 'home' if doc.source|lower == 'inhouse' else 'link' }}"></span>
+    {% set inhouse = doc.source|lower == "inhouse" %}
+    <a class="btn btn-outline-secondary btn-block" href="{{ doc.source if not inhouse else '#' }}" target="{{ '_blank' if not inhouse }}" title="Show source document">
+      <span class="fas fa-{{ 'home' if inhouse else 'link' }}"></span>
       <span>Source: {{ doc.source|domainextract }}</span>
     </a>
     <a class="btn btn-outline-secondary" href="{{ url_for( 'document_download', doc_id=doc._id) }}" target="_blank" title="Show saved document">
