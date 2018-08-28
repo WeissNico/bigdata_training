@@ -145,6 +145,7 @@ def document(doc_id):
         doc_id (str): the id of the document to reutrn.
     """
     doc = mock.get_document(doc_id)
+    doc = ut.add_reading_time(doc)
     calendar = mock.get_or_create_calendar(doc["date"])
     cur_date = mock.get_or_create_date(doc["date"])
     versions = sorted(mock.get_or_create_versions(doc_id),

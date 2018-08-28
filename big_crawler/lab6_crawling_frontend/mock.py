@@ -12,6 +12,10 @@ import bson.errors
 
 import utility as ut
 
+
+DIR = os.path.dirname(__file__)
+
+
 TYPES = ["Regulation", "Guideline", "Directive", "FAQ", "Article"]
 IMPACTS = ["high", "medium", "low"]
 CATEGORIES = ["Securities", "Risk management", "General", "GDPR"]
@@ -521,7 +525,7 @@ class Mocker():
                                             source=doc["source"],
                                             new=False)
             documents.append(self.add_text_to_doc(new_doc["_id"],
-                             "dummy_text_mod.txt"))
+                             os.path.join(DIR, "dummy_text_mod.txt")))
         # not completely correct, since all docs are marked as modified...
         return documents
 
@@ -554,7 +558,7 @@ class Mocker():
         Returns:
             list: a list of documents, which are versions of each other.
         """
-        self.add_text_to_doc(doc_id, "dummy_text.txt")
+        self.add_text_to_doc(doc_id, os.path.join(DIR, "dummy_text.txt"))
 
         docs = self.get_versions(doc_id)
         docs = [self.add_text_to_doc(d["_id"], "dummy_text_mod.txt")

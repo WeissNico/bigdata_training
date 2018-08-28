@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: sherlock-service
+    labels:
+      name: sherlock-service
+      context: sherlock-context
+  spec:
+    type: NodePort
+    ports:
+      # the port that this service should serve on
+      - port: 80
+        nodePort: 33333
+    # label keys and values that must match in order to receive traffic for this service
+    selector:
+      name: sherlock-agent
+      context: sherlock-context
+- apiVersion: v1
+  kind: ReplicationController
+  metadata:
+    name: sherlock-agent
+    labels:
+      name: sherlock-agent
+      context: sherlock-context
+  spec:
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          name: sherlock-agent
+          context: sherlock-context
+      spec:
+        containers:
+        - name: sherlock
+          image: registry.eu-de.bluemix.net/bluereplyde/sherlock:latest
+          ports:
+          - containerPort: 80
+kind: "List"
