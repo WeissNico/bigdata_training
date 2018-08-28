@@ -258,16 +258,9 @@ textarea {
 
 .quantity span:first-child{
   display: inline-block;
-  font-size: 150%;
+  font-size: 130%;
   line-height: 130%;
   text-align: right;
-}
-
-.quantity span:last-child{
-  display: inline-block;
-  font-size: 90%;
-  min-width: 3rem;
-  text-align: left;
 }
 
 .dashboard .btn-status {

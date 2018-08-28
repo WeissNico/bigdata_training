@@ -98,6 +98,7 @@ def dashboard(dbdate=None):
     # create mockuments :)
     mock.set_seed(db_date)
     documents = mock.get_or_create_documents(db_date, num=None)
+    documents = [ut.add_reading_time(d) for d in documents]
     # create some mock calendar
     calendar = mock.get_or_create_calendar(db_date)
     cur_date = mock.get_or_create_date(db_date)
@@ -107,8 +108,8 @@ def dashboard(dbdate=None):
     desc = request.args.get("desc", "True").lower() == "true"
 
     documents = ut.sort_documents(documents, sort_key=sort_by, desc=desc)
-    columns = ["impact", "type", "category", "", "document", "change",
-               "quantity", "status"]
+    columns = ["impact", "type", "category", "", "document",
+               "change", "reading time", "status"]
     return render_template("dashboard.html",
                            calendar=calendar,
                            cur_date=cur_date,
@@ -128,7 +129,7 @@ def document_download(doc_id):
     """
     doc = mock.get_document(doc_id)
     if doc and "content" in doc:
-        return send_file(doc["content"])
+        return send_file(doc["content"], attachment_filename="source.pdf")
     return send_file("static/dummy.pdf")
     # right now, just sends some dummy pdf-file
 
@@ -179,7 +180,9 @@ def document_connections(doc_id):
 
     connected = ut.sort_documents(connected, sort_key=sort_by, desc=desc,
                                   other_doc=doc_id)
-    columns = ["date", "type", "document", "quantity", "similarity"]
+
+    doc["readingtime"] = ut.get_reading_time(doc)
+    columns = ["date", "type", "document", "reading time", "similarity"]
 
     return render_template("connections.html",
                            calendar=calendar,
@@ -553,6 +556,23 @@ def filter_bignumber(number):
         return f"{number/1000:.1f} K"
     else:
         return f"{number}"
+
+
+@app.template_filter("bigminutes")
+def filter_bigminutes(time):
+    """A filter for the jinja2 templates, printing big time units in format.
+
+    Args:
+        number (datetime.timedelta): some time in the range of minutes.
+
+    Returns:
+        str: a formatted number
+    """
+    minutes = time.total_seconds() // 60
+    if minutes == 0:
+        return "< 00:01"
+    hours, mins = divmod(minutes, 60)
+    return f"{hours:02.0f} h {mins:02.0f} m"
 
 
 @app.template_filter("sign")

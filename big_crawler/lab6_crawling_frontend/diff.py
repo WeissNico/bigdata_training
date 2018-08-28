@@ -97,8 +97,12 @@ def _process_unified_diff(deltas):
     cur_dict = None
 
     # skip the first two lines that contain +++ and --- respectively
-    next(deltas)
-    next(deltas)
+    try:
+        next(deltas)
+        next(deltas)
+    # there might be a StopIteration Exception, when there is no diff.
+    except StopIteration:
+        return blocks, change
 
     for d in deltas:
         if d[0] == "@":
