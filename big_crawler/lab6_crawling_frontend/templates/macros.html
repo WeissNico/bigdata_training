@@ -108,7 +108,8 @@
 
 {% macro fake_select_text(title, options, value=None) %}
 {% set title_low = title|lower %}
-{% set val = options|map("pair")|selectattr(0, "eq", value)|first|dflt(options|first)|pair %}
+{# very complicated sequence to pick the right default value #}
+{% set val = options|map("pair")|selectattr(0, "eq", value)|first|dflt(value)|dflt(options|first)|pair %}
 <div class="fakeSelect" id="{{ title_low }}Select">
   <div class="btn-group btn-block">
     <input type="text" class="form-control" name="{{ title_low }}" id="{{ title_low }}Value" value="{{ val|last }}"/>

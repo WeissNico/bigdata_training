@@ -5,7 +5,7 @@ Author: Johannes Mueller <j.mueller@reply.de>
 """
 import random
 import os
-from datetime import date, timedelta
+from datetime import timedelta
 
 import bson.objectid
 import bson.errors
@@ -151,24 +151,24 @@ class Mocker():
             return obj_id
         return None
 
-    def create_random_date(self, min_date=None, max_date=None):
+    def create_random_date(self, max_date=None, min_date=None):
         """Creates a random date using the provided constraints.
 
         Args:
             min_date (datetime.date): the minimum age this date should become.
-                Defaults to None, which equals one year before today.
+                Defaults to None, which equals one year before max_date.
             max_date (datetime.date): the maximum date this date should become.
-                Defaults to None, which equals now.
+                Defaults to None, which equals today.
 
         Returns:
             datetime.date: a new random date.
         """
         YEAR = timedelta(days=365)
 
-        if min_date is None:
-            min_date = ut.from_date() - YEAR
         if max_date is None:
             max_date = ut.from_date()
+        if min_date is None:
+            min_date = max_date - YEAR
 
         delta = max_date - min_date
         days = random.randint(0, delta.days)
@@ -462,24 +462,21 @@ class Mocker():
             return self.create_connected_documents(doc_id)
         return conn
 
-    def add_text_to_doc(self, doc_id, fname, folder=None, force=False):
+    def add_text_to_doc(self, doc_id, fname, force=False):
         """Adds a text to a given document and saves it in the memory-db.
 
         Args:
             doc_id (str): the document, to which the text should be added.
             fname (str): the name of the file containing the text.
-            folder (str): the folder of the file. Defaults to None, which
-                points to 'lab6_crawling_frontend'.
             force (bool): whether the text should be overwritten or not.
 
         Returns:
             dict: the updated document.
         """
-        if folder is None:
-            folder = os.path.join("big_crawler", "lab6_crawling_frontend")
+        path = os.path.join(DIR, fname)
 
         content = None
-        with open(os.path.join(folder, fname), "r") as fl:
+        with open(path, "r") as fl:
             content = fl.read()
         doc = self.get_document(doc_id)
         if force or "text" not in doc:
@@ -494,7 +491,7 @@ class Mocker():
             doc_id (str): the document, for which the previous versions should
                 be created.
             num (int): the number of random documents.
-                Defaults to None, which means 1-4 documents.
+                Defaults to None, which means 1-3 documents.
 
         Returns:
             list: a list of documents which share the same title, source and
@@ -502,24 +499,26 @@ class Mocker():
         """
         doc = self.get_document(doc_id)
 
-        start = doc["date"]
-        end = None
-        if not doc["new"]:
-            start = None
-            end = doc["date"]
-
-        # a NEW document from today can't have previous versions.
-        if start == date.today():
+        # if the document has a version_key no further versions are created!
+        if "version_key" in doc:
+            return []
+        # for simplicity reasons, a document which is marked as new can not
+        # have any ancestors
+        if doc["new"]:
             return []
 
+        end = doc["date"]
+        start = None
+
         if num is None:
-            num = random.randint(1, 4)
+            num = random.randint(1, 3)
 
         documents = []
         for i in range(num):
             new_doc = self.create_mockument(self.create_random_date(
-                                                min_date=start,
-                                                max_date=end),
+                                                max_date=end,
+                                                min_date=start),
+                                            version_key=doc["_id"],
                                             document=doc["document"],
                                             type=doc["type"],
                                             source=doc["source"],
@@ -540,9 +539,11 @@ class Mocker():
             list: a list of documents, which are versions of each other.
         """
         cur_doc = self.get_document(doc_id)
-        docs = self.coll.find({"document": cur_doc["document"],
-                               "source": cur_doc["source"],
-                               "type": cur_doc["type"],
+        vk = cur_doc["_id"]
+        if "version_key" in cur_doc:
+            vk = cur_doc["version_key"]
+        docs = self.coll.find({"$or": [{"version_key": vk},
+                                       {"_id": vk}],
                                "_id": {"$ne": cur_doc["_id"]}})
         return docs
 
@@ -561,7 +562,8 @@ class Mocker():
         self.add_text_to_doc(doc_id, os.path.join(DIR, "dummy_text.txt"))
 
         docs = self.get_versions(doc_id)
-        docs = [self.add_text_to_doc(d["_id"], "dummy_text_mod.txt")
+        docs = [self.add_text_to_doc(d["_id"],
+                                     os.path.join(DIR, "dummy_text_mod.txt"))
                 for d in docs]
 
         if not docs:

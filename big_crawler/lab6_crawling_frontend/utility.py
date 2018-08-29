@@ -222,7 +222,7 @@ def get_reading_time(doc):
         datetime.timedelta: the reading time.
     """
     type_factor = TIME_FACTORS.get(doc["type"], 1)
-    return dt.timedelta(seconds=(2 * doc["quantity"]["lines"] * type_factor))
+    return dt.timedelta(seconds=(0.3 * doc["quantity"]["words"] * type_factor))
 
 
 def add_reading_time(doc):

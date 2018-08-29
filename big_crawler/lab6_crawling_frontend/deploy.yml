@@ -13,7 +13,7 @@ items:
     ports:
       # the port that this service should serve on
       - port: 80
-        nodePort: 33333
+        nodePort: 32123
     # label keys and values that must match in order to receive traffic for this service
     selector:
       name: sherlock-agent
