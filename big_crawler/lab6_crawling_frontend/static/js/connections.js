@@ -17,5 +17,5 @@ function changePDF(event, docId) {
     $(this).find("a").prop("href", baseUrl.replace("%25", docId));
 }
 
-$(".pdf-container").on("custom.change.pdf", changePDF);
+$(document).on("custom.change.pdf", ".pdf-container", changePDF);
 $("tr").click(triggerPDFPreview);

@@ -77,12 +77,12 @@
   </div>
   <div class="col-lg-4 col-md-12">
     <div class="pdf-sidepane sticky">
-      <button class="btn btn-secondary btn-block py-2 my-2" data-toggle="modal" data-target="#fullscreenModal" data-document="0">
+      <button class="btn btn-secondary btn-block py-2 my-2" data-toggle="modal" data-target="#fullscreenModal">
         <span class="fas fa-expand-arrows-alt"></span> Fullscreen
       </button>
       <div class="aspect-container">
         <div class="aspect-clear">
-        {{ macros.include_pdf("0") }}
+        {{ macros.include_pdf(cur_doc._id) }}
         </div>
       </div>
     </div>
@@ -101,7 +101,7 @@
       </div>
       <div class="modal-body">
         <div class="pdf-fullscreen">
-          {{ macros.include_pdf("0") }}
+          {{ macros.include_pdf(cur_doc._id) }}
         </div>
       </div>
     </div>
