@@ -6,7 +6,7 @@
 {% endblock %}
 {% block content %}
 <h1>New search</h1>
-<form action="{{ url_for('new_search') }}" method="POST">
+<form action="{{ url_for('create_new_search') }}" method="POST">
   <!-- divide in two parts: 10 cols for the content, 2 rows for the buttons -->
   <div class="row">
     <!-- content -->
@@ -101,6 +101,7 @@
     </div>
   </div>
 </form>
+
 <!-- DEFINITION OF THE MODAL DIALOGS -->
 <!-- Modal for time periods -->
 <div class="modal fade" id="add_period_modal" tabindex="-1" role="dialog" aria-labelledby="add_period_label" aria-hidden="true">
@@ -133,6 +134,7 @@
     </div>
   </div>
 </div>
+
 <!-- Modal for the sources-->
 <div class="modal fade" id="add_source_modal" tabindex="-1" role="dialog" aria-labelledby="add_source_label" aria-hidden="true">
   <div class="modal-dialog" role="document">
@@ -173,5 +175,5 @@
 
 {% block scripts %}
 {{ super() }}
-<script src={{ url_for("static", filename="js/custom-check-list.js") }}></script>
+<script src="{{ url_for('static', filename='js/custom-check-list.js') }}"></script>
 {% endblock %}

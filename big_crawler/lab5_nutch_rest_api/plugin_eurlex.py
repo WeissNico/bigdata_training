@@ -186,6 +186,8 @@ class EurlexPlugin():
                 if match:
                     doc_date = dt.datetime.strptime(match[2], "%d/%m/%Y")
                     doc_date_kind = match[1]
+                if len(_flat_map(doc_path, entry)) == 0:
+                    continue
                 link = _make_resource_path(_flat_map(doc_path, entry)[0],
                                            "https://eur-lex.europa.eu")
                 detail = _make_resource_path(_flat_map(detail_path, entry)[0],

@@ -70,6 +70,12 @@ textarea {
   margin-left: 0.75rem;
 }
 
+.sidebar .category label {
+  color: var(--sidebar-active-color);
+  overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sidebar .nav-link {
   font-weight: 500;
   display: inline-block;
@@ -177,7 +183,8 @@ textarea {
 
 .dashboard .impact-indicator span:first-child {
   font-size: 5rem;
-  line-height: 1.5rem;
+  line-height: 2.5rem;
+  vertical-align: -0.25rem;
 }
 
 /* use bootstraps color-variables for danger warning and success */
@@ -216,6 +223,11 @@ textarea {
   text-overflow: ellipsis;
   overflow: hidden;
   max-height: 3rem; 
+}
+
+.overflow-ellipsis {
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .overflow-link {

@@ -1,17 +1,13 @@
 {% extends "base.html" %}
 {% import "macros.html" as macros %}
-{% block title %}Sherlock - Dashboard{% endblock %}
+{% block title %}Sherlock - Search{% endblock %}
 {% block head %} {{ super() }} {% endblock%}
-{% block sidebar %}
-  {{ macros.dashboards_sidebar(cur_date, calendar) }}
+{% block sidebar %} {{ macros.filter_sidebar(filters, fform) }}
 {% endblock %}
 {% block content %}
-{{ macros.title_row("Dashboard {}".format(cur_date.date|engldate), None,
-    macros.badge("badge-danger", "open", cur_date.n_open),
-    macros.badge("badge-warning", "waiting", cur_date.n_waiting),
-    macros.badge("badge-success", "finished", cur_date.n_finished)) }}
+{{ macros.title_row("Search for Documents", None) }}
 <!-- table macro -->
-{% macro document_table(cur_docs, sort_prefix="new") %}
+{% macro document_table(cur_docs) %}
 <table class="dashboard table table-hover table-responsive-lg">
   <thead>
     <tr>
@@ -19,12 +15,12 @@
       {% if title %}
       <th scope="col"> 
         {% if sort_by[0] == title %}
-          <a href="{{ url_for('dashboard', dbdate=cur_date.date|isodate, sortby=title, desc=(not sort_by[1])) }}">
+          <a href="{{ url_pre(sortby=title, desc=(not sort_by[1])) }}">
             {{ title|titlecase }} 
             <span class="fas fa-sort-{{ 'down' if sort_by[1] else 'up' }}"></span>
           </a>
         {% else %}
-          <a href="{{ url_for('dashboard', dbdate=cur_date.date|isodate, sortby=title, desc=True) }}">
+          <a href="{{ url_pre(page=page, sortby=title, desc=True) }}">
             {{ title|titlecase }} 
             <span class="fas fa-sort"></span>
           </a>
@@ -38,26 +34,25 @@
   </thead>
   <tbody>
     {% for doc in cur_docs %}
-    <tr data-document={{ doc._id }}>
-      <!-- impact indicator -->
+    <tr data-document="{{ doc._id }}">
       <td>
-        {{ macros.impact_entry(doc) }}
+        {{ macros.dashboard_link(doc) }}
       </td>
       <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="type" title="The type of this document" data-document={{ doc._id }}>{{ doc.type }}</a></td>
       <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="category" title="The Category of this document (Who is responsible)" data-document={{ doc._id }}>{{ doc.category }}</a></td>
-      <td><a class="btn btn-outline-secondary btn-block" href="#changeModal" data-toggle="modal" title="Change document's properties" data-document={{ doc._id }}><span class="fas fa-edit"></span></a></td>
       <!-- source and document links -->
       <td>
         {{ macros.document_entry(doc) }}
       </td>
       <td>
-        {{ macros.change_entry(doc) }}
+        {{ macros.source_link(doc.source) }}
       </td>
       <td>
         {{ macros.quantity_entry(doc) }}
       </td>
+      <!-- impact indicator -->
       <td>
-        {{ macros.status_button(doc) }}
+        {{ macros.impact_entry(doc) }}
       </td>
     </tr>
     {% endfor %}
@@ -65,25 +60,13 @@
 </table>
 {% endmacro %}
 
-<!-- new documents -->
-{% set new_docs = documents|selectattr('new', 'eq', True)|list %}
-{% set has_new_docs = new_docs|length > 0 %}
-<h3><a class="dashboard-header" data-toggle="collapse" href="#newDocuments">
-  <span class="fas fa-caret-{{ 'down' if has_new_docs else 'right' }}"></span>
-  New ({{ new_docs|length }})
-</a></h3>
-<div class="collapse {{ 'show' if has_new_docs }}" id="newDocuments">
-  {{ document_table(new_docs) }}
-</div>
-<!-- modified documents -->
-{% set mod_docs = documents|selectattr('new', 'eq', False)|list %}
-{% set has_mod_docs = mod_docs|length > 0 %}
-<h3><a class="dashboard-header" data-toggle="collapse" href="#modDocuments">
-  <span class="fas fa-caret-{{ 'down' if has_mod_docs else 'right' }}"></span>
-  Modified ({{ mod_docs|length }})
-</a></h3>
-<div class="collapse {{ 'show' if has_mod_docs }}" id="modDocuments">
-  {{ document_table(mod_docs) }}
+<div>
+  <h5>Found {{ num_results }} results</h5>
+  {% if documents|length > 0 %}
+    {{ macros.pagination_bar(page, max_page, q, sort_by, filters) }}
+    {{ document_table(documents) }}
+    {{ macros.pagination_bar(page, max_page, q, sort_by, filters) }}
+  {% endif %}
 </div>
 
 <!-- MODAL DIALOGS -->

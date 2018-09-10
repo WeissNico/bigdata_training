@@ -1,81 +1,40 @@
-from datetime import date
 import logging
 import io
+import datetime as dt
+import re
 
 import elastic
 from pymongo import MongoClient
 from flask import (Flask, request, redirect, render_template, url_for,
                    send_file, jsonify)
 
-import settings as conf
+import settings
 import utility as ut
 import mock as mck
+import forms
 import diff
 
 
+logging.basicConfig(level=logging.DEBUG)
+
 app = Flask(__name__)
+app.config.from_object(settings)
 # connect to the elasticDB
-es = elastic.Elastic(conf.ELASTICSEARCH_HOST,
-                     conf.ELASTICSEARCH_PORT,
-                     (conf.ELASTICSEARCH_USER, conf.ELASTICSEARCH_PASSWORT))
+es = elastic.Elastic(app.config["ELASTICSEARCH_HOST"],
+                     app.config["ELASTICSEARCH_PORT"],
+                     (app.config["ELASTICSEARCH_USER"],
+                      app.config["ELASTICSEARCH_PASSWORT"]),
+                     docs_index="eur_lex")
 # connect to the mongoDB
 client = MongoClient("mongodb://159.122.175.139:30017")
 db = client["crawler"]
 mock = mck.Mocker(db.mockuments)
 
 
-@app.route("/search", methods=["GET", "POST"])
-def search():
-    # get search keywords
-    search_text = request.args.get("search", "")
-    data = es.search_documents(search_text)
-
-    search_result = list()
-    for doc in data:
-        highlight = ut.dict_construct(doc, {
-            "text": (["highlight", "text"], None),
-            "tags": (["highlight", "tags"], None)
-        })
-        ret_doc = ut.dict_construct(doc, {
-            "link": (["_source", "baseUrl"], "#"),
-            "id": (["_id"], "no_id"),
-            "filename": (["_source", "title"], "no title"),
-            "date": (["_source", "metadata", "date"], "no date"),
-            "text": (["_source", "text"], []),
-            "tags": (["_source", "tags"], []),
-        })
-
-        # update the set keys for the search
-        if (highlight["text"] is not None or highlight["tags"] is not None):
-            if highlight["text"] is not None:
-                ret_doc["text"] = highlight["text"]
-            # shorten text
-            ret_doc["text"] = ret_doc["text"][0][:200]
-            logging.debug("Appending '{filename}': {tags}".format(**ret_doc))
-            search_result.append(ret_doc)
-
-    return render_template('search.html', results=search_result)
-
-
-@app.route('/nutch')
-def nutch():
-    '''
-    print("working, pleas wait")
-    num_page = 1
-    search_results = google.search("Geschäftsberichte Wacker 2016", num_page)
-    print("done :)")
-
-    return render_template('nutch.html', results=search_results)
-    '''
-    res = es.get_seeds()
-    return render_template('seeds.html', seeds=res)
-
-
 @app.route("/dashboard")
 @app.route("/dashboard/<dbdate>")
 def dashboard(dbdate=None):
     """The dashboard that greets the user every morning.
-
     Described in mockup/dashboard_first_draft.png
 
     Args:
@@ -91,7 +50,7 @@ def dashboard(dbdate=None):
         db_date = ut.from_date()
     else:
         try:
-            db_date = ut.from_date(date.fromisoformat(dbdate))
+            db_date = ut.from_date(dt.date.fromisoformat(dbdate))
         except ValueError as err:
             # when an invalid string is provided
             db_date = ut.from_date()
@@ -110,7 +69,7 @@ def dashboard(dbdate=None):
 
     documents = ut.sort_documents(documents, sort_key=sort_by, desc=desc)
     columns = ["impact", "type", "category", "", "document",
-               "change", "reading time", "status"]
+               "change", "reading_time", "status"]
     return render_template("dashboard.html",
                            calendar=calendar,
                            cur_date=cur_date,
@@ -119,6 +78,66 @@ def dashboard(dbdate=None):
                            types=sorted(mck.TYPES),
                            categories=sorted(mck.CATEGORIES),
                            sort_by=(sort_by, desc))
+
+
+@app.route("/search", methods=["GET", "POST"])
+@app.route("/search/<int:page>")
+def search(page=1):
+    """The non-dynamic document search with filtering options.
+
+    The decision pro request parameters was found, since we want to provide
+    portability of the links, which isn't possible with a session-like
+    search ID.
+    Also this keeps state out of play as long as possible.
+
+    Args:
+        search_id (str): a string which represents the current search
+        page (int): the number of the pagination page to show.
+
+    Request Args:
+        q (str): the query string
+        sortby (str): category to sort by, defaults to date.
+        desc (str): whether the search should be descending or ascending,
+            defaults to 'True'.
+    """
+    # create sort order for the documents
+    sort_by = request.args.get("sortby", "impact")
+    desc = request.args.get("desc", "True").lower() == "true"
+    # retrieve filters and map them to a query.
+    filters = ut.map_from_serialized_form(request.form)
+    # retrieve search keyword
+    query = request.args.get("q", "")
+    sortby = {
+        "keyword": sort_by,
+        "order": "desc" if desc else "asc",
+        "args": {"fingerprint": 12341234}
+    }
+
+    columns = ["date", "type", "category", "document", "source",
+               "reading_time", "impact"]
+
+    search_res = es.search_documents(query, page, columns, filters, sortby)
+
+    # create a filter form
+    FilterForm = forms.filter_form_factory(search_res["aggs"])
+    fform = FilterForm()
+
+    documents = search_res["results"]
+    # convert the date
+    for doc in documents:
+        doc["date"] = ut.date_from_string(doc["date"])
+        doc["reading_time"] = doc["reading_time"][0]
+
+    return render_template("filtered_search.html",
+                           filters=search_res["aggs"],
+                           fform=fform,
+                           documents=documents,
+                           columntitles=columns,
+                           page=page,
+                           num_results=search_res["num_results"],
+                           max_page=search_res["total_pages"],
+                           q=query,
+                           sort_by=(sort_by, desc),)
 
 
 @app.route("/document/<doc_id>/download")
@@ -187,7 +206,7 @@ def document_connections(doc_id):
                                   other_doc=doc_id)
 
     doc["readingtime"] = ut.get_reading_time(doc)
-    columns = ["date", "type", "document", "reading time", "similarity"]
+    columns = ["date", "type", "document", "reading_time", "similarity"]
 
     return render_template("connections.html",
                            calendar=calendar,
@@ -320,6 +339,7 @@ def document_set_properties(doc_id):
         return jsonify(success=False)
 
     update = {}
+    # TODO build a real filter pipeline.
     for item in request.get_json():
         if item["name"] not in doc:
             # don't allow keys, that weren't there.
@@ -342,7 +362,10 @@ def document_set_properties(doc_id):
 
 @app.route("/searchdialog")
 def searchdialog():
-    """The search dialog as referenced in slides/FrontEndSearchOptions.pptx."""
+    """The search dialog as referenced in slides/FrontEndSearchOptions.pptx.
+
+    It serves as a basis for the user to create new crawling jobs?
+    """
 
     # mock some simple filetypes and time periods
     f_types = [{"id": "ft_pdf", "name": "pdf"},
@@ -370,8 +393,8 @@ def searchdialog():
                            sources=sources)
 
 
-@app.route("/new_search", methods=["POST"])
-def new_search():
+@app.route("/create_new_search", methods=["POST"])
+def create_new_search():
     """Receives the form of the search dialog an processes it accordingly."""
     # TODO
     return render_template("searchdialog.html")
@@ -386,6 +409,53 @@ def train():
         url = '<iframe src="https://www.w3schools.com"></iframe>'
         return render_template('train.html', tags=["Tag1", "Tag2", "Tag4"],
                                url=url)
+
+
+@app.route("/old_search")
+def old_search():
+    # get search keywords
+    search_text = request.args.get("search", "")
+    documents = es.search_documents(search_text)
+
+    search_result = []
+    for doc in documents:
+        highlight = ut.dict_construct(doc, {
+            "text": (["highlight", "text"], None),
+            "tags": (["highlight", "tags"], None)
+        })
+        ret_doc = ut.dict_construct(doc, {
+            "link": (["_source", "baseUrl"], "#"),
+            "id": (["_id"], "no_id"),
+            "filename": (["_source", "title"], "no title"),
+            "date": (["_source", "metadata", "date"], "no date"),
+            "text": (["_source", "text"], []),
+            "tags": (["_source", "tags"], []),
+        })
+
+        # update the set keys for the search
+        if (highlight["text"] is not None or highlight["tags"] is not None):
+            if highlight["text"] is not None:
+                ret_doc["text"] = highlight["text"]
+            # shorten text
+            ret_doc["text"] = ret_doc["text"][0][:200]
+            logging.debug("Appending '{filename}': {tags}".format(**ret_doc))
+            search_result.append(ret_doc)
+
+    return render_template('search.html', results=search_result)
+
+
+@app.route('/nutch')
+def nutch():
+    '''
+    print("working, pleas wait")
+    num_page = 1
+    search_results = google.search("Geschäftsberichte Wacker 2016", num_page)
+    print("done :)")
+
+    return render_template('nutch.html', results=search_results)
+    '''
+    res = es.get_seeds()
+    return render_template('seeds.html', seeds=res)
 
 
 @app.route("/download")  # without endpoint an an AssertionError occurs
@@ -452,6 +522,27 @@ def delete_seed():
     es.delete_seed(doc_id)
 
     return "delete successfully"
+
+
+@app.template_global("url_pre")
+def global_url_preserve(**update_params):
+    """Returns a url for the current site, using the current request params.
+
+    It provides functionality to update the given parameters (request or url)
+
+    Args:
+        **update_params (dict): keyword parameters that should be updated.
+    Returns:
+        str: a fitting url.
+    """
+    endpoint = request.endpoint
+    params = request.view_args
+    query_params = request.args
+
+    params.update(query_params)
+    params.update(update_params)
+
+    return url_for(endpoint, **params)
 
 
 @app.template_filter("str")
@@ -523,13 +614,15 @@ def filter_default(value, default):
 
 
 @app.template_filter("titlecase")
-def filter_titlecase(sentence):
+def filter_titlecase(sentence, separator=" "):
     """A titlecase filter for the jinja2 templates.
 
     The standard "title" doesn't quite cut it.
 
     Args:
         sentence (str): the word or words that should be titlecased.
+        separator (str): the string that should be used,
+            to rejoin the sentence.
 
     Returns:
         str: the sentenced with all words in titlecase.
@@ -542,7 +635,14 @@ def filter_titlecase(sentence):
 
     special = ["the", "of", "in", "on", "at", "from", "a", "an"]
 
-    return " ".join([_titlecase(p) for p in sentence.split()])
+    return separator.join([_titlecase(p)
+                           for p in re.split(r"[ _-]", sentence)])
+
+
+@app.template_filter("ccase")
+def _proxy_titlecase(sentence):
+    tcase = filter_titlecase(sentence, "")
+    return tcase[:1].lower() + tcase[1:]
 
 
 @app.template_filter("bignumber")
@@ -564,18 +664,23 @@ def filter_bignumber(number):
 
 
 @app.template_filter("bigminutes")
-def filter_bigminutes(time):
+def filter_bigminutes(seconds):
     """A filter for the jinja2 templates, printing big time units in format.
 
+    This should also work when given a `datetime.timedelta`
     Args:
-        number (datetime.timedelta): some time in the range of minutes.
+        seconds (int): some number of seconds.
 
     Returns:
         str: a formatted number
     """
-    minutes = time.total_seconds() // 60
+    if isinstance(seconds, dt.timedelta):
+        minutes = seconds.total_seconds() // 60
+    else:
+        minutes = seconds // 60
+
     if minutes == 0:
-        return "< 00:01"
+        return "< 01 m"
     hours, mins = divmod(minutes, 60)
     return f"{hours:02.0f} h {mins:02.0f} m"
 
@@ -639,7 +744,13 @@ def filter_isodate(some_date):
     Returns:
         str: the ISO date (YYYY-MM-DD)
     """
-    return some_date.strftime("%Y-%m-%d")
+    ret = "no date"
+    try:
+        ret = some_date.strftime("%Y-%m-%d")
+    # when a non-valid string was passed
+    except AttributeError:
+        pass
+    return ret
 
 
 @app.template_filter("engldate")
@@ -652,7 +763,13 @@ def filter_engldate(some_date):
     Returns:
         str: the english date (DD/MM/YYYY)
     """
-    return some_date.strftime("%d/%m/%Y")
+    ret = "no date found"
+    try:
+        ret = some_date.strftime("%d/%m/%Y")
+    # when a non-valid string was passed
+    except AttributeError:
+        pass
+    return ret
 
 
 @app.template_filter("isomonth")
@@ -665,7 +782,13 @@ def filter_isomonth(some_date):
     Returns:
         str: the ISO month (YYYY-MM)
     """
-    return some_date.strftime("%Y-%m")
+    ret = "no month"
+    try:
+        ret = some_date.strftime("%Y-%m")
+    # when a non-valid string was passed
+    except AttributeError:
+        pass
+    return ret
 
 
 @app.template_filter("displaymonth")
@@ -733,6 +856,25 @@ def filter_to(obj, start_or_list, end=None):
             return mapped
     # this case should normally not match, but just in case...
     return mapping[-1]
+
+
+@app.template_filter("clip")
+def filter_clip(num, lower, upper):
+    """Returns the given number clipped to the range lower - upper,
+
+    Args:
+        num (number): the number that should be clipped to the given range
+        lower (number): the lower bound of the number range.
+        upper (number): the upper bound of the number range.
+
+    Returns:
+        number: the given number clipped to the range.
+    """
+    if num < lower:
+        return lower
+    elif num > upper:
+        return upper
+    return num
 
 
 if __name__ == "__main__":

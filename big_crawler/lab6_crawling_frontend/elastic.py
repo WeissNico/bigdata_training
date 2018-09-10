@@ -1,14 +1,12 @@
 """This module holds `Elastic` a class for connecting to an ES-database.
 
-Additionally, there are utility-function aiming specifically for the
-transformation of documents.
-
 Author: Johannes Mueller <j.mueller@reply.de>
 """
-import elasticsearch as es
 import logging
 
-import utility as ut
+import elasticsearch as es
+
+import elastic_transforms as etrans
 
 
 class _EasyAccess():
@@ -24,6 +22,73 @@ class _EasyAccess():
 
 
 class Elastic():
+    DOC_MAPPING = {
+        "properties": {
+            "hash": {"type": "keyword"},
+            "version": {"type": "double"},
+            "document": {"type": "keyword"},
+            "date": {"type": "date"},
+            "source": {"type": "keyword"},
+            "text": {"type": "text"},
+            "content_type": {"type": "keyword"},
+            "content": {"type": "binary"},
+            "tags": {"type": "keyword"},
+            "quantity": {
+                "properties": {
+                    "lines": {"type": "integer"},
+                    "words": {"type": "integer"}
+                }
+            },
+            "change": {
+                "properties": {
+                    "lines_added": {"type": "integer"},
+                    "lines_removed": {"type": "integer"}
+                }
+            },
+            "keywords": {
+                "properties": {
+                    "*": {"type": "half_float"}
+                },
+            },
+            "entities": {
+                "properties": {
+                    "*": {"type": "half_float"}
+                },
+            },
+            "metadata": {"type": "object", "dynamic": True},
+            "status": {"type": "byte"},
+            "impact": {"type": "byte"},
+            "type": {"type": "keyword"},
+            "category": {"type": "keyword"},
+            "fingerprint": {"type": "keyword"},
+            "version_key": {"type": "keyword"},
+            "connections": {
+                "type": "object",
+                "properties": {
+                    "doc_id": {"type": "keyword"},
+                    "similarity": {"type": "float"}
+                }
+            },
+            "new": {"type": "boolean"}  # False for modified values
+        }
+    }
+
+    SCRIPTS = {
+        "reading_time": {
+            "script": {
+                "lang": "painless",
+                "source": ("doc['quantity.words'].value * 0.4 * "
+                           "params.getOrDefault(doc['type'].value, 1.0)"),
+            }
+        },
+        "similarity": {
+            "script": {
+                "lang": "painless",
+                "source": ("doc['fingerprint'].value - params.fingerprint"),
+            }
+        }
+    }
+
     def __init__(self, host="localhost", port=9000, auth=None, **kwargs):
         """Initialize the elasticsearch client.
 
@@ -41,18 +106,26 @@ class Elastic():
         self.defaults = {
             "seeds_index": "seeds",
             "docs_index": "eurlex",
-            "doc_type": "nutch"
+            "doc_type": "nutch",
+            "size": 10
         }
         self._default_wrapper = _EasyAccess(self.defaults)
 
         self.defaults.update(kwargs)
 
-        self.es = es.Elasticsearch(
-            host=host,
-            port=port,
-            http_auth=auth,
-            use_ssl=True,
-            timeout=60)
+        self.es = es.Elasticsearch(host=host, port=port, http_auth=auth,
+                                   use_ssl=True, timeout=60)
+
+        for script_id, script_body in self.SCRIPTS.items():
+            self.es.put_script(id=script_id, body=script_body)
+
+        # check whether the document index exists, if not create it.
+        if not self.es.indices.exists(index=self._dflt.docs_index):
+            self.es.indices.create(index=self._dflt.docs_index)
+            # put the mapping into the docs index
+            self.es.indices.put_mapping(doc_type=self._dflt.doc_type,
+                                        index=self._dflt.docs_index,
+                                        body=self.DOC_MAPPING)
 
     @property
     def _dflt(self):
@@ -78,15 +151,14 @@ class Elastic():
                             id=doc_id, body=doc)
         return res
 
-    def exist_document(self, base_url, doc_hash):
+    def exist_document(self, source, doc_hash):
         """Checks whether a document for the given features exists.
 
-        It compares `base_url` and the documents `doc_hash`.
+        It compares `source` and the documents `doc_hash`.
 
         Args:
-            base_url (str): the document's 'baseUrl'.
+            source (str): the document's 'baseUrl'.
             doc_hash (str): the document's sha256-hash.
-            index (str): an elastic search index, defaults to None.
 
         Returns:
             bool: whether the document exists or not
@@ -94,11 +166,11 @@ class Elastic():
         query = {"query": {
                     "bool": {
                         "should": [
-                           {"match": {"baseUrl.keyword": base_url}},
-                           {"match": {"hash.keyword": doc_hash}}
+                           {"match": {"source": source}},
+                           {"match": {"hash": doc_hash}}
                         ]
                     }},
-                 "_source": ["baseUrl", "hash", "version"]}
+                 "_source": ["source", "hash", "version"]}
         result = self.es.search(index=self._dflt.docs_index, body=query)
         return result['hits']['total'] > 0
 
@@ -120,7 +192,7 @@ class Elastic():
         doc = {
             "script": "ctx._source.remove('tags')"
         }
-        self.es.update(inex=index, doc_type=doc_type, id=doc_id, body=doc)
+        self.es.update(index=index, doc_type=doc_type, id=doc_id, body=doc)
 
         doc = {
             "script": "ctx._source.tags = []"
@@ -213,71 +285,79 @@ class Elastic():
         result = self.es.delete(index=index, doc_type=doc_type, id=seed_id)
         return result
 
-    def search_documents(self, search_text):
+    def search_documents(self, search_text, page=1, fields=None, filters={},
+                         sort_by=None):
         """Returns all documents, that contain the `search_text`.
+
+        The results can be filtered by the filters defined in the `filters`
+        dict. It assumes an OR connection for multiple values.
 
         Args:
             search_text (str): the text to search for.
+            page (int): the page of the results that should be shown.
+            fields (list): a list of fields that should be returned.
+                Defaults to None, which means all fields.
+            filters (dict): the filters for fields of the documents.
+            sortby (dict): accepts a dict with the keys `keyword`, `order` and
+                `args`.
 
         Returns:
-            list: a list of documents, as returned by elasticsearch.
+            dict: a dictionary containing the following keys:
+                `num_results`, `total_pages` and `results`.
         """
         index = self._dflt.docs_index
         logging.debug(f"Searching for {search_text} on '{index}'")
+
+        start = (page - 1) * self._dflt.size
+        search = {"simple_query_string": {"query": search_text}}
+        # if search_text is empty or None
+        if not search_text:
+            search = {"match_all": {}}
+
         s_body = {
+            "from": start,
+            "size": self._dflt.size,
             "query": {
-                "simple_query_string": {
-                    "query": search_text
+                "bool": {
+                    "must": search,
+                    "filter": etrans.transform_filters(filters)
                 }
             },
-            "highlight": {"fields": {"*": {"pre_tags": ["<b>"],
-                                           "post_tags": ["</b>"]}}}}
+            "sort": etrans.transform_sortby(sort_by),
+            "highlight": {
+                "fields": {
+                    "*": {
+                        "pre_tags": ["<b>"],
+                        "post_tags": ["</b>"]
+                    }
+                }
+            },
+            "aggs": etrans.transform_aggs(fields),
+        }
+        # inserts the fields, if necessary.
+        source, scripted = etrans.transform_fields(fields)
+        if source is not None:
+            s_body["_source"] = source
+        if scripted is not None:
+            s_body["script_fields"] = scripted
+
         results = self.es.search(index=index, body=s_body)
+        # add the id to the results
+        for doc in results["hits"]["hits"]:
+            # insert the id into the source (which will be returned)
+            doc["_source"]["_id"] = doc["_id"]
+            # insert all (scripted_)fields into the source
+            doc["_source"].update(doc["fields"])
 
-        data = [doc for doc in results['hits']['hits']]
-        return data
+        docs = [doc["_source"] for doc in results["hits"]["hits"]]
 
+        total_pages, rem = divmod(results["hits"]["total"], self._dflt.size)
+        if rem > 0:
+            total_pages += 1
 
-def transform_doc(document, **kwargs):
-    """Transforms a document into an easily retrievable dict-format.
-
-    The (complete) format of a returned document is as follows:
-    `{
-        "id": "the document's id",
-        "date": date(2018, 8, 21),
-        "title": "the document's title",
-        "source": "the document's source link",
-        "text": ["the contained text", "..."],
-        "tags": ["tag_1", "tag_2", "..."],
-        # these need to be constructed in the db first TODO
-        "quantity": {"words": 1234, "lines": 123},
-        "keywords": {"keyword": range(0, 1), "...": "..."},
-        "entities": {"entity": range(0, 1), "...": "..."},
-        "status": "open, waiting or finished",
-        "impact": "high, medium or low",
-        "type": "the document's type, i.e. 'FAQ'",
-        "category": "the document's category, i.e. 'Risk management'",
-        # these need to be calculated taking into consideration the whole db
-        "new": True  # False for modified values
-    }`
-
-    Args:
-        document (dict): A document as found in the elasticsearch database.
-        **kwargs (dict): additionaly parameters that should be set for the doc.
-
-    Returns:
-        dict: a dictionary in the specified format.
-    """
-    doc = ut.dict_construct(document, {
-        "id": (["_id"], "no_id"),
-        "date": (["_source", "metadata", "date"], None),
-        "title": (["_source", "title"], "no title"),
-        "source": (["_source", "baseUrl"], "#"),
-        "text": (["_source", "text"], []),
-        "tags": (["_source", "tags"], []),
-    })
-
-    # update keys, that are included in the kwargs
-    doc.update(kwargs)
-
-    return doc
+        return {
+            "num_results": results["hits"]["total"],
+            "total_pages": total_pages,
+            "results": docs,
+            "aggs": etrans.transform_agg_filters(results["aggregations"])
+        }

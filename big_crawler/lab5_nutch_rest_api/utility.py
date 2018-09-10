@@ -5,9 +5,7 @@ Author: Johannes Mueller <j.mueller@reply.de>
 """
 
 import functools
-import hashlib
 import datetime as dt
-import time
 import re
 
 ORDER_STATUS = {"open": 2, "waiting": 1, "finished": 0}
@@ -48,12 +46,10 @@ SORT_KEYS = {
 }
 
 
-TIME_FACTORS = {
-    "FAQ": 0.9,
-    "Article": 1.1,
-    "Directive": 1.5,
-    "Regulation": 1.6
-}
+TIME_FACTORS = {"FAQ": 0.9,
+                "Article": 1.1,
+                "Directive": 1.5,
+                "Regulation": 1.6}
 
 
 def get_year_range(incl_date=None):
@@ -325,19 +321,3 @@ def map_from_serialized_form(form_data):
         return acc
 
     return functools.reduce(_red_func, form_data, {})
-
-
-def create_search_id(flask_app=None):
-    """Creates a search id which is a hash using the secret key of the app.
-
-    If no app is passed in, uses some standard unsecure id.
-
-    Args:
-        flask_app (Flask): the flask app, to pull the configuration from.
-    """
-    secret = "not a very good secret!"
-    if flask_app is not None:
-        secret = flask_app.config["SECRET_KEY"]
-    sha_hasher = hashlib.sha256(f"{time.time()}.{secret}".encode("utf-8"))
-    search_id = sha_hasher.hexdigest()
-    return search_id

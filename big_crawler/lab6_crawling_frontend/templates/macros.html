@@ -56,9 +56,83 @@
 </ul>
 {% endmacro %}
 
+{% macro category_toggle(name) %}
+<li class="nav-item">
+  <a class="cat-link" data-toggle="collapse" href="{{ '#' + '{}_collapse'.format(name)|ccase }}" aria-expanded="false">
+    <span class="fas fa-caret-right"></span>
+    <span>{{ name|titlecase }}</span>
+  </a>
+</li>
+{% endmacro %}
+
+{% macro range_field(name, options) %}
+{{ category_toggle(name) }}
+<div class="category collapse" id="{{ '{}_collapse'.format(name)|ccase }}">
+  {% for mode in ["from", "to"] %}
+  <li class="nav-item">
+    <label for="{{ '{}_input_{}'.format(name, mode)|ccase }}">
+      {{ mode }}
+      {% if name != "date" %}
+      (<output id="{{ '{}_output_{}'.format(name, mode)|ccase }}"
+               for="{{ '{}_input_{}'.format(name, mode)|ccase }}"></output>)
+      {% endif %}
+    </label>
+    <input type="{{ 'date' if name == 'date' else 'range' }}"
+          name="{{ '{}_{}'.format(name, mode) }}" class="form-control" value="{{ options[mode] }}"
+          step="any" min="{{ options.from }}" max="{{ options.to}}"
+          id="{{ '{}_input_{}'.format(name, mode)|ccase }}" />
+  </li>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro checklist(name, options) %}
+{{ category_toggle(name) }}
+<div class="category collapse" id="{{ '{}_collapse'.format(name)|ccase }}">
+{% for option in options %}
+  <li class="nav-item">
+    <div class="form-check">
+      <input type="checkbox" name="{{ name }}" class="form-check-input" value="{{ option.value }}"
+            id="{{ '{}_form_{}_value'.format(name, option.value)|ccase }}"/>
+      <label class="form-check-label" for="{{ '{}_form_{}_value'.format(name, option.value)|ccase }}">
+        <span class="badge badge-secondary">{{ option.count }}</span>
+        <span class="overflow-ellipsis">{{ option.value }}</span>
+      </label>
+    </div>
+  </li>
+{% endfor %}
+</div>
+{% endmacro %}
+
+{% macro filter_sidebar(filters, form) %}
+<form name="search" action="{{ url_for('search') }}" method="GET">
+  <h6 class="sidebar-heading">Search</h6>
+  <input type="search" name="q" placeholder="keywords..." class="form-control" />
+  <h6 class="sidebar-heading mt-2">Filters</h6>
+  <ul class="nav flex-column filters">
+  {% for name, options in filters.items() %}
+  {% if options is mapping %}
+  {{ range_field(name, options) }}
+  {% else %}
+  {{ checklist(name, options) }}
+  {% endif %}
+  {% endfor %}
+  <li class="nav-item">
+    {{ form.submit(class="btn btn-primary btn-block my-2") }}
+  </li>
+  </ul>
+</form>
+{% endmacro %}
+
 {% macro document_link(doc) %}
 <a href="{{ url_for('document', doc_id=doc._id) }}" title="{{ doc.document }}" data-var="title">
   {{ doc.document }}
+</a>
+{% endmacro %}
+
+{% macro source_link(source) %}
+<a href="{{ source }}" title="{{ source }}" data-var="source">
+  {{ source|domainextract }}
 </a>
 {% endmacro %}
 
@@ -69,12 +143,22 @@
 {% endmacro %}
 
 {% macro document_entry(doc) %}
-<p hidden>{{ doc }}</p>
 <div class="document-title text-left">
   <div class="overflow-fade">
     {{ document_link(doc) }}
   </div>
 </div>
+{% endmacro %}
+
+
+{% macro impact_entry(doc) %}
+<a class="impact-indicator {{ doc.impact }}" href="{{ url_for('document_connections', doc_id=doc._id) }}" title="Impact on other documents" data-var="impact" data-val="{{ doc.impact }}">
+  <div>
+    <span>{{ doc.impact|capitalize|first }}</span>
+    <br />
+    <span>{{ doc.impact|capitalize }}</span>
+  </div>
+</a>
 {% endmacro %}
 
 {% macro status_button(doc) %}
@@ -320,4 +404,42 @@
     {% endfor %}
   </ul>
 </div>
+{% endmacro %}
+
+{% macro pagination_bar(cur_page, max_page=None, q=None, sortby=None,
+                        filters=None, num_pages=3) %}
+{% set max_page = max_page|dflt(cur_page) %}
+{% set prev_pages = (cur_page - 1)|clip(0, num_pages) %}
+{% set next_pages = (max_page - cur_page)|clip(0, num_pages) %}
+<nav aria-label="Page navigation example">
+  <ul class="pagination">
+    <li class="page-item {{ 'disabled' if cur_page == 1 }}">
+      <a class="page-link" href="{{ url_pre(page=cur_page-1) }}">Previous</a>
+    </li>
+    {% if cur_page - prev_pages > 1 %}
+    <li class="page-item">
+      <a class="page-link" href="{{ url_pre(page=1) }}" aria-label="First">
+        <span class="fas fa-fast-backward" aria-hidden="true"></span>
+        <span class="sr-only">First</span>
+      </a>
+    </li>
+    {% endif %}
+    {% for page in range(cur_page - prev_pages, cur_page + next_pages + 1) %}
+    <li class="page-item {{ 'active' if page == cur_page }}">
+      <a class="page-link" href="{{ url_pre(page=page) }}">{{ page }}</a>
+    </li>
+    {% endfor %}
+    {% if cur_page + next_pages < max_page %}
+    <li class="page-item">
+      <a class="page-link" href="{{ url_pre(page=max_page) }}" aria-label="Last">
+        <span class="fas fa-fast-forward" aria-hidden="true"></span>
+        <span class="sr-only">Last</span>
+      </a>
+    </li>
+    {% endif %}
+    <li class="page-item {{ 'disabled' if cur_page == max_page }}">
+      <a class="page-link" href="{{ url_pre(page=cur_page+1) }}">Next</a>
+    </li>
+  </ul>
+</nav>
 {% endmacro %}
