@@ -56,47 +56,71 @@
 </ul>
 {% endmacro %}
 
-{% macro category_toggle(name) %}
+{% macro search_field() %}
+<div class="input-group">
+  <input type="search" name="q" class="form-control" placeholder="Search for keywords"
+         aria-label="Search for documents" aria-describedby="searchButton"
+         value="{{ request.args.q }}">
+  <div class="input-group-append">
+    <button class="btn btn-outline-success" type="submit" id="searchButton">
+      <span class="fas fa-search"></span>
+    </button>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro category_toggle(name, active) %}
 <li class="nav-item">
-  <a class="cat-link" data-toggle="collapse" href="{{ '#' + '{}_collapse'.format(name)|ccase }}" aria-expanded="false">
+  <a class="cat-link{{ ' active' if active }}" data-toggle="collapse"
+     href="{{ '#' + '{}_collapse'.format(name)|ccase }}" aria-expanded="{{ active }}">
     <span class="fas fa-caret-right"></span>
     <span>{{ name|titlecase }}</span>
   </a>
 </li>
 {% endmacro %}
 
-{% macro range_field(name, options) %}
-{{ category_toggle(name) }}
-<div class="category collapse" id="{{ '{}_collapse'.format(name)|ccase }}">
+{% macro range_field(name, options, active=False) %}
+{{ category_toggle(name, active) }}
+<div class="category collapse{{ ' show' if active }}" id="{{ '{}_collapse'.format(name)|ccase }}">
   {% for mode in ["from", "to"] %}
   <li class="nav-item">
     <label for="{{ '{}_input_{}'.format(name, mode)|ccase }}">
       {{ mode }}
       {% if name != "date" %}
       (<output id="{{ '{}_output_{}'.format(name, mode)|ccase }}"
-               for="{{ '{}_input_{}'.format(name, mode)|ccase }}"></output>)
+               for="{{ '{}_input_{}'.format(name, mode)|ccase }}"></output> minutes)
       {% endif %}
     </label>
-    <input type="{{ 'date' if name == 'date' else 'range' }}"
-          name="{{ '{}_{}'.format(name, mode) }}" class="form-control" value="{{ options[mode] }}"
-          step="any" min="{{ options.from }}" max="{{ options.to}}"
-          id="{{ '{}_input_{}'.format(name, mode)|ccase }}" />
+    {% if name == "date" %}
+    <input type="date" name="{{ '{}_{}'.format(name, mode) }}" class="form-control"
+          value="{{ options[mode] }}" id="{{ '{}_input_{}'.format(name, mode)|ccase }}"
+          min="{{ options.min }}" max="{{ options.max }}" />
+    {% elif name == "reading_time" %}
+    <input type="range" name="{{ '{}_{}'.format(name, mode) }}" class="form-control"
+          value="{{ options[mode] }}" step="1" id="{{ '{}_input_{}'.format(name, mode)|ccase }}"
+          min="{{ options.min }}" max="{{ options.max }}" />
+    {% else %}
+    <input type="range" name="{{ '{}_{}'.format(name, mode) }}" class="form-control"
+          value="{{ options[mode] }}" step="any" max="{{ options.to }}" id="{{ '{}_input_{}'.format(name, mode)|ccase }}"
+          min="{{ options.min }}" max="{{ options.max }}" />
+    {% endif %}
   </li>
   {% endfor %}
 </div>
 {% endmacro %}
 
-{% macro checklist(name, options) %}
-{{ category_toggle(name) }}
-<div class="category collapse" id="{{ '{}_collapse'.format(name)|ccase }}">
+{% macro checklist(name, options, active=False) %}
+{{ category_toggle(name, active) }}
+<div class="category collapse{{ ' show' if active }}" id="{{ '{}_collapse'.format(name)|ccase }}">
 {% for option in options %}
   <li class="nav-item">
     <div class="form-check">
       <input type="checkbox" name="{{ name }}" class="form-check-input" value="{{ option.value }}"
-            id="{{ '{}_form_{}_value'.format(name, option.value)|ccase }}"/>
-      <label class="form-check-label" for="{{ '{}_form_{}_value'.format(name, option.value)|ccase }}">
+             id="{{ '{}_form_{}_value'.format(name, option.value)|ccase }}"
+             {{ "checked" if option.active }} />
+      <label class="form-check-label overflow-ellipsis" for="{{ '{}_form_{}_value'.format(name, option.value)|ccase }}">
         <span class="badge badge-secondary">{{ option.count }}</span>
-        <span class="overflow-ellipsis">{{ option.value }}</span>
+        <span title="{{ option.value }}">{{ option.value }}</span>
       </label>
     </div>
   </li>
@@ -104,21 +128,22 @@
 </div>
 {% endmacro %}
 
-{% macro filter_sidebar(filters, form) %}
-<form name="search" action="{{ url_for('search') }}" method="GET">
-  <h6 class="sidebar-heading">Search</h6>
-  <input type="search" name="q" placeholder="keywords..." class="form-control" />
+{% macro filter_sidebar(filters, active) %}
+<form name="search" method="GET">
+  {{ search_field() }}
   <h6 class="sidebar-heading mt-2">Filters</h6>
   <ul class="nav flex-column filters">
   {% for name, options in filters.items() %}
   {% if options is mapping %}
-  {{ range_field(name, options) }}
+  {{ range_field(name, options, options.active) }}
+  {% elif options is sequence %}
+  {{ checklist(name, options, options|selectattr("active")|list|length > 0) }}
   {% else %}
-  {{ checklist(name, options) }}
+  {{ continue }}
   {% endif %}
   {% endfor %}
   <li class="nav-item">
-    {{ form.submit(class="btn btn-primary btn-block my-2") }}
+    <button type="submit" class="btn btn-success btn-block my-2">Apply Filters</button>
   </li>
   </ul>
 </form>
@@ -131,8 +156,8 @@
 {% endmacro %}
 
 {% macro source_link(source) %}
-<a href="{{ source }}" title="{{ source }}" data-var="source">
-  {{ source|domainextract }}
+<a href="{{ source.url }}" title="{{ source }}" data-var="source">
+  {{ source.name }}
 </a>
 {% endmacro %}
 

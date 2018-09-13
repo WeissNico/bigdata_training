@@ -49,10 +49,12 @@ SORT_KEYS = {
 
 
 TIME_FACTORS = {
+    "Announcement": 0.8,
     "FAQ": 0.9,
     "Article": 1.1,
     "Directive": 1.5,
-    "Regulation": 1.6
+    "Regulation": 1.6,
+    "Guideline": 1.4,
 }
 
 
@@ -301,12 +303,32 @@ def add_quantity(doc):
     return doc
 
 
-def map_from_serialized_form(form_data):
-    """Creates a map from the arguments provided by jQuery's serializeArray.
+def filter_dict(dictionary, include=None, exclude=None):
+    """Returns a dictionary (shallow), containing only the keys in filter_keys.
 
     Args:
-        form_data (list): a list of dicts in the format
-            `{"name": key, "value": value}`
+        dictionary (dict): a python dict.
+        include (list): the keys which should be included. Defaults to None,
+            which means all keys should be included.
+        exclude (list): the keys that should be excluded. Defaults to None,
+            which means no keys should be excluded.
+    Returns:
+        dict: a filtered dictionary.
+    """
+    if include is None:
+        include = list(dictionary.keys())
+
+    if exclude is None:
+        exclude = []
+
+    return {k: v for k, v in dictionary if k in include and k not in exclude}
+
+
+def map_from_serialized_form(request_data):
+    """Creates a map from the arguments provided by flasks request.args.
+
+    Args:
+        request_data (dict): the request parameters.
 
     Returns:
         dict: a dictionary holding the correct values in an easy to process
@@ -324,7 +346,80 @@ def map_from_serialized_form(form_data):
             acc[el["name"]] = el["value"]
         return acc
 
-    return functools.reduce(_red_func, form_data, {})
+    return functools.reduce(_red_func, request_data, {})
+
+
+def flatten_multi_dict(multi_dict):
+    """Returns a flattened version of the given multidict.
+
+    When only one value is present, returns a key value mapping, otherwise
+    a ky, list of values mapping.
+
+    Args:
+        multidict werkzeug.MultiDict: a multi_dict instance
+
+    Returns:
+        dict: a dictionary holding the correct values in an easy to process
+            format. Like `{"key_1": "value_1",
+                           "key_2": ["value_2", "value_3", "value_4"],
+                           "...", "..."}`
+    """
+    def _flatten(values):
+        if len(values) == 0:
+            return None,
+        elif len(values) == 1:
+            return values[0]
+        else:
+            return values
+
+    deep_dict = multi_dict.to_dict(False)
+    return {k: _flatten(v) for k, v in deep_dict.items()}
+
+
+def convert_filter_types(dictionary):
+    """Converts the string request types to their respective types.
+
+    Returns:
+        dict: the dictionary itself (operation happens inplace).
+    """
+    for key in dictionary.keys():
+        if key.startswith("reading_time"):
+            dictionary[key] = int(dictionary[key])
+    return dictionary
+
+
+def merge_filters(available_filters, active_filters):
+    """Merges the available filters and the active filters into one dict.
+
+    Args:
+        available_filters (dict): all available filters as returned by elastic.
+        active_filters (dict): all active filters as returned by elastic.
+
+    Returns:
+        dict: the merged dictionary of filters.
+    """
+    def _upsert_list(some_list, some_dict):
+        for idx, entry in enumerate(some_list):
+            if entry["value"] == some_dict["value"]:
+                del some_list[idx]
+        some_list.insert(0, some_dict)
+
+    filters = {}
+    for key in available_filters.keys():
+        if key not in active_filters:
+            filters[key] = available_filters[key]
+            continue
+        value = available_filters[key]
+        if isinstance(value, dict):
+            value["min"] = available_filters[key]["from"]
+            value["max"] = available_filters[key]["to"]
+            value["active"] = True
+        else:
+            for term in active_filters[key]:
+                term["active"] = True
+                _upsert_list(value, term)
+        filters[key] = value
+    return filters
 
 
 def create_search_id(flask_app=None):
@@ -341,3 +436,20 @@ def create_search_id(flask_app=None):
     sha_hasher = hashlib.sha256(f"{time.time()}.{secret}".encode("utf-8"))
     search_id = sha_hasher.hexdigest()
     return search_id
+
+
+def get_base_url(url):
+    """Returns the base domain of a url.
+
+    Args:
+        url (str): the full url.
+
+    Returns:
+        str: the base domain.
+    """
+    # TODO make this smarter
+    parts = url.split("/")
+    relevant = [p for p in parts if "." in p]
+    if len(relevant) > 0:
+        return relevant[0]
+    return parts[0]

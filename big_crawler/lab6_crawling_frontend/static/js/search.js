@@ -1,3 +1,7 @@
+/* Script kept old search functionallity regarding tags, but also added
+   new functions for filtered_search.html
+   Author: Johannes Mueller <j.mueller@reply.de>
+*/
 function deleteTag(e) {
     doc_id = e.target.parentElement.parentElement.getAttribute('data-value')
     e.target.remove()
@@ -33,3 +37,14 @@ function addTag(e){
         });
     }
 }
+
+function updateOutputs(event) {
+    $input = $(event.target);
+    $output = $(`output[for=${$input.attr("id")}]`);
+    $output.text(parseFloat($input.val()).toFixed(1));
+}
+
+// set a listener for the range sliders
+$(document).on("input", "input[type='range']", updateOutputs);
+// and trigger it once
+$("input[type='range']").trigger("input");

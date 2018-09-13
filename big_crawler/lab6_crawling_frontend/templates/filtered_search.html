@@ -2,7 +2,7 @@
 {% import "macros.html" as macros %}
 {% block title %}Sherlock - Search{% endblock %}
 {% block head %} {{ super() }} {% endblock%}
-{% block sidebar %} {{ macros.filter_sidebar(filters, fform) }}
+{% block sidebar %} {{ macros.filter_sidebar(filters) }}
 {% endblock %}
 {% block content %}
 {{ macros.title_row("Search for Documents", None) }}
@@ -61,7 +61,7 @@
 {% endmacro %}
 
 <div>
-  <h5>Found {{ num_results }} results</h5>
+  <h5>Found {{ num_results }} result{{ num_results|pluralize }} for keywords "{{ q }}"</h5>
   {% if documents|length > 0 %}
     {{ macros.pagination_bar(page, max_page, q, sort_by, filters) }}
     {{ document_table(documents) }}
@@ -117,4 +117,5 @@
 {{ super() }}
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 <script src="{{ url_for('static', filename='js/fake-select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/search.js') }}"></script>
 {% endblock %}

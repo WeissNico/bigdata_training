@@ -11,7 +11,6 @@ from flask import (Flask, request, redirect, render_template, url_for,
 import settings
 import utility as ut
 import mock as mck
-import forms
 import diff
 
 
@@ -100,27 +99,24 @@ def search(page=1):
         desc (str): whether the search should be descending or ascending,
             defaults to 'True'.
     """
+    # which columns are displayed?
+    columns = ["date", "type", "category", "document", "source",
+               "reading_time", "impact"]
+    # make a MUTABLE dict with lists for multi-keys out of the request args
+    req_args = ut.flatten_multi_dict(request.args)
+    req_args = ut.convert_filter_types(req_args)
     # create sort order for the documents
-    sort_by = request.args.get("sortby", "impact")
-    desc = request.args.get("desc", "True").lower() == "true"
-    # retrieve filters and map them to a query.
-    filters = ut.map_from_serialized_form(request.form)
+    sort_by = req_args.pop("sortby", "impact")
+    desc = req_args.pop("desc", "true").lower() == "true"
     # retrieve search keyword
-    query = request.args.get("q", "")
+    query = req_args.pop("q", "")
     sortby = {
         "keyword": sort_by,
         "order": "desc" if desc else "asc",
         "args": {"fingerprint": 12341234}
     }
-
-    columns = ["date", "type", "category", "document", "source",
-               "reading_time", "impact"]
-
-    search_res = es.search_documents(query, page, columns, filters, sortby)
-
-    # create a filter form
-    FilterForm = forms.filter_form_factory(search_res["aggs"])
-    fform = FilterForm()
+    search_res = es.search_documents(query, page, columns, req_args, sortby)
+    filters = es.get_query_filters(query, columns, active=req_args)
 
     documents = search_res["results"]
     # convert the date
@@ -129,8 +125,7 @@ def search(page=1):
         doc["reading_time"] = doc["reading_time"][0]
 
     return render_template("filtered_search.html",
-                           filters=search_res["aggs"],
-                           fform=fform,
+                           filters=filters,
                            documents=documents,
                            columntitles=columns,
                            page=page,
@@ -205,7 +200,7 @@ def document_connections(doc_id):
     connected = ut.sort_documents(connected, sort_key=sort_by, desc=desc,
                                   other_doc=doc_id)
 
-    doc["readingtime"] = ut.get_reading_time(doc)
+    doc["reading_time"] = ut.calculate_reading_time(doc)
     columns = ["date", "type", "document", "reading_time", "similarity"]
 
     return render_template("connections.html",
@@ -560,7 +555,7 @@ def filter_str(obj):
 
 
 @app.template_filter("pluralize")
-def filter_pluralize(number, singular="", plural="s"):
+def filter_pluralize(number, plural="s", singular=""):
     """ A pluralize filter for the jinja2 templates.
 
     Args:
@@ -664,20 +659,20 @@ def filter_bignumber(number):
 
 
 @app.template_filter("bigminutes")
-def filter_bigminutes(seconds):
+def filter_bigminutes(minutes):
     """A filter for the jinja2 templates, printing big time units in format.
 
     This should also work when given a `datetime.timedelta`
     Args:
-        seconds (int): some number of seconds.
+        minutes (int): some number of minutes.
 
     Returns:
         str: a formatted number
     """
-    if isinstance(seconds, dt.timedelta):
-        minutes = seconds.total_seconds() // 60
+    if isinstance(minutes, dt.timedelta):
+        minutes = minutes.total_seconds() // 60
     else:
-        minutes = seconds // 60
+        minutes = int(minutes)
 
     if minutes == 0:
         return "< 01 m"

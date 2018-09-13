@@ -4,9 +4,9 @@ searches from some keywords.
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import re
-import datetime as dt
 
 import utility as ut
+
 
 AGG_KEYS = {
     "_default": lambda x: {
@@ -18,6 +18,10 @@ AGG_KEYS = {
     "quantity": lambda x: {
         "quantity": {"stats": {"field": "quantity.words"}},
     },
+    "source": lambda x: {
+        "source": {"terms": {"field": "source.name",
+                             "order": {"_count": "desc"}}},
+    },
     "reading_time": lambda x: {
         "reading_time": {"stats": {
             "script": {
@@ -25,8 +29,38 @@ AGG_KEYS = {
                 "params": ut.TIME_FACTORS,
             }
         }}
+    },
+    # document is somehow no good filter, since the titles get very long
+    # therefore deactivate it.
+    # "document": lambda x: {}
+}
+"""Special rules when aggregating fields. _default for the default."""
+
+
+FILTER_KEYS = {
+    "_default": lambda k, v, p: {
+        p["keyword"]: {k: v}
+    },
+    "source": lambda k, v, p: {
+        p["keyword"]: {"source.name": v}
+    },
+    "quantity_range": lambda k, v, p: {
+        "range": {"quantity.words": p}
+    },
+    "reading_time_range": lambda k, v, p: {
+        "script": {
+            "script": {
+                "id": "reading_time_range",
+                # beautiful way to extend the dict.
+                "params": dict(ut.TIME_FACTORS, **p)
+            }
+        }
+    },
+    "date_range": lambda k, v, p: {
+        "range": {"date": p}
     }
 }
+"""Special rules when filtering for fields. `KEY_range` for range filters."""
 
 
 SCRIPT_FIELDS = {
@@ -39,15 +73,49 @@ SCRIPT_FIELDS = {
         }
     }
 }
+"""Script fields, that should be included in the search results."""
 
 
 SORT_KEYS = {
-    "_default": lambda k, o, a: {k: {
-        "order": o,
-        "missing": "_last",
-        "unmapped_type": "integer"
-        }},
+    "_default": lambda k, o, a: {
+        k: {
+            "order": o,
+            "missing": "_last",
+            "unmapped_type": "integer"
+        }
+    },
+    "impact": lambda k, o, a: {
+        "_script": {
+            "type": "number",
+            "script": {
+                "id": "keyword_sort",
+                "params": {
+                    "_field": k,
+                    "low": 0,
+                    "medium": 1,
+                    "high": 2,
+                },
+            },
+            "order": o,
+        },
+    },
+    "status": lambda k, o, a: {
+        "_script": {
+            "type": "number",
+            "script": {
+                "id": "keyword_sort",
+                "params": {
+                    "_field": k,
+                    "open": 0,
+                    "waiting": 1,
+                    "finished": 2,
+                },
+            },
+            "order": o,
+        },
+    },
     "quantity": lambda k, o, a: {"quantity.words": {"order": o}},
+    "source": lambda k, o, a: {"source.name": {"order": o}},
     "reading_time": lambda k, o, a: {
         "_script": {
             "type": "number",
@@ -135,28 +203,29 @@ def transform_filters(filters):
     filter_context = []
 
     for key in filters.keys():
-        cur_context = {}
         # check whether this is a range key
         match = re.match(r"(.+)_(from|to)$", key)
         # skip "to" keys
+        if match and match[2] == "to":
+            continue
+
+        params = {}
+        values = filters[key]
+        params["keyword"] = "term"
+        if isinstance(values, list):
+            params["keyword"] = "terms"
+        # process "from" keys
         if match and match[2] == "from":
-            f_range = {"gte": filters[key]}
+            del params["keyword"]
+            params["gte"] = filters[key]
             to_value = filters.get(f"{match[1]}_to", None)
             if to_value is not None:
-                f_range["lte": to_value]
-            cur_context = {
-                "range": {
-                    match[1]: f_range
-                }
-            }
-        else:
-            keyword = "term"
-            if isinstance(filters[key], list):
-                keyword = "terms"
-            cur_context = {
-                keyword: {key: filters[key]}
-            }
-        filter_context.append(cur_context)
+                params["lte"] = to_value
+            # rename key
+            key = f"{match[1]}_range"
+        # retrieve rule
+        rule = FILTER_KEYS.get(key, FILTER_KEYS["_default"])
+        filter_context.append(rule(key, values, params))
     return filter_context
 
 
@@ -178,9 +247,11 @@ def transform_sortby(sortby):
     return [sorter(sortby["keyword"], sortby["order"], sortby["args"])]
 
 
-def transform_agg_filters(aggregations):
+def transform_agg_filters(aggregations, active={}):
     """Transforms the aggregations into a format that can be processed easily.
 
+    If the request.args are given an "active" field marks whether the filter
+    is in use or not.
     The return format is as follows:
     `{"filter_name": ["value_1, "value_2", "value_3"],
       "filter_range": {"from": "value_from", "to": "value_to"}
@@ -188,26 +259,39 @@ def transform_agg_filters(aggregations):
 
     Args:
         aggregations (dict): the aggregations as returned by the _search.
+        active (dict): the request_arguments, as passed to the filter_context.
+            May be used to mark which filters are active and which not.
 
     Returns:
         dict: the transformed dict as described above.
     """
     def _transform_agg(name, el):
         # check whether list or dict
+        acc = None
         if el.get("buckets") is not None:
-            acc = [{"count": e["doc_count"], "value": e["key"]}
+            # check if there is any bucket in the list
+            if not el["buckets"]:
+                return acc
+            acc = [{"count": e["doc_count"], "value": e["key"],
+                    "active": e["key"] in active.get(name, {})}
                    for e in el["buckets"]]
         else:
-            # get type from field_name
-            from_val = el["min"]
-            to_val = el["max"]
+            # get minimum and maximum value
+            min_val = el.get("min")
+            max_val = el.get("max")
+            # if this is a date
+            if "min_as_string" in el:
+                min_val = el.get("min_as_string")[:10]
+                max_val = el.get("max_as_string")[:10]
 
-            if name == "date":
-                # elastic saves in milliseconds... so divide by 1000
-                from_val = dt.date.fromtimestamp(from_val/1000)
-                to_val = dt.date.fromtimestamp(to_val/1000)
+            if min_val is None or max_val is None:
+                return acc
 
-            acc = {"from": from_val, "to": to_val}
+            acc = {"min": min_val, "max": max_val,
+                   "active": (f"{name}_from" in active or
+                              f"{name}_to" in active),
+                   "from": active.get(f"{name}_from", min_val),
+                   "to": active.get(f"{name}_to", max_val)}
         return acc
 
     return {k: _transform_agg(k, v) for k, v in aggregations.items()}

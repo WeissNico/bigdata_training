@@ -48,7 +48,7 @@ with open("big_crawler/lab5_nutch_rest_api/demo_seeds.txt", "r") as fl:
         seed_list.append(line[:-1])
 
 # crawl new sites
-status = crawlerSites(seedList=seed_list, collectionId="eurlex", counter=1)
+status = crawlerSites(seedList=seed_list, collectionId="eurlex", counter=2)
 if status != 1:
     raise RuntimeError
 
@@ -88,29 +88,38 @@ for document in cursor:
     doc_hash = hash_object.hexdigest()
     doc_url = document.get("baseUrl")
 
-    num_metadata = db.eurlex_plugin.count_documents({"url": doc_url})
-    metadata_finder = db.eurlex_plugin.find({"url": doc_url})
+    num_sources = db.eurlex_plugin.count_documents({"url": doc_url})
+    sources = db.eurlex_plugin.find({"url": doc_url})
     source_meta = {}
-    if num_metadata > 0:
-        source_meta = {k: v for k, v in metadata_finder[0].items()
-                       if k[:1] != "_"}
+    # if there are results for the source
+    for source in sources:
+        # flatten the source meta
+        cur_meta = dict(source["metadata"],
+                        title=source["title"],
+                        date=source["date"],
+                        crawl_date=source["crawl_date"])
+        source_meta.update(cur_meta)
 
-    # concatenate the metadatas
+    # concatenate the metadata
     metadata.update(source_meta)
     lines, words = ut.calculate_quantity(document.get("text", ""))
 
     if not elasticDB.exist_document(doc_url, doc_hash):
+        doc_id = f"{doc_hash}#{time.time()}"
         doc = {
             # "inlinks": document.get("inlinks", ""),
             # "outlinks": document.get("outlinks", ""),
             "date": ut.from_date(metadata.get("date", None)),
-            "source": doc_url,
+            "source": {
+                "url": doc_url,
+                "name": ut.get_base_url(doc_url)
+            },
             "hash": doc_hash,
             "version": time.time(),
             "content_type": document.get("contentType", ""),
             "content": base64.b64encode(document.get("content",
                                                      None)).decode(),
-            "document": document.get("title", "No Title"),
+            "document": metadata.get("title", "No Title"),
             "text": document.get("text", ""),
             "tags": [],
             "keywords": {},
@@ -121,15 +130,14 @@ for document in cursor:
             "type": "?",
             "category": "?",
             "fingerprint": "placeholder",
-            "version_key": 0,
+            "version_key": doc_id,
             "connections": {},
-            "impact": 0,
-            "status": 0,
+            "impact": "low",
+            "status": "open",
             "new": True,
         }
 
         # document id
-        doc_id = f"{doc_hash}#{time.time()}"
         logging.debug(f"Insert document {doc_id} into the elasticsearch DB.")
         # push into elastic,... the id is the hash + a timestamp
         elasticDB.insert_document(doc=doc, doc_id=doc_id)

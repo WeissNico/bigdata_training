@@ -28,7 +28,12 @@ class Elastic():
             "version": {"type": "double"},
             "document": {"type": "keyword"},
             "date": {"type": "date"},
-            "source": {"type": "keyword"},
+            "source": {
+                "properties": {
+                    "url": {"type": "keyword"},
+                    "name": {"type": "keyword"},
+                }
+            },
             "text": {"type": "text"},
             "content_type": {"type": "keyword"},
             "content": {"type": "binary"},
@@ -56,8 +61,8 @@ class Elastic():
                 },
             },
             "metadata": {"type": "object", "dynamic": True},
-            "status": {"type": "byte"},
-            "impact": {"type": "byte"},
+            "status": {"type": "keyword"},
+            "impact": {"type": "keyword"},
             "type": {"type": "keyword"},
             "category": {"type": "keyword"},
             "fingerprint": {"type": "keyword"},
@@ -74,12 +79,41 @@ class Elastic():
     }
 
     SCRIPTS = {
+        "keyword_sort": {
+            "script": {
+                "lang": "painless",
+                "source": """
+                    String field = params.getOrDefault("_field", "hash");
+                    def val = doc[field];
+                    return params.getOrDefault(val, 0);
+                """
+            }
+        },
         "reading_time": {
             "script": {
                 "lang": "painless",
-                "source": ("doc['quantity.words'].value * 0.4 * "
-                           "params.getOrDefault(doc['type'].value, 1.0)"),
-            }
+                "source": """
+                    int time = (int) ((doc['quantity.words'].value * 0.4 *
+                               params.getOrDefault(doc['type'].value, 1.0))
+                               /60);
+                    return time;
+                """
+            },
+            "type": "integer"
+        },
+        "reading_time_range": {
+            "script": {
+                "lang": "painless",
+                "source": """
+                    int from = params.getOrDefault("gte", 0);
+                    int to = params.getOrDefault("lte", Integer.MAX_VALUE);
+                    int time = (int) ((doc['quantity.words'].value * 0.4 *
+                               params.getOrDefault(doc['type'].value, 1.0))
+                               /60);
+                    return (from <= time) && (time <= to);
+                """
+            },
+            "type": "integer"
         },
         "similarity": {
             "script": {
@@ -285,8 +319,52 @@ class Elastic():
         result = self.es.delete(index=index, doc_type=doc_type, id=seed_id)
         return result
 
+    def get_query_filters(self, search_text, fields=None, active=None):
+        """Returns all possible filters for the documents containing the query.
+
+        Args:
+            search_text (str): the text to search for.
+            fields (list): a list of fields that should be aggregated.
+                Defaults to None, which means all fields.
+            active (dict): the filter dict as returned to the normal search.
+
+        Returns:
+            dict: a dictionary of aggregations.
+        """
+        index = self._dflt.docs_index
+        logging.debug(f"Searching for {search_text} on '{index}'")
+
+        search = {
+            "simple_query_string": {
+                "query": search_text,
+                "default_operator": "and"
+            }
+        }
+        # if search_text is empty or None
+        if not search_text:
+            search = {"match_all": {}}
+
+        s_body = {
+            "query": {
+                "bool": {
+                    "must": search,
+                }
+            },
+            "aggs": etrans.transform_aggs(fields),
+        }
+        # inserts the fields, if necessary.
+        source, scripted = etrans.transform_fields(fields)
+        if source is not None:
+            s_body["_source"] = source
+        if scripted is not None:
+            s_body["script_fields"] = scripted
+
+        results = self.es.search(index=index, body=s_body)
+
+        return etrans.transform_agg_filters(results["aggregations"], active)
+
     def search_documents(self, search_text, page=1, fields=None, filters={},
-                         sort_by=None):
+                         sort_by=None, highlight=True):
         """Returns all documents, that contain the `search_text`.
 
         The results can be filtered by the filters defined in the `filters`
@@ -300,6 +378,8 @@ class Elastic():
             filters (dict): the filters for fields of the documents.
             sortby (dict): accepts a dict with the keys `keyword`, `order` and
                 `args`.
+            highlight (boolean): Whether text highlights for the query should
+                be done.
 
         Returns:
             dict: a dictionary containing the following keys:
@@ -309,10 +389,20 @@ class Elastic():
         logging.debug(f"Searching for {search_text} on '{index}'")
 
         start = (page - 1) * self._dflt.size
-        search = {"simple_query_string": {"query": search_text}}
+        search = {
+            "simple_query_string": {
+                "query": search_text,
+                "default_operator": "and"
+            }
+        }
         # if search_text is empty or None
         if not search_text:
             search = {"match_all": {}}
+
+        highlighter = {}
+        if highlight:
+            highlighter = {"fields": {"*": {"pre_tags": ["<b>"],
+                                            "post_tags": ["</b>"]}}}
 
         s_body = {
             "from": start,
@@ -324,14 +414,7 @@ class Elastic():
                 }
             },
             "sort": etrans.transform_sortby(sort_by),
-            "highlight": {
-                "fields": {
-                    "*": {
-                        "pre_tags": ["<b>"],
-                        "post_tags": ["</b>"]
-                    }
-                }
-            },
+            "highlight": highlighter,
             "aggs": etrans.transform_aggs(fields),
         }
         # inserts the fields, if necessary.
