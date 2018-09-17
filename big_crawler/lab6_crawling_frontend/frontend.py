@@ -124,7 +124,7 @@ def search(page=1):
         doc["date"] = ut.date_from_string(doc["date"])
         doc["reading_time"] = doc["reading_time"][0]
 
-    return render_template("filtered_search.html",
+    return render_template("search.html",
                            filters=filters,
                            documents=documents,
                            columntitles=columns,
@@ -133,6 +133,11 @@ def search(page=1):
                            max_page=search_res["total_pages"],
                            q=query,
                            sort_by=(sort_by, desc),)
+
+
+@app.route("/upload", methods=["GET", "POST"])
+def upload():
+    return render_template("upload.html")
 
 
 @app.route("/document/<doc_id>/download")
@@ -410,7 +415,7 @@ def train():
 def old_search():
     # get search keywords
     search_text = request.args.get("search", "")
-    documents = es.search_documents(search_text)
+    documents = es.search_documents(search_text)["results"]
 
     search_result = []
     for doc in documents:
@@ -436,7 +441,7 @@ def old_search():
             logging.debug("Appending '{filename}': {tags}".format(**ret_doc))
             search_result.append(ret_doc)
 
-    return render_template('search.html', results=search_result)
+    return render_template('old_search.html', results=search_result)
 
 
 @app.route('/nutch')

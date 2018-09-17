@@ -1,37 +1,121 @@
 {% extends "base.html" %}
-{% block title %}Researchbot - Index{% endblock %}
-{% block head %}
-  {{ super() }}
-  <style type="text/css">
-    .important { color: #336699; }
-  </style>
+{% import "macros.html" as macros %}
+{% block title %}Sherlock - Search{% endblock %}
+{% block head %} {{ super() }} {% endblock%}
+{% block sidebar %} {{ macros.filter_sidebar(filters) }}
 {% endblock %}
 {% block content %}
-        <table class="table margin-top">
-            <thead>
-                <th>Filename</th>
-                <th>Date</th>
-                <th>Text</th>
-                <th>Tags</th>
-            </thead>
-            <tbody>
-            {% for result in results %}
-                <tr data-value="{{ result['id'] }}">
-                  <td> <a href="{{ result['link'] }}" > {{result['filename'] }}</a></td>
-                  <td>{{ result['date'] }}</td>
-                  <td>{{ result['text'] | safe }}</td>
-                  <td>
-                       <input onkeydown="addTag(event)" class="form-control mr-sm-2" type="text" name="addTag" placeholder="add..." aria-label="Search">
-                      {% for tag in result['tags'] %}
-                         <button ondblclick="deleteTag(event)" class="btn btn-outline-success my-2 my-sm-0" type="submit">{{ tag | safe }}</button>
-                      {% endfor %}
-                  </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+{{ macros.title_row("Search for Documents", None) }}
+<!-- table macro -->
+{% macro document_table(cur_docs) %}
+<table class="dashboard table table-hover table-responsive-lg">
+  <thead>
+    <tr>
+      {% for title in columntitles %}
+      {% if title %}
+      <th scope="col"> 
+        {% if sort_by[0] == title %}
+          <a href="{{ url_pre(sortby=title, desc=(not sort_by[1])) }}">
+            {{ title|titlecase }} 
+            <span class="fas fa-sort-{{ 'down' if sort_by[1] else 'up' }}"></span>
+          </a>
+        {% else %}
+          <a href="{{ url_pre(page=page, sortby=title, desc=True) }}">
+            {{ title|titlecase }} 
+            <span class="fas fa-sort"></span>
+          </a>
+        {% endif %}
+      </th>
+      {% else %}
+      <th scope="col"></th>
+      {% endif %}
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for doc in cur_docs %}
+    <tr data-document="{{ doc._id }}">
+      <td>
+        {{ macros.dashboard_link(doc) }}
+      </td>
+      <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="type" title="The type of this document" data-document={{ doc._id }}>{{ doc.type }}</a></td>
+      <td><a class="table-entry" href="#changeModal" data-toggle="modal" data-var="category" title="The Category of this document (Who is responsible)" data-document={{ doc._id }}>{{ doc.category }}</a></td>
+      <!-- source and document links -->
+      <td>
+        {{ macros.document_entry(doc) }}
+      </td>
+      <td>
+        {{ macros.source_link(doc.source) }}
+      </td>
+      <td>
+        {{ macros.quantity_entry(doc) }}
+      </td>
+      <!-- impact indicator -->
+      <td>
+        {{ macros.impact_entry(doc) }}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+<div>
+  <h5>Found {{ num_results }} result{{ num_results|pluralize }} for keywords "{{ q }}"</h5>
+  {% if documents|length > 0 %}
+    {{ macros.pagination_bar(page, max_page, q, sort_by, filters) }}
+    {{ document_table(documents) }}
+    {{ macros.pagination_bar(page, max_page, q, sort_by, filters) }}
+  {% endif %}
+</div>
+
+<!-- MODAL DIALOGS -->
+<!-- Modal for setting the properties -->
+<div class="modal fade" id="changeModal" tabindex="-1" role="dialog" aria-labelledby="changeModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="changeModalLabel">Edit Document's Properties</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-12 overflow-fade mb-4" id="documentTitleLink">
+          </div>
+        </div>
+        <form id="changeDocumentPropertiesForm">
+          <input type="hidden" name="id" id="documentId" value="" />
+          <div class="form-row">
+            <div class="col-md-6 col-sm-12 form-group">
+              <label for="impactSelect"><span class="fas fa-signal"></span> Impact</label>
+              {{ macros.fake_select_fixed("Impact", [("high", "High"), ("medium", "Medium"), ("low", "Low")]) }}
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="col-md-6 col-sm-12 form-group">
+              <label for="typeSelect"><span class="fas fa-bars"></span> Type</label>
+              {{ macros.fake_select_text("Type", types) }}
+            </div>
+            <div class="col-md-6 col-sm-12 form-group">
+              <label for="categorySelect"><span class="fas fa-book"></span> Category</label>
+              {{ macros.fake_select_text("Category", categories) }}
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <a class="btn btn-primary" id="changeDocumentPropertiesButton" href="{{ url_for('document_set_properties', doc_id='%') }}">Change properties</a>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 {{ super() }}
-<script src={{ url_for("static", filename="js/search.js") }}></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fake-select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/search.js') }}"></script>
 {% endblock %}

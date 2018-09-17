@@ -114,22 +114,21 @@
 <div class="category collapse{{ ' show' if active }}" id="{{ '{}_collapse'.format(name)|ccase }}">
 {% for option in options %}
   <li class="nav-item">
-    <div class="form-check">
-      <input type="checkbox" name="{{ name }}" class="form-check-input" value="{{ option.value }}"
+    <label class="badge-box overflow-ellipsis">
+      <input type="checkbox" name="{{ name }}" value="{{ option.value }}"
              id="{{ '{}_form_{}_value'.format(name, option.value)|ccase }}"
              {{ "checked" if option.active }} />
-      <label class="form-check-label overflow-ellipsis" for="{{ '{}_form_{}_value'.format(name, option.value)|ccase }}">
-        <span class="badge badge-secondary">{{ option.count }}</span>
-        <span title="{{ option.value }}">{{ option.value }}</span>
-      </label>
-    </div>
+      <span class="badge badge-secondary">{{ option.count }}</span>
+      <span title="{{ option.value }}">{{ option.value }}</span>
+    </label>
   </li>
 {% endfor %}
 </div>
 {% endmacro %}
 
 {% macro filter_sidebar(filters, active) %}
-<form name="search" method="GET">
+{# the action is important, such that filtered forms always return to page 1 #}
+<form name="search" method="GET" action="{{ url_for('search', page=1) }}">
   {{ search_field() }}
   <h6 class="sidebar-heading mt-2">Filters</h6>
   <ul class="nav flex-column filters">
@@ -467,4 +466,36 @@
     </li>
   </ul>
 </nav>
+{% endmacro %}
+
+{% macro upload_form(name="upload_form") %}
+<form name="{{ name }}" method="POST">
+  <label for="fileInput" class="upload-form">
+    <div class="col-12">
+      <div class="row justify-content-center">
+        <span class="fas fa-10x fa-cloud-upload-alt"></span>
+      </div>
+      <div class="row justify-content-center">
+        <input name="file_input" type="file" multiple id="fileInput"/>
+      </div>
+      <div class="row justify-content-center">
+        <ul class="file-progress">
+          <li class="file-progress" id="progressPrototype" hidden>
+            <span class="filename">myfile</span>
+            <div class="progress">
+              <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                  role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                0 %
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </label>
+</form>
+{% endmacro %}
+
+{% macro upload_button(form="upload_form") %}
+<button class="btn btn-block btn-success h-4" form="{{ form }}">Upload Files</button>
 {% endmacro %}

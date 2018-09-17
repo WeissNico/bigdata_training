@@ -430,7 +430,7 @@ class Elastic():
             # insert the id into the source (which will be returned)
             doc["_source"]["_id"] = doc["_id"]
             # insert all (scripted_)fields into the source
-            doc["_source"].update(doc["fields"])
+            doc["_source"].update(doc.get("fields", {}))
 
         docs = [doc["_source"] for doc in results["hits"]["hits"]]
 
@@ -442,5 +442,5 @@ class Elastic():
             "num_results": results["hits"]["total"],
             "total_pages": total_pages,
             "results": docs,
-            "aggs": etrans.transform_agg_filters(results["aggregations"])
+            "aggs": etrans.transform_agg_filters(results.get("aggregations"))
         }

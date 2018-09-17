@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "macros.html" as macros %}
+{% block title %}Sherlock - Upload{% endblock %}
+{% block head %} {{ super() }} {% endblock%}
+{% block sidebar %} {{ macros.upload_button() }} {% endblock %}
+{% block content %}
+{{ macros.title_row("Upload Documents", None) }}
+<p class="lead">
+  Please drag and drop your documents in the upload area
+</p>
+{{ macros.upload_form() }}
+<!-- table macro -->
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fake-select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}

@@ -153,6 +153,9 @@ def transform_aggs(fields):
     """
     aggs = {}
 
+    if fields is None:
+        return aggs
+
     for field in fields:
         agg_func = AGG_KEYS.get(field, AGG_KEYS["_default"])
         agg_dict = agg_func(field)
@@ -294,4 +297,6 @@ def transform_agg_filters(aggregations, active={}):
                    "to": active.get(f"{name}_to", max_val)}
         return acc
 
+    if aggregations is None:
+        return {}
     return {k: _transform_agg(k, v) for k, v in aggregations.items()}

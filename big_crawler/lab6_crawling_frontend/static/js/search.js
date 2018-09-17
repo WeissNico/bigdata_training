@@ -44,7 +44,14 @@ function updateOutputs(event) {
     $output.text(parseFloat($input.val()).toFixed(1));
 }
 
+function invalidateInputs(event) {
+    $form = $(event.currentTarget.form);
+    $form.find("input:not([name=q])").attr("disabled", "disabled");
+}
+
 // set a listener for the range sliders
 $(document).on("input", "input[type='range']", updateOutputs);
 // and trigger it once
 $("input[type='range']").trigger("input");
+// before triggering the search button invalidate all other inputs
+$("#searchButton").click(invalidateInputs);

@@ -65,9 +65,8 @@ textarea {
   position: relative;
   top: 0;
   height: calc(100vh - 4rem);
-  padding-top: .5rem;
-  padding-right: 0.5rem;
-  margin: 0.5rem 0.5rem;
+  padding: .5rem;
+  padding-top: 1rem;
   overflow-x: hidden;
   overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
 }
@@ -91,6 +90,7 @@ textarea {
 
 .sidebar .category {
   margin-left: 0.75rem;
+  padding-bottom: 0.75rem;
 }
 
 .sidebar .category label {
@@ -510,5 +510,32 @@ table .width-2-3 {
 
 .proto {
   visibility: hidden;
+  display: none;
+}
+
+.badge-box input {
+  display: none;
+}
+
+.badge-box:hover .badge {
+  background-color: var(--sidebar-inactive-color);
+}
+
+.badge-box input:checked ~ .badge {
+  background-color: var(--success);
+}
+
+.upload-form {
+  color: white;
+  border-radius: 0.5rem;
+  background-color: var(--sidebar-inactive-color);
+  width: 100%;
+}
+
+.upload-form.active {
+  border: 0.3rem dashed white;
+}
+
+.upload-form input[type=file] {
   display: none;
 }
