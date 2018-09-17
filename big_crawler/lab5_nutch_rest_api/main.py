@@ -18,6 +18,7 @@ logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s",
 
 # connect to the mongoDB
 client = MongoClient("mongodb://159.122.175.139:30017")
+logging.debug(client.server_info())
 db = client["crawler"]
 
 elasticDB = Elastic(host=("portal-ssl223-11.bmix-lon-yp-2012af18-4749-4d32-"
@@ -31,7 +32,8 @@ collection = db.eurlex_webpage
 collection.delete_many({})
 
 # get new Documents from the eurlex-site
-el_plugin = EurlexPlugin(db.eurlex_plugin)
+el_plugin = EurlexPlugin(db.eurlex_plugin,
+                         mongo_version=client.server_info()["versionArray"])
 el_plugin.retrieve_new_documents()
 el_plugin.enrich_documents()
 
@@ -94,10 +96,10 @@ for document in cursor:
     # if there are results for the source
     for source in sources:
         # flatten the source meta
-        cur_meta = dict(source["metadata"],
-                        title=source["title"],
-                        date=source["date"],
-                        crawl_date=source["crawl_date"])
+        cur_meta = dict(source.get("metadata", {}),
+                        title=source.get("title", "no title"),
+                        date=source.get("date"),
+                        crawl_date=source.get("crawl_date"))
         source_meta.update(cur_meta)
 
     # concatenate the metadata

@@ -110,7 +110,8 @@ class EurlexPlugin():
         """
         self.collection = mongo_collection
         self.defaults = {
-            "age": dt.timedelta(days=3)
+            "age": dt.timedelta(days=3),
+            "mongo_version": [3, 6, 0, 0]
         }
         self.defaults.update(kwargs)
         # create a unique index on the url
@@ -189,7 +190,16 @@ class EurlexPlugin():
                 num_docs = self.collection.count_documents({"url": link})
 
                 if num_docs > 0:
-                    logging.debug(f"Document was crawled_before {res!s}")
+                    logging.debug(f"Document was crawled before: '{link}'")
+                    # check whether this document had a date before the crawl
+                    # date, if not, break.
+                    duplicate_doc = self.collection.find_one({"url": link})
+
+                    if duplicate_doc["date"] >= duplicate_doc["crawl_date"]:
+                        logging.debug("Document date lies in the future."
+                                      " Continue...")
+                        continue
+
                     logging.debug("Break!")
                     has_unseen_documents = False
                     break
