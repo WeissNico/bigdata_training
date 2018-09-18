@@ -468,34 +468,39 @@
 </nav>
 {% endmacro %}
 
-{% macro upload_form(name="upload_form") %}
-<form name="{{ name }}" method="POST">
-  <label for="fileInput" class="upload-form">
+{% macro upload_form(name="file_upload_form") %}
+<form name="{{ name }}" id="{{ name|ccase }}" method="POST" enctype="multipart/form-data">
+  <label for="fileInput" class="upload-form" id="uploadForm">
     <div class="col-12">
-      <div class="row justify-content-center">
-        <span class="fas fa-10x fa-cloud-upload-alt"></span>
+      <div class="drop-area">
+        <div class="row justify-content-center">
+          <span class="fas fa-10x fa-cloud-upload-alt"></span>
+        </div>
       </div>
       <div class="row justify-content-center">
-        <input name="file_input" type="file" multiple id="fileInput"/>
-      </div>
-      <div class="row justify-content-center">
-        <ul class="file-progress">
-          <li class="file-progress" id="progressPrototype" hidden>
-            <span class="filename">myfile</span>
-            <div class="progress">
-              <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
-                  role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                0 %
-              </div>
-            </div>
-          </li>
-        </ul>
+        <input name="file_input" type="file" accept="application/pdf" multiple id="fileInput"/>
       </div>
     </div>
   </label>
+  <div class="row justify-content-center">
+    <ul class="list-group file-progress">
+      <li class="list-group-item file-progress-item proto overflow-ellipsis">
+        <button type="button" class="btn btn-link remove-file">
+          <span class="fas fa-trash"></span>
+        </button>
+        <a class="filename">myfile</a>
+        <div class="progress">
+          <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+              role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+            0 %
+          </div>
+        </div>
+      </li>
+    </ul>
+  </div>
 </form>
 {% endmacro %}
 
-{% macro upload_button(form="upload_form") %}
-<button class="btn btn-block btn-success h-4" form="{{ form }}">Upload Files</button>
+{% macro upload_button(form="file_upload_form") %}
+<button class="btn btn-block btn-success h-4" form="{{ form|ccase }}">Upload Files</button>
 {% endmacro %}

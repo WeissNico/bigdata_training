@@ -1,5 +1,6 @@
 // adds functionality to the edit_list macro.
 // Author: Johannes Mueller <j.mueller@reply.de>
+
 function addItem(list, item) {
     // adds an item to the given list.
     // `list` some custom edit-list.

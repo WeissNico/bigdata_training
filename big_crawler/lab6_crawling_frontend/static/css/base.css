@@ -526,16 +526,28 @@ table .width-2-3 {
 }
 
 .upload-form {
-  color: white;
-  border-radius: 0.5rem;
-  background-color: var(--sidebar-inactive-color);
   width: 100%;
 }
 
-.upload-form.active {
-  border: 0.3rem dashed white;
+.upload-form .drop-area {
+  margin: 0.5rem;
+  color: white;
+  border-radius: 0.5rem;
+  background-color: var(--sidebar-inactive-color);
+}
+
+.upload-form .drop-area.active {
+  border: 0.2rem dashed var(--secondary);
 }
 
 .upload-form input[type=file] {
   display: none;
+}
+
+.file-progress {
+  width: 75%;
+}
+
+.file-progress-item {
+  list-style-type: none;
 }

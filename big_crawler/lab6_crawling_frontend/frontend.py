@@ -137,6 +137,15 @@ def search(page=1):
 
 @app.route("/upload", methods=["GET", "POST"])
 def upload():
+    is_ajax = request.form.get("__ajax", "").lower() == "true"
+
+    files = request.files.getlist("file_input")
+    for fl in files:
+        print(fl)
+
+    if is_ajax:
+        return jsonify(dict(success=True, message="Received files!",
+                            href=url_for("document", doc_id="fakedoc")))
     return render_template("upload.html")
 
 

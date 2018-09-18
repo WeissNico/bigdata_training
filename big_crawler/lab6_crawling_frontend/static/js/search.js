@@ -3,7 +3,7 @@
    Author: Johannes Mueller <j.mueller@reply.de>
 */
 function deleteTag(e) {
-    doc_id = e.target.parentElement.parentElement.getAttribute('data-value')
+    var doc_id = e.target.parentElement.parentElement.getAttribute('data-value')
     e.target.remove()
 
     $.ajax({
@@ -39,13 +39,17 @@ function addTag(e){
 }
 
 function updateOutputs(event) {
-    $input = $(event.target);
-    $output = $(`output[for=${$input.attr("id")}]`);
+    // updates the outputs for the range sliders.
+    // `event` refers to the original input event on the slider.
+    var $input = $(event.target);
+    var $output = $(`output[for=${$input.attr("id")}]`);
     $output.text(parseFloat($input.val()).toFixed(1));
 }
 
 function invalidateInputs(event) {
-    $form = $(event.currentTarget.form);
+    // invalidates all inputs except for q, such that only q is submitted
+    // `event` refers to the button click event.
+    var $form = $(event.currentTarget.form);
     $form.find("input:not([name=q])").attr("disabled", "disabled");
 }
 
