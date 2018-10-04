@@ -448,9 +448,9 @@
       </a>
     </li>
     {% endif %}
-    {% for page in range(cur_page - prev_pages, cur_page + next_pages + 1) %}
-    <li class="page-item {{ 'active' if page == cur_page }}">
-      <a class="page-link" href="{{ url_pre(page=page) }}">{{ page }}</a>
+    {% for this_page in range(cur_page - prev_pages, cur_page + next_pages + 1) %}
+    <li class="page-item {{ 'active' if this_page == cur_page }}">
+      <a class="page-link" href="{{ url_pre(page=this_page) }}">{{ this_page }}</a>
     </li>
     {% endfor %}
     {% if cur_page + next_pages < max_page %}
@@ -475,6 +475,11 @@
       <div class="drop-area">
         <div class="row justify-content-center">
           <span class="fas fa-10x fa-cloud-upload-alt"></span>
+        </div>
+        <div class="row justify-content-center">
+          <p class="lead">
+            Please drag and drop your documents in this upload area.
+          </p>
         </div>
       </div>
       <div class="row justify-content-center">

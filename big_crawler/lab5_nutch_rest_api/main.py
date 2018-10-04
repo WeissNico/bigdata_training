@@ -1,13 +1,10 @@
 import traceback
 import hashlib
-import time
 import logging
 import datetime as dt
-import base64
 
 from pymongo import MongoClient
 
-import utility as ut
 from elastic import Elastic
 from plugin_eurlex import EurlexPlugin
 from py_crawl_api import crawlerSites
@@ -50,7 +47,7 @@ with open("big_crawler/lab5_nutch_rest_api/demo_seeds.txt", "r") as fl:
         seed_list.append(line[:-1])
 
 # crawl new sites
-status = crawlerSites(seedList=seed_list, collectionId="eurlex", counter=2)
+status = crawlerSites(seedList=seed_list, collectionId="eurlex", counter=5)
 if status != 1:
     raise RuntimeError
 
@@ -99,50 +96,24 @@ for document in cursor:
         cur_meta = dict(source.get("metadata", {}),
                         title=source.get("title", "no title"),
                         date=source.get("date"),
-                        crawl_date=source.get("crawl_date"))
+                        crawl_date=source.get("crawl_date"),
+                        url=doc_url)
         source_meta.update(cur_meta)
 
     # concatenate the metadata
     metadata.update(source_meta)
-    lines, words = ut.calculate_quantity(document.get("text", ""))
+
+    # prepare a nearly naked document:
+    doc = {
+        "content": document.get("content"),
+        "text": document.get("text", ""),
+        "metadata": metadata
+    }
 
     if not elasticDB.exist_document(doc_url, doc_hash):
-        doc_id = f"{doc_hash}#{time.time()}"
-        doc = {
-            # "inlinks": document.get("inlinks", ""),
-            # "outlinks": document.get("outlinks", ""),
-            "date": ut.from_date(metadata.get("date", None)),
-            "source": {
-                "url": doc_url,
-                "name": ut.get_base_url(doc_url)
-            },
-            "hash": doc_hash,
-            "version": time.time(),
-            "content_type": document.get("contentType", ""),
-            "content": base64.b64encode(document.get("content",
-                                                     None)).decode(),
-            "document": metadata.get("title", "No Title"),
-            "text": document.get("text", ""),
-            "tags": [],
-            "keywords": {},
-            "entities": {},
-            "quantity": {"lines": lines, "words": words},
-            "change": {"lines_added": lines, "lines_removed": 0},
-            "metadata": metadata,
-            "type": "?",
-            "category": "?",
-            "fingerprint": "placeholder",
-            "version_key": doc_id,
-            "connections": {},
-            "impact": "low",
-            "status": "open",
-            "new": True,
-        }
-
-        # document id
-        logging.debug(f"Insert document {doc_id} into the elasticsearch DB.")
-        # push into elastic,... the id is the hash + a timestamp
-        elasticDB.insert_document(doc=doc, doc_id=doc_id)
+        logging.debug(f"Insert document {doc_url} into the elasticsearch DB.")
+        # push into elastic,... the id will be created automatically
+        elasticDB.insert_document(doc)
 
     # if document.get("inlinks") is not None:
     #    binary = document["content"]

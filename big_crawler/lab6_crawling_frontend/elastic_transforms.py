@@ -8,6 +8,14 @@ import re
 import utility as ut
 
 
+OUTPUT_CONV = {
+    "_default": lambda x: x,
+    "reading_time": lambda x: x[0],
+    "date": lambda x: ut.date_from_string(x)
+}
+"""Rules for converting fields into an easy processable format."""
+
+
 AGG_KEYS = {
     "_default": lambda x: {
         x: {"terms": {"field": x, "order": {"_count": "desc"}}},
@@ -32,7 +40,7 @@ AGG_KEYS = {
     },
     # document is somehow no good filter, since the titles get very long
     # therefore deactivate it.
-    # "document": lambda x: {}
+    "document": lambda x: {}
 }
 """Special rules when aggregating fields. _default for the default."""
 
@@ -300,3 +308,26 @@ def transform_agg_filters(aggregations, active={}):
     if aggregations is None:
         return {}
     return {k: _transform_agg(k, v) for k, v in aggregations.items()}
+
+
+def transform_output(results):
+    """Transforms the results dictionary into an easy readable document list.
+
+    Args:
+        results (dict): the results of a elastic_search operation.
+
+    Returns:
+        list: a list of cleaned documents.
+    """
+    da = ut.safe_dict_access
+
+    ret = []
+    for doc in da(results, ["hits", "hits"], []):
+        ret.append(doc.get("_source", {}))
+        ret[-1]["_id"] = doc.get("_id", None)
+        ret[-1].update(doc.get("fields", {}))
+        # run the output converters
+        ret[-1] = {k: OUTPUT_CONV.get(k, OUTPUT_CONV["_default"])(v)
+                   for k, v in ret[-1].items()}
+
+    return ret

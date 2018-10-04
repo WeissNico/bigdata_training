@@ -12,7 +12,7 @@ function setUploadFormActive(event) {
     // adds the active class while dragging files over the element.
     // `event` refers to the original dragenter-event.
     noDefault(event);
-    var $uploadForm = $("#uploadForm");
+    var $uploadForm = $(".drop-area");
     $uploadForm.addClass("active")
 }
 
@@ -20,7 +20,7 @@ function setUploadFormInactive(event) {
     // adds the active class while dragging files over the element.
     // `event` refers to the original dragenter-event.
     noDefault(event);
-    var $uploadForm = $("#uploadForm");
+    var $uploadForm = $(".drop-area");
     $uploadForm.removeClass("active")
 }
 
@@ -171,8 +171,10 @@ function uploadFiles(event) {
 $(".upload-form").on("custom.change.files", displayFiles);
 $(document).on("submit", "#fileUploadForm", uploadFiles);
 $(document).on("change", "#fileInput", changeFileInput);
-$(document).on("dragenter", ".upload-form", setUploadFormActive);
-$(document).on("dragover", ".upload-form", setUploadFormActive);
-$(document).on("dragleave", ".upload-form", setUploadFormInactive);
-$(document).on("dragend", ".upload-form", setUploadFormInactive);
-$(document).on("drop", ".upload-form", dropFiles);
+$(document).on("dragenter", ".drop-area", setUploadFormActive);
+$(document).on("dragover", ".drop-area", setUploadFormActive);
+$(document).on("dragleave", ".drop-area", setUploadFormInactive);
+$(document).on("dragend", ".drop-area", setUploadFormInactive);
+$(document).on("drop", ".drop-area", dropFiles);
+// prevent default, such that no mistakes happen.
+$(document).on("drop", noDefault);

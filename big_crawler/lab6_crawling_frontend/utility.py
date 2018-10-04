@@ -14,6 +14,35 @@ ORDER_STATUS = {"open": 2, "waiting": 1, "finished": 0}
 ORDER_IMPACT = {"high": 2, "medium": 1, "low": 0}
 
 
+class _DefaultEntry():
+    def __init__(self, contents):
+        self.contents = contents
+
+    def __call__(self, default=None):
+        if self.contents is not None:
+            return self.contents
+        return default
+
+
+class DefaultDict():
+    """Provides a easy way to access a dict of default values.
+
+    Attributes can be used as key and are callable, taking a default value
+    as argument.
+
+    If the attribute can not be found, it returns `None`."""
+    def __init__(self, a_dict):
+        self.dict = a_dict
+
+    def __getattr__(self, name):
+        # skip internal values event when they're present in the dict.
+        return _DefaultEntry(self.dict.get(name, None))
+
+    def other(self, dictionary):
+        """Returns a combined dictionary, favors the new one."""
+        return DefaultDict(self.dict, **dictionary)
+
+
 def _fw(func):
     """Stupid consumer for unused kwargs."""
     def _kw_consumer(**kwargs):
@@ -151,12 +180,48 @@ def safe_dict_access(dictionary, keys, default=None):
     if len(keys) == 0:
         raise ValueError("There needs to be at least one key given.")
 
-    if keys[0] in dictionary:
+    # check whether the key is in the dictionary
+    has_member = keys[0] in dictionary
+    # or whether the index lies in the length of the list.
+    if isinstance(dictionary, (list, tuple)):
+        has_member = len(dictionary) > keys[0] >= 0
+
+    if has_member:
         if len(keys) == 1:
             return dictionary[keys[0]]
         return safe_dict_access(dictionary[keys[0]], keys[1:], default)
     else:
         return default
+
+
+def try_keys(dictionary, keys, default=None):
+    """Accesses a list of keys one after another, until a value is found.
+
+    Accesses whether the key EXISTS, returns a default value, if all keys in
+    the list are processed.
+
+    Args:
+        dictionary (dict): the dictionary that should be accessed.
+        keys (list): a list of keys, that should be tried in the given
+            order. Also allows nested keys. See `safe_dict_access`
+        default (any): the object, that should be returned, when no match is
+            found. Defaults to None (careful, when None can be saved).
+
+    Returns:
+        object: the object saved at
+            `dictionary[keys[0]] or dictionary[keys[1]] or ... or default`
+    """
+    if len(keys) == 0:
+        return default
+    if keys[0] in dictionary:
+        return dictionary[keys[0]]
+    # check for nested keys, if there is no hit (None), be CAREFUL
+    if isinstance(keys[0], (list, tuple)):
+        obj = safe_dict_access(dictionary, keys[0])
+        if obj is not None:
+            return obj
+    # recursive call using the tail
+    return try_keys(dictionary, keys[1:], default)
 
 
 def dict_construct(dictionary, mapping):
@@ -220,7 +285,9 @@ def from_date(a_date=None):
 
 
 def date_from_string(datestring):
-    """Returs a date from an isodate-string.
+    """Returs a date (as a datetime) from an isodate-string.
+
+    Format example: `2018-09-10`
 
     Args:
         datestring (str): a date in string-format.
@@ -228,6 +295,9 @@ def date_from_string(datestring):
     Return:
         datetime.datetime: a valid python datetime.
     """
+    if isinstance(datestring, (dt.date, dt.datetime)):
+        return from_date(datestring)
+
     this_date = None
     try:
         this_date = dt.datetime.strptime(datestring[:10], "%Y-%m-%d")
@@ -321,7 +391,8 @@ def filter_dict(dictionary, include=None, exclude=None):
     if exclude is None:
         exclude = []
 
-    return {k: v for k, v in dictionary if k in include and k not in exclude}
+    return {k: v for k, v in dictionary.items()
+            if k in include and k not in exclude}
 
 
 def map_from_serialized_form(request_data):
@@ -447,9 +518,43 @@ def get_base_url(url):
     Returns:
         str: the base domain.
     """
+    if url is None:
+        return None
     # TODO make this smarter
     parts = url.split("/")
     relevant = [p for p in parts if "." in p]
     if len(relevant) > 0:
         return relevant[0]
     return parts[0]
+
+
+def clean_value(some_value):
+    """A simple utility function to return a cleaned value.
+
+    If an empty list is given, returns None,
+    if an empty dict is given, returns None,
+    if None is given, returns None,
+    if list or dict have just one value, this value is returned.
+
+    Args:
+        some_value (any): a simple value or an iterable.
+    """
+    try:
+        length = len(some_value)
+    except Exception:
+        length = None
+
+    if length is None:
+        return some_value
+
+    try:
+        clean_list = list(some_value.values())
+    except Exception:
+        clean_list = list(some_value)
+
+    if length == 0:
+        return None
+    if length == 1:
+        return clean_list[0]
+
+    return some_value

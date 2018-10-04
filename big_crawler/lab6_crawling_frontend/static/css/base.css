@@ -531,13 +531,18 @@ table .width-2-3 {
 
 .upload-form .drop-area {
   margin: 0.5rem;
+  padding: 1rem 0;
   color: white;
   border-radius: 0.5rem;
   background-color: var(--sidebar-inactive-color);
 }
 
 .upload-form .drop-area.active {
-  border: 0.2rem dashed var(--secondary);
+  box-shadow: inset 0 0 2rem 0.3rem var(--secondary);
+}
+
+.upload-form .drop-area.active * {
+  text-shadow: 0 0 2rem var(--secondary);
 }
 
 .upload-form input[type=file] {

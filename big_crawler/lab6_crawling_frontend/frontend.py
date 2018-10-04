@@ -12,12 +12,15 @@ import settings
 import utility as ut
 import mock as mck
 import diff
+import pdfuploader
 
-
-logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 app.config.from_object(settings)
+
+# set the logging level according to the config
+logging.basicConfig(level=app.config["LOGGING_LEVEL"])
+
 # connect to the elasticDB
 es = elastic.Elastic(app.config["ELASTICSEARCH_HOST"],
                      app.config["ELASTICSEARCH_PORT"],
@@ -141,11 +144,13 @@ def upload():
 
     files = request.files.getlist("file_input")
     for fl in files:
-        print(fl)
+        pdf_conv = pdfuploader.PDFConverter(es, filename=fl.filename,
+                                            mimetype=fl.mimetype)
+        res = pdf_conv.read_stream(fl.stream, save=True)
 
     if is_ajax:
         return jsonify(dict(success=True, message="Received files!",
-                            href=url_for("document", doc_id="fakedoc")))
+                            href=url_for("document", doc_id=res["_id"])))
     return render_template("upload.html")
 
 
@@ -530,7 +535,7 @@ def delete_seed():
 
     es.delete_seed(doc_id)
 
-    return "delete successfully"
+    return "deleted successfully"
 
 
 @app.template_global("url_pre")
@@ -545,7 +550,7 @@ def global_url_preserve(**update_params):
         str: a fitting url.
     """
     endpoint = request.endpoint
-    params = request.view_args
+    params = dict(**request.view_args)
     query_params = request.args
 
     params.update(query_params)

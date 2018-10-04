@@ -3,22 +3,14 @@
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import logging
+import hashlib
+import base64
+import time
 
 import elasticsearch as es
 
+import utility
 import elastic_transforms as etrans
-
-
-class _EasyAccess():
-    """Provides a way to access a dict, by using attributes as key.
-
-    If the attribute can not be found, it returns `None`."""
-    def __init__(self, a_dict):
-        self.dict = a_dict
-
-    def __getattr__(self, name):
-        # skip internal values event when they're present in the dict.
-        return self.dict.get(name, None)
 
 
 class Elastic():
@@ -137,15 +129,15 @@ class Elastic():
         Returns:
             Elastic: a new elasticsearch client.
         """
-        self.defaults = {
+        self._defaults = {
             "seeds_index": "seeds",
             "docs_index": "eurlex",
             "doc_type": "nutch",
             "size": 10
         }
-        self._default_wrapper = _EasyAccess(self.defaults)
+        self._defaults.update(kwargs)
 
-        self.defaults.update(kwargs)
+        self.defaults = utility.DefaultDict(self._defaults)
 
         self.es = es.Elasticsearch(host=host, port=port, http_auth=auth,
                                    use_ssl=True, timeout=60)
@@ -154,41 +146,102 @@ class Elastic():
             self.es.put_script(id=script_id, body=script_body)
 
         # check whether the document index exists, if not create it.
-        if not self.es.indices.exists(index=self._dflt.docs_index):
-            self.es.indices.create(index=self._dflt.docs_index)
+        if not self.es.indices.exists(index=self.defaults.docs_index()):
+            self.es.indices.create(index=self.defaults.docs_index())
             # put the mapping into the docs index
-            self.es.indices.put_mapping(doc_type=self._dflt.doc_type,
-                                        index=self._dflt.docs_index,
+            self.es.indices.put_mapping(doc_type=self.defaults.doc_type(),
+                                        index=self.defaults.docs_index(),
                                         body=self.DOC_MAPPING)
 
-    @property
-    def _dflt(self):
-        """Convenience property to retrieve the default values.
+    def _prepare_document(self, doc):
+        """Prepares a document for insertion by constructing features.
+
+        Args:
+            doc (dict): the document to insert.
+                Expects the keys `content`, `text` and `metadata`.
 
         Returns:
-            _EasyAccess: an easy access wrapper around the default dict.
+            tuple: the enriched document (dict) and a unique identifier (str)
         """
-        return self._default_wrapper
+        hash_object = hashlib.sha256(doc.get("content", ""))
+        doc_hash = hash_object.hexdigest()
 
-    def insert_document(self, doc, doc_id):
+        doc_timestamp = time.time()
+
+        doc_id = f"{doc_hash}.{doc_timestamp}"
+
+        lines, words = utility.calculate_quantity(doc.get("text", ""))
+
+        doc_url = utility.safe_dict_access(doc, ["metadata", "url"], None)
+
+        new_doc = {
+            "date": utility.date_from_string(
+                utility.try_keys(doc["metadata"],
+                                 ["date", "ModDate", "Last-Modified",
+                                  "modified", "crawl_date"],
+                                 None)),
+            "source": {
+                "url": doc_url,
+                "name": utility.get_base_url(doc_url) or "inhouse"
+            },
+            "hash": doc_hash,
+            "version": doc_timestamp,
+            "content_type": utility.try_keys(doc,
+                                             ["contentType",
+                                              ("metadata", "mimetype"),
+                                              ("metadata", "Content-Type"),
+                                              ("metadata", "dc:format")],
+                                             "application/pdf"),
+            "content": base64.b64encode(doc.get("content", None)).decode(),
+            "document": utility.try_keys(doc,
+                                         [("metadata", "title"),
+                                          ("metadata", "dc:title"),
+                                          ("metadata", "filename")],
+                                         "No Title"),
+            "text": doc.get("text", ""),
+            "tags": [],
+            "keywords": {},
+            "entities": {},
+            "quantity": {"lines": lines, "words": words},
+            "change": {"lines_added": lines, "lines_removed": 0},
+            "metadata": doc.get("metadata", {}),
+            "type": "?",
+            "category": "?",
+            "fingerprint": "placeholder",
+            "version_key": doc_id,
+            "connections": {},
+            "impact": "low",
+            "status": "open",
+            "new": True,
+        }
+
+        # merge in the values that were already set, except for content
+        new_doc.update(utility.filter_dict(doc, exclude=["content"]))
+
+        return new_doc, doc_id
+
+    def insert_document(self, doc, doc_id=None):
         """Inserts a document into the index `index` under `doc_id`
 
         Args:
             doc (dict): the document to insert.
-            doc_id (str): the document id.
+            doc_id (str): the document id, defaults to None.
 
         Returns:
             es.Response: the response object of elastic search
         """
-        res = self.es.index(index=self._dflt.docs_index,
-                            doc_type=self._dflt.doc_type,
-                            id=doc_id, body=doc)
+        new_doc, new_doc_id = self._prepare_document(doc)
+        if doc_id is None:
+            doc_id = new_doc_id
+        res = self.es.index(index=self.defaults.docs_index(),
+                            doc_type=self.defaults.doc_type(),
+                            id=doc_id, body=new_doc)
         return res
 
-    def exist_document(self, source, doc_hash):
+    def exist_document(self, source_url, doc_hash):
         """Checks whether a document for the given features exists.
 
-        It compares `source` and the documents `doc_hash`.
+        It compares `source_url` and the documents `doc_hash`.
 
         Args:
             source (str): the document's 'baseUrl'.
@@ -200,12 +253,12 @@ class Elastic():
         query = {"query": {
                     "bool": {
                         "should": [
-                           {"match": {"source": source}},
+                           {"match": {"source.url": source_url}},
                            {"match": {"hash": doc_hash}}
                         ]
                     }},
                  "_source": ["source", "hash", "version"]}
-        result = self.es.search(index=self._dflt.docs_index, body=query)
+        result = self.es.search(index=self.defaults.docs_index(), body=query)
         return result['hits']['total'] > 0
 
     def remove_tag(self, tag, doc_id):
@@ -215,8 +268,8 @@ class Elastic():
             tag (str): the tag to remove.
             doc_id (str): the document id.
         """
-        index = self._dflt.docs_index
-        doc_type = self._dflt.doc_type
+        index = self.defaults.docs_index()
+        doc_type = self.defaults.doc_type()
 
         document = self.es.get(index=index, doc_type=doc_type, id=doc_id)
 
@@ -243,8 +296,8 @@ class Elastic():
             tag (str): the tag to remove.
             doc_id (str): the document id.
         """
-        index = self._dflt.docs_index
-        doc_type = self._dflt.doc_type
+        index = self.defaults.docs_index()
+        doc_type = self.defaults.doc_type()
 
         doc = {
             "script": {
@@ -264,7 +317,7 @@ class Elastic():
         Returns:
             list: a list of document seedds.
         """
-        index = self._dflt.seeds_index
+        index = self.defaults.seeds_index()
 
         try:
             res = self.es.search(index=index,
@@ -294,8 +347,8 @@ class Elastic():
         Returns:
             `elasticsearch.Response`: the response of the es database.
         """
-        index = self._dflt.seeds_index
-        doc_type = self._dflt.doc_type
+        index = self.defaults.seeds_index()
+        doc_type = self.defaults.doc_type()
 
         doc = {k: seed.get(k) for k in ["url", "name", "category"]}
         doc_id = seed['doc_id']
@@ -313,8 +366,8 @@ class Elastic():
         Returns:
             `elasticsearch.Response`: the response of the es database.
         """
-        index = self._dflt.seeds_index
-        doc_type = self._dflt.doc_type
+        index = self.defaults.seeds_index()
+        doc_type = self.defaults.doc_type()
 
         result = self.es.delete(index=index, doc_type=doc_type, id=seed_id)
         return result
@@ -331,7 +384,7 @@ class Elastic():
         Returns:
             dict: a dictionary of aggregations.
         """
-        index = self._dflt.docs_index
+        index = self.defaults.docs_index()
         logging.debug(f"Searching for {search_text} on '{index}'")
 
         search = {
@@ -363,6 +416,92 @@ class Elastic():
 
         return etrans.transform_agg_filters(results["aggregations"], active)
 
+    def get_document(self, doc_id, fields=None):
+        """Returns the document with the given id, displaying only `fields`.
+
+        Args:
+            doc_id (str): the `_id` of the given document.
+            fields (list): a list of fields that should be returned.
+                Defaults to None, which means all fields.
+
+        Returns:
+            dict: the document.
+        """
+        index = self.defaults.docs_index()
+        s_body = {
+            "size": 1,
+            "query": {
+                "match": {
+                    "_id": doc_id,
+                }
+            },
+            "_source": True
+        }
+
+        source, scripted = etrans.transform_fields(fields)
+        if len(source) > 0:
+            s_body["_source"] = source
+        if scripted is not None:
+            s_body["script_fields"] = scripted
+
+        results = self.es.search(index=index, body=s_body)
+        # construct the document
+        docs = etrans.transform_output(results)
+
+        if len(docs) == 0:
+            return None
+        return docs[0]
+
+    def get_calendar(self, cur_date):
+        """Returns the calendar for the given date in a efficient way.
+
+        Args:
+            cur_date (datetime.datetime): the date the current dashboard is
+                displayed for.
+
+        Returns:
+            list: a list of date-dicts.
+        """
+        index = self.defaults.docs_index()
+        start, end = utility.get_year_range(cur_date)
+        s_body = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": {
+                        "match_all": {}
+                    },
+                    "filter": [
+                        {
+                            "range": {
+                                "date": {
+                                    "gte": start,
+                                    "lte": end
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            "aggs": {
+                "dates": {
+                    "terms": {
+                        "field": "date",
+                        "order": {"_key": "desc"}
+                    },
+                    "aggs": {
+                        "statusses": {
+                            "terms": {
+                                "field": "status",
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        results = self.es.search(index=index, body=s_body)
+        return results
+
     def search_documents(self, search_text, page=1, fields=None, filters={},
                          sort_by=None, highlight=True):
         """Returns all documents, that contain the `search_text`.
@@ -385,10 +524,10 @@ class Elastic():
             dict: a dictionary containing the following keys:
                 `num_results`, `total_pages` and `results`.
         """
-        index = self._dflt.docs_index
+        index = self.defaults.docs_index()
         logging.debug(f"Searching for {search_text} on '{index}'")
 
-        start = (page - 1) * self._dflt.size
+        start = (page - 1) * self.defaults.size()
         search = {
             "simple_query_string": {
                 "query": search_text,
@@ -406,7 +545,7 @@ class Elastic():
 
         s_body = {
             "from": start,
-            "size": self._dflt.size,
+            "size": self.defaults.size(),
             "query": {
                 "bool": {
                     "must": search,
@@ -425,22 +564,15 @@ class Elastic():
             s_body["script_fields"] = scripted
 
         results = self.es.search(index=index, body=s_body)
-        # add the id to the results
-        for doc in results["hits"]["hits"]:
-            # insert the id into the source (which will be returned)
-            doc["_source"]["_id"] = doc["_id"]
-            # insert all (scripted_)fields into the source
-            doc["_source"].update(doc.get("fields", {}))
+        docs = etrans.transform_output(results)
 
-        docs = [doc["_source"] for doc in results["hits"]["hits"]]
-
-        total_pages, rem = divmod(results["hits"]["total"], self._dflt.size)
+        num_pages, rem = divmod(results["hits"]["total"], self.defaults.size())
         if rem > 0:
-            total_pages += 1
+            num_pages += 1
 
         return {
             "num_results": results["hits"]["total"],
-            "total_pages": total_pages,
+            "total_pages": num_pages,
             "results": docs,
             "aggs": etrans.transform_agg_filters(results.get("aggregations"))
         }

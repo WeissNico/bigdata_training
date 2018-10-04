@@ -15,12 +15,12 @@
       {% if title %}
       <th scope="col"> 
         {% if sort_by[0] == title %}
-          <a href="{{ url_pre(sortby=title, desc=(not sort_by[1])) }}">
+          <a href="{{ url_pre(desc=(not sort_by[1])) }}">
             {{ title|titlecase }} 
             <span class="fas fa-sort-{{ 'down' if sort_by[1] else 'up' }}"></span>
           </a>
         {% else %}
-          <a href="{{ url_pre(page=page, sortby=title, desc=True) }}">
+          <a href="{{ url_pre(sortby=title, desc=True) }}">
             {{ title|titlecase }} 
             <span class="fas fa-sort"></span>
           </a>

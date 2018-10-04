@@ -185,7 +185,7 @@ class EurlexPlugin():
                 doc = {"url": link, "detail_url": detail, "date": doc_date,
                        "title": title, "crawl_date": today}
 
-                logging.debug(f"Document date: {doc_date.date()}")
+                logging.debug(f"Process Document: {link} - {doc_date.date()}")
 
                 num_docs = self.collection.count_documents({"url": link})
 
@@ -204,6 +204,7 @@ class EurlexPlugin():
                     has_unseen_documents = False
                     break
 
+                logging.debug(f"Found new document: {link}.")
                 res = self.collection.insert_one(doc)
                 doc_count += 1
             page += 1
