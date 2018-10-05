@@ -38,6 +38,7 @@ def _datetime_from_meta_string(datestring):
     """Returs a datetime from a string as given in the PDFs metadata.
 
     Format example: `D:20180910171244+03'00`
+    alternatively: `D:20180910171244`
 
     Args:
         datestring (str): a date in string-format.
@@ -46,11 +47,17 @@ def _datetime_from_meta_string(datestring):
         datetime.datetime: a valid python datetime.
     """
     this_date = None
+    # replace the ' character with none, to make the docInfo string
+    # conforming to %z (UTC-Offset)
+    without_apo = datestring.replace("'", "")
+
     try:
-        # replace the ' character with none, to make the docInfo string
-        # conforming to %z (UTC-Offset)
-        this_date = dt.datetime.strptime(datestring.replace("'", ""),
-                                         "D:%Y%m%d%H%M%S%z")
+        this_date = dt.datetime.strptime(without_apo, "D:%Y%m%d%H%M%S%z")
+    except ValueError:
+        pass
+
+    try:
+        this_date = dt.datetime.strptime(without_apo, "D:%Y%m%d%H%M%S")
     except ValueError:
         pass
 

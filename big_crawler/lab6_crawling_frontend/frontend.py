@@ -122,10 +122,6 @@ def search(page=1):
     filters = es.get_query_filters(query, columns, active=req_args)
 
     documents = search_res["results"]
-    # convert the date
-    for doc in documents:
-        doc["date"] = ut.date_from_string(doc["date"])
-        doc["reading_time"] = doc["reading_time"][0]
 
     return render_template("search.html",
                            filters=filters,
@@ -149,8 +145,18 @@ def upload():
         res = pdf_conv.read_stream(fl.stream, save=True)
 
     if is_ajax:
-        return jsonify(dict(success=True, message="Received files!",
-                            href=url_for("document", doc_id=res["_id"])))
+        if res.get("result") == "created":
+            return jsonify(success=True,
+                           message="Received files!",
+                           href=url_for("document", doc_id=res["_id"]))
+        elif res.get("result") == "existing":
+            return jsonify(success=False,
+                           message="Couldn't insert existing doc!",
+                           href=url_for("document", doc_id=res["_id"]))
+        return jsonify(success=False,
+                       message="Error while inserting document.",
+                       href=None)
+
     return render_template("upload.html")
 
 

@@ -110,7 +110,7 @@ for document in cursor:
         "metadata": metadata
     }
 
-    if not elasticDB.exist_document(doc_url, doc_hash):
+    if not elasticDB.exist_document(doc_hash=doc_hash):
         logging.debug(f"Insert document {doc_url} into the elasticsearch DB.")
         # push into elastic,... the id will be created automatically
         elasticDB.insert_document(doc)

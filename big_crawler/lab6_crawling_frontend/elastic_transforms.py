@@ -4,8 +4,11 @@ searches from some keywords.
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import re
+import datetime
 
 import utility as ut
+
+sda = ut.safe_dict_access
 
 
 OUTPUT_CONV = {
@@ -15,6 +18,18 @@ OUTPUT_CONV = {
 }
 """Rules for converting fields into an easy processable format."""
 
+
+INPUT_CHECKS = {
+    "_default": lambda x: False,
+    "impact": lambda x: x in ["low", "medium", "high"],
+    "status": lambda x: x in ["open", "waiting", "finished"],
+    "document": lambda x: len(x) > 0,
+    "date": lambda x: isinstance(x, datetime.datetime),
+    "keywords": lambda x: isinstance(x, dict),
+    "entities": lambda x: isinstance(x, dict),
+    "type": lambda x: len(x) > 0,
+    "category": lambda x: len(x) > 0
+}
 
 AGG_KEYS = {
     "_default": lambda x: {
@@ -258,6 +273,28 @@ def transform_sortby(sortby):
     return [sorter(sortby["keyword"], sortby["order"], sortby["args"])]
 
 
+def transform_calendar_agg(aggregations):
+    """Transforms the given aggregations into a simple calendar-date.
+
+    CAREFUL ELASTICSEARCH JUST RETURNS ESTIMATES.
+
+    Args:
+        aggregations (dict): the aggregations as returned by the _search.
+
+    Returns:
+        list: the transformed aggregations as described above.
+    """
+    calendar = []
+    for agg in sda(aggregations, ["dates", "buckets"], []):
+        cur_date = {
+            "date": ut.date_from_string(agg.get("key_as_string"))
+        }
+        for status in sda(agg, ["statusses", "buckets"], []):
+            cur_date[f"n_{status['key']}"] = status["doc_count"]
+        calendar.append(cur_date)
+    return calendar
+
+
 def transform_agg_filters(aggregations, active={}):
     """Transforms the aggregations into a format that can be processed easily.
 
@@ -319,10 +356,9 @@ def transform_output(results):
     Returns:
         list: a list of cleaned documents.
     """
-    da = ut.safe_dict_access
 
     ret = []
-    for doc in da(results, ["hits", "hits"], []):
+    for doc in sda(results, ["hits", "hits"], []):
         ret.append(doc.get("_source", {}))
         ret[-1]["_id"] = doc.get("_id", None)
         ret[-1].update(doc.get("fields", {}))
@@ -331,3 +367,21 @@ def transform_output(results):
                    for k, v in ret[-1].items()}
 
     return ret
+
+
+def transform_input(update):
+    """Transforms the given update-dict into a valid update body.
+
+    Args:
+        update (dict): the properties and the values that should be updated.
+
+    Returns:
+        dict: a filtered and cleaned update dictionary.
+    """
+    filtered = {}
+    for k, v in update.items():
+        check = INPUT_CHECKS.get(k, INPUT_CHECKS["_default"])
+        if check(v):
+            filtered[k] = v
+
+    return filtered

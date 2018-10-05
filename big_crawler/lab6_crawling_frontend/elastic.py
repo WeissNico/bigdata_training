@@ -1,5 +1,7 @@
 """This module holds `Elastic` a class for connecting to an ES-database.
 
+It manages all the query hassles for our usecases.
+
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import logging
@@ -11,6 +13,10 @@ import elasticsearch as es
 
 import utility
 import elastic_transforms as etrans
+
+
+# shortcut for safe_dict_access
+sda = utility.safe_dict_access
 
 
 class Elastic():
@@ -111,6 +117,16 @@ class Elastic():
             "script": {
                 "lang": "painless",
                 "source": ("doc['fingerprint'].value - params.fingerprint"),
+            }
+        },
+        "update_body": {
+            "script": {
+                "lang": "painless",
+                "source": """
+                    params.body.forEach(k, v -> {
+                        ctx._source[k] = v
+                    })
+                """
             }
         }
     }
@@ -231,6 +247,11 @@ class Elastic():
             es.Response: the response object of elastic search
         """
         new_doc, new_doc_id = self._prepare_document(doc)
+        # check whether a document with this hash already exists in the db.
+        ex_id = self.exist_document(doc_hash=new_doc["hash"])
+        if ex_id is not None:
+            return {"result": "existing", "_id": ex_id}
+
         if doc_id is None:
             doc_id = new_doc_id
         res = self.es.index(index=self.defaults.docs_index(),
@@ -238,28 +259,65 @@ class Elastic():
                             id=doc_id, body=new_doc)
         return res
 
-    def exist_document(self, source_url, doc_hash):
+    def exist_document(self, doc_id=None, doc_hash=None, source_url=None):
         """Checks whether a document for the given features exists.
 
-        It compares `source_url` and the documents `doc_hash`.
+        It compares `doc_id`, `source_url` and the documents `doc_hash`.
+        They are evaluated with an AND.
 
         Args:
-            source (str): the document's 'baseUrl'.
+            doc_id (str): the document's id.
             doc_hash (str): the document's sha256-hash.
+            source_url (str): the document's 'baseUrl'.
 
         Returns:
-            bool: whether the document exists or not
+            str: the id of the existing document or None.
         """
-        query = {"query": {
-                    "bool": {
-                        "should": [
-                           {"match": {"source.url": source_url}},
-                           {"match": {"hash": doc_hash}}
-                        ]
-                    }},
-                 "_source": ["source", "hash", "version"]}
+        criteria = [("_id", doc_id), ("hash", doc_hash),
+                    ("source.url", source_url)]
+        criteria = [{"term": {c[0]: c[1]}} for c in criteria if c[1]]
+
+        query = {
+            "size": 1,
+            "query": {
+                "bool": {
+                    "must": criteria
+                }
+            },
+            "_source": False
+        }
         result = self.es.search(index=self.defaults.docs_index(), body=query)
-        return result['hits']['total'] > 0
+        return sda(result, ["hits", "hits", 0, "_id"], None)
+
+    def update_document(self, doc_id, update, **kwargs):
+        """Updates the given document with the contents of the update-dict.
+
+        Args:
+            doc_id (str): the id of the document that is to be updated.
+            update (dict): a dict of properties that should be updated.
+
+        Returns:
+            dict: an elastic result dict.
+        """
+        index = self.defaults.other(kwargs).docs_index()
+        doc_type = self.defaults.other(kwargs).doc_type()
+
+        if self.exist_document(doc_id=doc_id) is None:
+            return {"result": "failed"}
+
+        body = etrans.transform_input(update)
+
+        u_body = {
+            "script": {
+                "id": "update_body",
+                "params": {
+                    "body": body
+                }
+            }
+        }
+        res = self.es.update(index=index, doc_type=doc_type,
+                             id=doc_id, body=u_body)
+        return res
 
     def remove_tag(self, tag, doc_id):
         """Removes tag `tag` from document `doc_id`.
@@ -398,6 +456,9 @@ class Elastic():
             search = {"match_all": {}}
 
         s_body = {
+            # just use aggregations.
+            "_source": False,
+            "size": 0,
             "query": {
                 "bool": {
                     "must": search,
@@ -405,13 +466,6 @@ class Elastic():
             },
             "aggs": etrans.transform_aggs(fields),
         }
-        # inserts the fields, if necessary.
-        source, scripted = etrans.transform_fields(fields)
-        if source is not None:
-            s_body["_source"] = source
-        if scripted is not None:
-            s_body["script_fields"] = scripted
-
         results = self.es.search(index=index, body=s_body)
 
         return etrans.transform_agg_filters(results["aggregations"], active)
@@ -465,22 +519,22 @@ class Elastic():
         index = self.defaults.docs_index()
         start, end = utility.get_year_range(cur_date)
         s_body = {
+            # doesn't need results, just aggregations
+            "_source": False,
             "size": 0,
             "query": {
                 "bool": {
                     "must": {
                         "match_all": {}
                     },
-                    "filter": [
-                        {
+                    "filter": {
                             "range": {
                                 "date": {
-                                    "gte": start,
+                                    "gt": start,
                                     "lte": end
                                 }
                             }
                         }
-                    ]
                 }
             },
             "aggs": {
@@ -500,9 +554,216 @@ class Elastic():
             }
         }
         results = self.es.search(index=index, body=s_body)
-        return results
+        return etrans.transform_calendar_aggs(results["aggregations"])
+
+    def get_date(self, cur_date):
+        """Returns the date aggregation for the given date in a efficient way.
+
+        Args:
+            cur_date (datetime.datetime): the date the aggregation should be
+                produced for.
+
+        Returns:
+            dict: a calendar date, containing the number of open, waiting and
+                assigned documents.
+        """
+        index = self.defaults.docs_index()
+        s_body = {
+            "_source": False,
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": {
+                        "match_all": {}
+                    },
+                    "filter": {
+                        "range": {
+                            "date": {
+                                "gt": f"{cur_date:%Y-%m-%d}||-24h/d",
+                                "lte": f"{cur_date:%Y-%m-%d}||/d"
+                            }
+                        }
+                    }
+                }
+            },
+            "aggs": {
+                "dates": {
+                    "terms": {
+                        "field": "date",
+                        "order": {"_key": "desc"}
+                    },
+                    "aggs": {
+                        "statusses": {
+                            "terms": {
+                                "field": "status"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        results = self.es.search(index=index, body=s_body)
+        return etrans.transform_calendar_aggs(results["aggregations"])[0]
+
+    def get_documents(self, cur_date, fields=None, **kwargs):
+        """Returns all documents with the given date.
+
+        Args:
+            cur_date (datetime.date): the date for which the documents should
+                be queried.
+            fields (list): a list of fields that should be queried.
+                Defaults to `["impact", "type", "category", "document",
+                "change", "reading_time", "status"]`
+
+        Returns:
+            list: a list of documents in an easy processable format.
+        """
+        index = self.defaults.other(kwargs).docs_index()
+        if fields is None:
+            fields = ["impact", "type", "category", "document", "change",
+                      "reading_time", "status"]
+        s_body = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": {
+                        "match_all": {}
+                    },
+                    "filter": {
+                        "range": {
+                            "date": {
+                                "gt": f"{cur_date:%Y-%m-%d}||-24h/d",
+                                "lte": f"{cur_date:%Y-%m-%d}||/d"
+                            }
+                        }
+                    }
+                }
+            },
+            "aggs": {
+                "dates": {
+                    "terms": {
+                        "field": "date",
+                        "order": {"_key": "desc"}
+                    },
+                    "aggs": {
+                        "statusses": {
+                            "terms": {
+                                "field": "status"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        # append additional fields
+        source, scripted = etrans.transform_fields(fields)
+        if source is not None:
+            s_body["_source"] = source
+        if scripted is not None:
+            s_body["script_fields"] = scripted
+
+        results = self.es.search(index=index, body=s_body)
+        docs = etrans.transform_output(results)
+        return docs
+
+    def get_connected(self, doc_id, fields=None, **kwargs):
+        """Returns all connected documents.
+
+        Args:
+            doc_id (str): the document whose connections should be found.
+            fields (list): a list of fields that should be queried.
+                Defaults to `["date", "impact", "type", "category", "document",
+                "reading_time", "status", "fingerprint", "connections"]`
+
+        Returns:
+            list: a list of connected documents.
+        """
+        index = self.defaults.other(kwargs).docs_index()
+        min_sim = self.defaults.other(kwargs).min_similarity(0.5)
+        size = self.defaults.other(kwargs).size(10)
+
+        if fields is None:
+            fields = ["date", "impact", "type", "category", "document",
+                      "reading_time", "status", "fingerprint", "connections"]
+
+        conn_field = f"connections.{doc_id}"
+        s_body = {
+            "size": size,
+            "query": {
+                "bool": {
+                    "must": {
+                        "exists": {
+                            "field": conn_field
+                        }
+                    },
+                    "filter": {
+                        "range": {
+                            f"{conn_field}.similarity": {
+                                "gte": min_sim,
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        # append additional fields
+        source, scripted = etrans.transform_fields(fields)
+        if source is not None:
+            s_body["_source"] = source
+        if scripted is not None:
+            s_body["script_fields"] = scripted
+
+        results = self.es.search(index=index, body=s_body)
+        docs = etrans.transform_output(results)
+        return docs
+
+    def get_versions(self, doc_id, fields=None, **kwargs):
+        """Returns all documents, that are a version of the given doc_id.
+
+        Args:
+            doc_id (str): the document, whose versions should be retrieved.
+            fields (list): a list of fields that should be queried.
+                Defaults to `["date", "impact", "type", "category", "document",
+                "reading_time", "status", "fingerprint", "connections"]`
+
+        Returns:
+            list: a list of documents, which are versions of each other.
+        """
+        index = self.defaults.other(kwargs).docs_index()
+
+        if fields is None:
+            fields = ["date", "fingerprint", "document"]
+
+        s_body = {
+            "query": {
+                "bool": {
+                    "must": {
+                        "term": {
+                            "version_key": doc_id
+                        }
+                    },
+                    # exclude self
+                    "must_not": {
+                        "term": {
+                            "_id": doc_id
+                        }
+                    }
+                }
+            }
+        }
+        # append additional fields
+        source, scripted = etrans.transform_fields(fields)
+        if source is not None:
+            s_body["_source"] = source
+        if scripted is not None:
+            s_body["script_fields"] = scripted
+
+        results = self.es.search(index=index, body=s_body)
+        docs = etrans.transform_output(results)
+        return docs
 
     def search_documents(self, search_text, page=1, fields=None, filters={},
+
                          sort_by=None, highlight=True):
         """Returns all documents, that contain the `search_text`.
 

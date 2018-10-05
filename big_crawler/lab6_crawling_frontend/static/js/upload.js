@@ -115,9 +115,17 @@ function uploadSuccess(response) {
     var $item = $($("li.file-progress-item")[this.key + 1]);
     var $progressBar = $item.find(".progress-bar");
     $progressBar.removeClass("progress-bar-animated");
-    // change check
-    $item.find(".fas").removeClass("fa-trash")
-         .addClass("fa-check text-success");
+    if (response.success){
+        // change check
+        $item.find(".fas").removeClass("fa-trash")
+            .addClass("fa-check text-success");
+    }
+    else {
+        // change cross
+        $item.find(".fas").removeClass("fa-trash")
+             .addClass("fa-times text-danger")
+             .prop("title", response.message);
+    }
     $item.find(".filename").prop("href", response.href);
 }
 
