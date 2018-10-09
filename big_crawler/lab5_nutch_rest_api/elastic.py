@@ -1,1 +1,0 @@
-../lab6_crawling_frontend/elastic.py

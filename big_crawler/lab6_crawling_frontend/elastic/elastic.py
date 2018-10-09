@@ -10,8 +10,8 @@ import time
 import elasticsearch as es
 
 import utility
-import elastic_transforms as etrans
-import file_store
+from . import transforms as etrans
+from . import filestore
 
 
 # shortcut for safe_dict_access
@@ -147,14 +147,13 @@ class Elastic():
         self.defaults = utility.DefaultDict(dict({
             "seeds_index": "seeds",
             "docs_index": "eurlex",
-            "fs_path": "uploads",
             "doc_type": "nutch",
             "size": 10
         }, **kwargs))
 
         self.es = es.Elasticsearch(host=host, port=port, http_auth=auth,
                                    use_ssl=True, timeout=60)
-        self.fs = file_store.FileStore(self.defaults.fs_path())
+        self.fs = filestore.FileStore(self.defaults.fs_path(None))
 
         for script_id, script_body in self.SCRIPTS.items():
             self.es.put_script(id=script_id, body=script_body)
@@ -270,7 +269,7 @@ class Elastic():
         index = self.defaults.other(kwargs).docs_index()
         doc_type = self.defaults.other(kwargs).doc_type()
 
-        result = self.es.get(index=index, type=doc_type, id=doc_id,
+        result = self.es.get(index=index, doc_type=doc_type, id=doc_id,
                              _source=["content"])
 
         if result["found"] is False:
@@ -800,7 +799,7 @@ class Elastic():
         index = self.defaults.other(kwargs).docs_index()
         doc_type = self.defaults.other(kwargs).doc_type()
 
-        result = self.es.get(index=index, type=doc_type, id=doc_id,
+        result = self.es.get(index=index, doc_type=doc_type, id=doc_id,
                              _source=["content"])
 
         if result["found"] is False:
@@ -809,7 +808,6 @@ class Elastic():
         return self.fs.get(sda(result, ["_source", "content"]))
 
     def search_documents(self, search_text, page=1, fields=None, filters={},
-
                          sort_by=None, highlight=True):
         """Returns all documents, that contain the `search_text`.
 

@@ -172,6 +172,11 @@ def document_download(doc_id):
         return send_file(io.BytesIO(doc["content"]),
                          attachment_filename="source.pdf",
                          mimetype="application/pdf")
+    else:
+        content = es.get_content(doc_id)
+        return send_file(io.BytesIO(content),
+                         attachment_filename="source.pdf",
+                         mimetype="application/pdf")
     return send_file("static/dummy.pdf")
     # right now, just sends some dummy pdf-file
 

@@ -8,8 +8,27 @@ Author: Johannes Müller <j.mueller@reply.de>
 
 import os
 import hashlib
+import logging
 
 import utility
+
+
+def _create_dir(dirpath):
+    """Creates a directory if it's not already existant.
+
+    Args:
+        dirpath (str): the path to the directory.
+
+    Returns:
+        bool: True when directory is ready to use, False otherwise.
+    """
+    if not os.path.exists(dirpath):
+        try:
+            os.mkdir(dirpath)
+        except IOError as ioe:
+            logging.error(f"IOError occured, while trying to create {dirpath}")
+            return False
+    return True
 
 
 def _hash_content(content):
@@ -39,16 +58,19 @@ class FileStore():
                 saved.
         """
         self.defaults = utility.DefaultDict({
-            "mode": "w+b"
+            "mode": "b"
         })
         self.dir = directory
 
         # set a default path
         if self.dir is None:
             cur_dir = os.path.dirname(__file__)
-            self.dir = os.path.join(cur_dir, "uploads")
+            self.dir = os.path.join(cur_dir, "..", "uploads")
 
-    def set(self, content, mode=None):
+        if not _create_dir(self.dir):
+            raise IOError(f"Couldn't create the upload folder: {self.dir}")
+
+    def set(self, content, mode="b"):
         """Saves the given content into a file.
 
         The filename will equal the hash of the content, if the file is already
@@ -56,6 +78,7 @@ class FileStore():
 
         Args:
             content (bytes): a bytes object.
+            mode (str): 'b' binary or 't' text reading mode. Defaults to 'b'.
 
         Returns:
             str: the relative name of this file.
@@ -68,16 +91,17 @@ class FileStore():
         if os.path.exists(path):
             return filename
 
-        with open(path, mode) as fl:
+        with open(path, "w" + mode) as fl:
             fl.write(content)
 
         return filename
 
-    def get(self, filename, mode=None):
+    def get(self, filename, mode="b"):
         """Returns the content of the given file.
 
         Args:
             filename (str): the filename (hash) of the file.
+            mode (str): 'b' binary or 't' text reading mode. Defaults to 'b'.
 
         Returns:
             bytes: the contents of the file.
@@ -91,7 +115,7 @@ class FileStore():
         contents = None
 
         try:
-            with open(path, mode) as fl:
+            with open(path, "r" + mode) as fl:
                 contents = fl.read()
         except EnvironmentError as ee:
             pass
