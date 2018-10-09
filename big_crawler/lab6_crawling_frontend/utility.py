@@ -36,8 +36,8 @@ class DefaultDict():
     as argument.
 
     If the attribute can not be found, it returns `None`."""
-    def __init__(self, a_dict):
-        self.dict = a_dict
+    def __init__(self, a_dict, **kwargs):
+        self.dict = dict(a_dict, **kwargs)
 
     def __getattr__(self, name):
         # skip internal values event when they're present in the dict.
@@ -398,6 +398,27 @@ def filter_dict(dictionary, include=None, exclude=None):
 
     return {k: v for k, v in dictionary.items()
             if k in include and k not in exclude}
+
+
+def update_existing(a_dict, other):
+    """Updates a dictionaries values, but only if the key was present before.
+
+    Args:
+        a_dict (dict): a dictionary that should be updated.
+        other (dict): the dictionary that contains new values for the keys.
+
+    Example:
+        ```
+        a = {"b":3, "c": 2}
+        b = {"a": 1, "b": 2, "c": 3}
+        update_existing(a, b)  # => {"b":2, "c": 3}
+        update_existing(b, a)  # => {"a": 1, b": 3, "c": 2}
+        ```
+
+    Returns:
+        dict: the updated dictionary.
+    """
+    return {k: other.get(k, v) for k, v in a_dict.items()}
 
 
 def map_from_serialized_form(request_data):

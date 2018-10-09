@@ -122,7 +122,7 @@ class Elastic():
             "script": {
                 "lang": "painless",
                 "source": """
-                    params.body.forEach(k, v -> {
+                    params.body.forEach((String k, def v) -> {
                         ctx._source[k] = v
                     })
                 """
@@ -455,7 +455,7 @@ class Elastic():
         result = self.es.delete(index=index, doc_type=doc_type, id=seed_id)
         return result
 
-    def get_query_filters(self, search_text, fields=None, active=None):
+    def get_field_values(self, search_text, fields=None, active={}):
         """Returns all possible filters for the documents containing the query.
 
         Args:
@@ -518,7 +518,7 @@ class Elastic():
         }
 
         source, scripted = etrans.transform_fields(fields)
-        if len(source) > 0:
+        if source is not None:
             s_body["_source"] = source
         if scripted is not None:
             s_body["script_fields"] = scripted
@@ -630,7 +630,7 @@ class Elastic():
         results = self.es.search(index=index, body=s_body)
         return etrans.transform_calendar_aggs(results["aggregations"])[0]
 
-    def get_documents(self, cur_date, fields=None, **kwargs):
+    def get_documents(self, cur_date, fields=None, sort_by=None, **kwargs):
         """Returns all documents with the given date.
 
         Args:
@@ -639,16 +639,20 @@ class Elastic():
             fields (list): a list of fields that should be queried.
                 Defaults to `["impact", "type", "category", "document",
                 "change", "reading_time", "status"]`
+            sort_by (dict): a dict holding the keys: `keyword` to sort after,
+                "order", accepting "asc" or "desc" and optionally "args" for
+                additional arguments. Defaults to None.
 
         Returns:
             list: a list of documents in an easy processable format.
         """
         index = self.defaults.other(kwargs).docs_index()
+        doc_type = self.defaults.other(kwargs).doc_type()
+
         if fields is None:
             fields = ["impact", "type", "category", "document", "change",
                       "reading_time", "status"]
         s_body = {
-            "size": 0,
             "query": {
                 "bool": {
                     "must": {
@@ -664,21 +668,7 @@ class Elastic():
                     }
                 }
             },
-            "aggs": {
-                "dates": {
-                    "terms": {
-                        "field": "date",
-                        "order": {"_key": "desc"}
-                    },
-                    "aggs": {
-                        "statusses": {
-                            "terms": {
-                                "field": "status"
-                            }
-                        }
-                    }
-                }
-            }
+            "sort": etrans.transform_sortby(sort_by)
         }
         # append additional fields
         source, scripted = etrans.transform_fields(fields)
@@ -687,7 +677,7 @@ class Elastic():
         if scripted is not None:
             s_body["script_fields"] = scripted
 
-        results = self.es.search(index=index, body=s_body)
+        results = self.es.search(index=index, doc_type=doc_type, body=s_body)
         docs = etrans.transform_output(results)
         return docs
 

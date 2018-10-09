@@ -30,6 +30,7 @@ INPUT_CHECKS = {
     "type": lambda x: len(x) > 0,
     "category": lambda x: len(x) > 0
 }
+"""Checks whether a user input is valid."""
 
 AGG_KEYS = {
     "_default": lambda x: {
@@ -206,6 +207,8 @@ def transform_fields(fields):
     scripts = {}
 
     for field in fields:
+        if len(field) == 0:
+            continue
         script = SCRIPT_FIELDS.get(field, None)
         if script is None:
             source.append(field)
@@ -273,7 +276,7 @@ def transform_sortby(sortby):
     return [sorter(sortby["keyword"], sortby["order"], sortby["args"])]
 
 
-def transform_calendar_agg(aggregations):
+def transform_calendar_aggs(aggregations):
     """Transforms the given aggregations into a simple calendar-date.
 
     CAREFUL ELASTICSEARCH JUST RETURNS ESTIMATES.
@@ -287,7 +290,10 @@ def transform_calendar_agg(aggregations):
     calendar = []
     for agg in sda(aggregations, ["dates", "buckets"], []):
         cur_date = {
-            "date": ut.date_from_string(agg.get("key_as_string"))
+            "date": ut.date_from_string(agg.get("key_as_string")),
+            "n_open": 0,
+            "n_waiting": 0,
+            "n_finished": 0
         }
         for status in sda(agg, ["statusses", "buckets"], []):
             cur_date[f"n_{status['key']}"] = status["doc_count"]

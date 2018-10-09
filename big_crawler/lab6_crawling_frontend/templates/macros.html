@@ -154,9 +154,9 @@
 </a>
 {% endmacro %}
 
-{% macro source_link(source) %}
-<a href="{{ source.url }}" title="{{ source }}" data-var="source">
-  {{ source.name }}
+{% macro source_link(doc) %}
+<a href="{{ doc.source.url }}" title="{{ doc.source.url }}" data-var="source">
+  {{ doc.source.name }}
 </a>
 {% endmacro %}
 
@@ -195,6 +195,11 @@
   <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc._id) }}" data-val="waiting">ON HOLD</a>
   <a class="dropdown-item dropdown-item-status" href="{{ url_for('document_set_properties', doc_id=doc._id) }}" data-val="finished">ASSIGNED</a>
 </div>
+{% endmacro %}
+
+{% macro document_input(doc) %}
+<input type=text name="document", id="documentInput" value="{{ doc.document }}"
+       data-var="document" class="form-control" title="{{ doc.document }}">
 {% endmacro %}
 
 {% macro fake_select_fixed(title, options, value=None) %}
@@ -507,5 +512,7 @@
 {% endmacro %}
 
 {% macro upload_button(form="file_upload_form") %}
-<button class="btn btn-block btn-success h-4" form="{{ form|ccase }}">Upload Files</button>
+<button class="btn btn-block btn-success h-4" form="{{ form|ccase }}">
+  <span class="fas fa-upload"></span> Upload Files
+</button>
 {% endmacro %}

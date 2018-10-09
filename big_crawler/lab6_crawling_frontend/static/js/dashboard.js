@@ -78,7 +78,7 @@ function changeImpactIndicator(event) {
     var value = $indicator.data("val");
     $indicator.removeClass("high medium low");
     $indicator.addClass(value);
-    $spans = $indicator.children("span");
+    var $spans = $indicator.find("span");
     $spans.first().text(value.charAt(0).toUpperCase());
     $spans.last().text(toTitleCase(value));
 }

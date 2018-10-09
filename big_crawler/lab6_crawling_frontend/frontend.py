@@ -57,28 +57,35 @@ def dashboard(dbdate=None):
             # when an invalid string is provided
             db_date = ut.from_date()
 
-    # create mockuments :)
-    mock.set_seed(db_date)
-    documents = mock.get_or_create_documents(db_date, num=None)
-    documents = [ut.add_reading_time(d) for d in documents]
-    # create some mock calendar
-    calendar = mock.get_or_create_calendar(db_date)
-    cur_date = mock.get_or_create_date(db_date)
-
-    # create sort order on the documents
+    # retrieve sort order on the documents
     sort_by = request.args.get("sortby", "impact")
     desc = request.args.get("desc", "True").lower() == "true"
+    sortby = {
+        "keyword": sort_by,
+        "order": "desc" if desc else "asc",
+        "args": {"fingerprint": 1234512331}
+    }
 
-    documents = ut.sort_documents(documents, sort_key=sort_by, desc=desc)
+    # define the fields
     columns = ["impact", "type", "category", "", "document",
                "change", "reading_time", "status"]
+
+    # get documents
+    documents = es.get_documents(db_date, fields=columns+["new"],
+                                 sort_by=sortby)
+    # create some mock calendar
+    calendar = es.get_calendar(db_date)
+    cur_date = es.get_date(db_date)
+
+    values = es.get_field_values(None, fields=["category", "type"])
+
     return render_template("dashboard.html",
                            calendar=calendar,
                            cur_date=cur_date,
                            documents=documents,
                            columntitles=columns,
-                           types=sorted(mck.TYPES),
-                           categories=sorted(mck.CATEGORIES),
+                           types=[t["value"] for t in values["type"]],
+                           categories=[c["value"] for c in values["category"]],
                            sort_by=(sort_by, desc))
 
 
@@ -119,7 +126,7 @@ def search(page=1):
         "args": {"fingerprint": 12341234}
     }
     search_res = es.search_documents(query, page, columns, req_args, sortby)
-    filters = es.get_query_filters(query, columns, active=req_args)
+    filters = es.get_field_values(query, columns, active=req_args)
 
     documents = search_res["results"]
 
@@ -167,18 +174,14 @@ def document_download(doc_id):
     Args:
         doc_id (str): the id of the document to reutrn.
     """
-    doc = mock.get_document(doc_id)
-    if doc and "content" in doc:
-        return send_file(io.BytesIO(doc["content"]),
-                         attachment_filename="source.pdf",
-                         mimetype="application/pdf")
-    else:
-        content = es.get_content(doc_id)
-        return send_file(io.BytesIO(content),
-                         attachment_filename="source.pdf",
-                         mimetype="application/pdf")
-    return send_file("static/dummy.pdf")
-    # right now, just sends some dummy pdf-file
+    content = es.get_content(doc_id)
+    if content is None:
+        # right now, just sends some dummy pdf-file
+        return send_file("static/dummy.pdf")
+
+    return send_file(io.BytesIO(content),
+                     attachment_filename="source.pdf",
+                     mimetype="application/pdf")
 
 
 @app.route("/document/<doc_id>/")
@@ -188,19 +191,21 @@ def document(doc_id):
     Args:
         doc_id (str): the id of the document to reutrn.
     """
-    doc = mock.get_document(doc_id)
-    doc = ut.add_reading_time(doc)
-    calendar = mock.get_or_create_calendar(doc["date"])
-    cur_date = mock.get_or_create_date(doc["date"])
-    versions = sorted(mock.get_or_create_versions(doc_id),
-                      key=lambda x: x["date"], reverse=True)
+    fields = ["status", "date", "document", "category", "type", "entities",
+              "keywords", "reading_time", "source"]
+    doc = es.get_document(doc_id, fields=fields)
+    calendar = es.get_calendar(doc["date"])
+    cur_date = es.get_date(doc["date"])
+    versions = es.get_versions(doc_id)
+
+    values = es.get_field_values(None, fields=["category", "type"])
 
     return render_template("document.html",
                            calendar=calendar,
                            cur_date=cur_date,
                            cur_doc=doc,
-                           types=sorted(mck.TYPES),
-                           categories=sorted(mck.CATEGORIES),
+                           types=[t["value"] for t in values["type"]],
+                           categories=[c["value"] for c in values["category"]],
                            versions=versions)
 
 
@@ -217,21 +222,22 @@ def document_connections(doc_id):
         desc (str): whether the search should be descending or ascending,
             defaults to 'True'.
     """
-    doc = mock.get_document(doc_id)
-    calendar = mock.get_or_create_calendar(doc["date"])
-    cur_date = mock.get_or_create_date(doc["date"])
-    connected = mock.get_or_create_connected(doc_id)
-    connected = [ut.add_reading_time(d) for d in connected]
-
     # create sort order on the documents
     sort_by = request.args.get("sortby", "similarity")
     desc = request.args.get("desc", "True").lower() == "true"
 
-    connected = ut.sort_documents(connected, sort_key=sort_by, desc=desc,
-                                  other_doc=doc_id)
+    sortby = {
+        "keyword": sort_by,
+        "order": "desc" if desc else "asc",
+        "args": {}
+    }
 
-    doc["reading_time"] = ut.calculate_reading_time(doc)
     columns = ["date", "type", "document", "reading_time", "similarity"]
+
+    doc = es.get_document(doc_id)
+    calendar = es.get_calendar(doc["date"])
+    cur_date = es.get_date(doc["date"])
+    connected = es.get_connected(doc_id, fields=columns, sort_by=sortby)
 
     return render_template("connections.html",
                            calendar=calendar,
@@ -359,29 +365,24 @@ def document_set_properties(doc_id):
     Request Args:
 
     """
-    doc = mock.get_document(doc_id)
+    doc = es.get_document(doc_id)
     if doc is None:
         return jsonify(success=False)
 
     update = {}
-    # TODO build a real filter pipeline.
     for item in request.get_json():
         if item["name"] not in doc:
             # don't allow keys, that weren't there.
             continue
-        if item["name"] == "impact" and (item["value"] not in
-                                         ["high", "medium", "low"]):
-            continue
-        elif item["name"] == "status" and (item["value"] not in
-                                           ["open", "waiting", "finished"]):
-            continue
-        elif item["name"] in ["keywords", "entities"]:
-            doc[item["name"]] = {key: doc[item["name"]].get(key, 1)
-                                 for key in item["value"]}
+        orig = doc.get(item["name"])
+        # special treatment for dictionaries ("keywords", "entities")
+        if isinstance(orig, dict):
+            val = ut.update_existing(dict.fromkeys(item["value"], 1), orig)
+            update[item["name"]] = val
         else:
-            doc[item["name"]] = item["value"]
-        update[item["name"]] = item["value"]
-    mock.set_document(doc, doc_id)
+            update[item["name"]] = item["value"]
+
+    es.update_document(doc_id, update)
     return jsonify(success=True, update=update)
 
 

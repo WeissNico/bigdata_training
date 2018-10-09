@@ -15,7 +15,7 @@
       Title
     </th>
     <td class="width-2-3">
-      {{ macros.document_link(doc) }}
+      {{ macros.document_input(doc) }}
     </td>
   </tr>
   <tr data-var="dashboard">
@@ -29,7 +29,7 @@
   </tr>
   <tr data-var="source">
     <th scope="row">
-      {% if doc.source|lower == "inhouse" %}
+      {% if doc.source.name|lower == "inhouse" %}
       <span class="fas fa-home"></span>
       {% else %}
       <span class="fas fa-link"></span>
@@ -37,11 +37,7 @@
       Document source
     </th>
     <td>
-      <div class="overflow-link">
-        <a href="{{ doc.source }}" target="_blank">
-          {{ doc.source }}
-        </a>
-      </div>
+      {{ macros.source_link(doc) }}
     </td>
   </tr>
   <tr data-var="reading_time">
