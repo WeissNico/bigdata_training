@@ -8,7 +8,7 @@ Author: Johannes Mueller <j.mueller@reply.de>
 import os
 import sys
 import subprocess
-import hashlib
+import tempfile
 import datetime as dt
 
 from PyPDF2 import PdfFileReader
@@ -107,21 +107,18 @@ class PDFConverter():
         # get the path to the executable
         path_to_exc = os.path.join(DIR, "bin", PLATFORM,
                                    f"pdftotext{EXEC_SUFFIXES[PLATFORM]}")
+        text = None
         # get the temporary paths
-        tmp_dir = self.defaults.other(kwargs).tmp_path()
-        hash_object = hashlib.sha256(content)
-        doc_hash = hash_object.hexdigest()
-        tmp_pdf = os.path.join(tmp_dir, f".{doc_hash}.pdf")
-        tmp_txt = os.path.join(tmp_dir, f".{doc_hash}.txt")
+        with tempfile.TemporaryDirectory(prefix=".pdfconv_") as tmp_dir:
+            tmp_pdf = os.path.join(tmp_dir, "input.pdf")
+            tmp_txt = os.path.join(tmp_dir, "output.txt")
 
-        # check whether this has been already processed.
-        if not os.path.exists(tmp_txt):
             self._convert_pdf(content, path_to_exc, tmp_pdf, tmp_txt, **kwargs)
-        contents = None
-        # read back the write results
-        with open(tmp_txt, "r", encoding="utf-8") as fl:
-            contents = fl.read()
-        return contents
+
+            # read back the write results
+            with open(tmp_txt, "r", encoding="utf-8") as fl:
+                text = fl.read()
+        return text
 
     def _getpdfmeta(self, stream, **kwargs):
         """Returns a dict containing the pdfs-metadata."""

@@ -23,6 +23,11 @@ class _DefaultEntry():
             return self.contents
         return default
 
+    def also(self, override=None):
+        if override is None:
+            return self.contents
+        return override
+
 
 class DefaultDict():
     """Provides a easy way to access a dict of default values.

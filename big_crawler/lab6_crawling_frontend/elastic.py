@@ -5,14 +5,13 @@ It manages all the query hassles for our usecases.
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import logging
-import hashlib
-import base64
 import time
 
 import elasticsearch as es
 
 import utility
 import elastic_transforms as etrans
+import file_store
 
 
 # shortcut for safe_dict_access
@@ -34,7 +33,7 @@ class Elastic():
             },
             "text": {"type": "text"},
             "content_type": {"type": "keyword"},
-            "content": {"type": "binary"},
+            "content": {"type": "keyword"},
             "tags": {"type": "keyword"},
             "quantity": {
                 "properties": {
@@ -145,18 +144,17 @@ class Elastic():
         Returns:
             Elastic: a new elasticsearch client.
         """
-        self._defaults = {
+        self.defaults = utility.DefaultDict(dict({
             "seeds_index": "seeds",
             "docs_index": "eurlex",
+            "fs_path": "uploads",
             "doc_type": "nutch",
             "size": 10
-        }
-        self._defaults.update(kwargs)
-
-        self.defaults = utility.DefaultDict(self._defaults)
+        }, **kwargs))
 
         self.es = es.Elasticsearch(host=host, port=port, http_auth=auth,
                                    use_ssl=True, timeout=60)
+        self.fs = file_store.FileStore(self.defaults.fs_path())
 
         for script_id, script_body in self.SCRIPTS.items():
             self.es.put_script(id=script_id, body=script_body)
@@ -172,6 +170,8 @@ class Elastic():
     def _prepare_document(self, doc):
         """Prepares a document for insertion by constructing features.
 
+        This also saves the contents to filesystem.
+
         Args:
             doc (dict): the document to insert.
                 Expects the keys `content`, `text` and `metadata`.
@@ -179,9 +179,7 @@ class Elastic():
         Returns:
             tuple: the enriched document (dict) and a unique identifier (str)
         """
-        hash_object = hashlib.sha256(doc.get("content", ""))
-        doc_hash = hash_object.hexdigest()
-
+        doc_hash = self.fs.set(doc.get("content", None))
         doc_timestamp = time.time()
 
         doc_id = f"{doc_hash}.{doc_timestamp}"
@@ -208,9 +206,10 @@ class Elastic():
                                               ("metadata", "Content-Type"),
                                               ("metadata", "dc:format")],
                                              "application/pdf"),
-            "content": base64.b64encode(doc.get("content", None)).decode(),
+            "content": doc_hash,
             "document": utility.try_keys(doc,
-                                         [("metadata", "title"),
+                                         [("metadata", "Title"),
+                                          ("metadata", "title"),
                                           ("metadata", "dc:title"),
                                           ("metadata", "filename")],
                                          "No Title"),
@@ -259,7 +258,33 @@ class Elastic():
                             id=doc_id, body=new_doc)
         return res
 
-    def exist_document(self, doc_id=None, doc_hash=None, source_url=None):
+    def remove_document(self, doc_id, **kwargs):
+        """Removes the document with the given id.
+
+        Args:
+            doc_id (str): the document's id, that will be removed.
+
+        Returns:
+            es.Response: the response object of elastic search
+        """
+        index = self.defaults.other(kwargs).docs_index()
+        doc_type = self.defaults.other(kwargs).doc_type()
+
+        result = self.es.get(index=index, type=doc_type, id=doc_id,
+                             _source=["content"])
+
+        if result["found"] is False:
+            return result
+
+        self.fs.remove(sda(result, ["_source", "content"]))
+
+        res = self.es.delete(index=self.defaults.docs_index(),
+                             doc_type=self.defaults.doc_type(),
+                             id=doc_id)
+        return res
+
+    def exist_document(self, doc_id=None, doc_hash=None, source_url=None,
+                       **kwargs):
         """Checks whether a document for the given features exists.
 
         It compares `doc_id`, `source_url` and the documents `doc_hash`.
@@ -273,6 +298,7 @@ class Elastic():
         Returns:
             str: the id of the existing document or None.
         """
+        index = self.defaults.other(kwargs).docs_index()
         criteria = [("_id", doc_id), ("hash", doc_hash),
                     ("source.url", source_url)]
         criteria = [{"term": {c[0]: c[1]}} for c in criteria if c[1]]
@@ -286,7 +312,7 @@ class Elastic():
             },
             "_source": False
         }
-        result = self.es.search(index=self.defaults.docs_index(), body=query)
+        result = self.es.search(index=index, body=query)
         return sda(result, ["hits", "hits", 0, "_id"], None)
 
     def update_document(self, doc_id, update, **kwargs):
@@ -761,6 +787,26 @@ class Elastic():
         results = self.es.search(index=index, body=s_body)
         docs = etrans.transform_output(results)
         return docs
+
+    def get_content(self, doc_id, **kwargs):
+        """Returns the content of the given document.
+
+        Args:
+            doc_id (str): the document, whose content should be retrieved.
+
+        Returns:
+            bytes: content of the saved file.
+        """
+        index = self.defaults.other(kwargs).docs_index()
+        doc_type = self.defaults.other(kwargs).doc_type()
+
+        result = self.es.get(index=index, type=doc_type, id=doc_id,
+                             _source=["content"])
+
+        if result["found"] is False:
+            return None
+
+        return self.fs.get(sda(result, ["_source", "content"]))
 
     def search_documents(self, search_text, page=1, fields=None, filters={},
 
