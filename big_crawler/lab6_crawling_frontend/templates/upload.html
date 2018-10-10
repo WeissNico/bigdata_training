@@ -4,10 +4,7 @@
 {% block head %} {{ super() }} {% endblock%}
 {% block sidebar %}
 {{ macros.upload_button() }}
-<a href="{{ url_for('search', date_from='2018-10-09', date_to='2018-10-09', source='inhouse') }}">
-    <span class="fas fa-list"></span>
-    Today's uploads
-</a>
+{{ macros.uploads_list(documents) }}
 {% endblock %}
 {% block content %}
 {{ macros.title_row("Upload Documents", None) }}

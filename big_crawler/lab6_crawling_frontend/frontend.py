@@ -151,6 +151,7 @@ def upload():
                                             mimetype=fl.mimetype)
         res = pdf_conv.read_stream(fl.stream, save=True)
 
+    docs = []
     if is_ajax:
         if res.get("result") == "created":
             return jsonify(success=True,
@@ -163,8 +164,9 @@ def upload():
         return jsonify(success=False,
                        message="Error while inserting document.",
                        href=None)
-
-    return render_template("upload.html")
+    else:
+        docs = es.get_uploads(ut.from_date())
+    return render_template("upload.html", documents=docs)
 
 
 @app.route("/document/<doc_id>/download")

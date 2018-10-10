@@ -630,6 +630,99 @@ class Elastic():
         results = self.es.search(index=index, body=s_body)
         return etrans.transform_calendar_aggs(results["aggregations"])[0]
 
+    def get_uploads(self, cur_date, min_docs=10, fields=None, **kwargs):
+        """Returns all past uploads, today's uploads are always included.
+
+        Using the parameter `min_docs` a minimum amount of documents can be
+        set, but the number of today's uploads might exceed that minimum.
+
+        Args:
+            cur_date (datetime.datetime): today's date.
+            min (int): the minimum number of documents retrieved (if possible).
+                Defaults to 10.
+            fields (list): which fields to be retrieved. Defaults to
+                `["document", "metadata.crawl_date"]`
+            **kwargs (dict): keyword-arguments to override the classes
+                defaults.
+
+        Returns:
+            list: a list of documents.
+        """
+        index = self.defaults.other(kwargs).docs_index()
+        doc_type = self.defaults.other(kwargs).doc_type()
+
+        if fields is None:
+            fields = ["document", "metadata.crawl_date"]
+
+        # count the number of todays uploads
+        c_body = {
+            "size": 0,
+            "_source": False,
+            "query": {
+                "bool": {
+                    "must": {
+                        "match_all": {}
+                    },
+                    "filter": [
+                        {
+                            "range": {
+                                "metadata.crawl_date": {
+                                    "gt": f"{cur_date:%Y-%m-%d}||-24h/d",
+                                    "lte": f"{cur_date:%Y-%m-%d}||/d"
+                                }
+                            }
+                        },
+                        {
+                            "term": {
+                                "source.name": "inhouse"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+        counts = self.es.search(index=index, doc_type=doc_type, body=c_body)
+        size = max(sda(counts, ["hits", "total"], 0), min_docs)
+
+        s_body = {
+            "size": size,
+            "query": {
+                "bool": {
+                    "must": {
+                        "match_all": {}
+                    },
+                    "filter": [
+                        {
+                            "range": {
+                                "metadata.crawl_date": {
+                                    "lte": f"{cur_date:%Y-%m-%d}||/d"
+                                }
+                            }
+                        },
+                        {
+                            "term": {
+                                "source.name": "inhouse"
+                            }
+                        }
+                    ]
+                }
+            },
+            "sort": {
+                "metadata.crawl_date": {"order": "desc"}
+            }
+        }
+        # append additional fields
+        source, scripted = etrans.transform_fields(fields)
+        if source:
+            s_body["_source"] = source
+        if scripted:
+            s_body["script_fields"] = scripted
+
+        results = self.es.search(index=index, doc_type=doc_type, body=s_body)
+        docs = etrans.transform_output(results)
+        return docs
+
     def get_documents(self, cur_date, fields=None, sort_by=None, **kwargs):
         """Returns all documents with the given date.
 

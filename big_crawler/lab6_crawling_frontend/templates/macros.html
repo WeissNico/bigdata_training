@@ -511,6 +511,19 @@
 </form>
 {% endmacro %}
 
+{% macro uploads_list(documents, title="Last uploaded") %}
+<h6 class="sidebar-heading pt-2">{{ title }}</h6>
+<div class="row justify-content-center m-1">
+  <ul class="list-group uploads-list">
+    {% for doc in documents %}
+    <li class="list-group-item uploads-list-item">
+      {{ document_link(doc) }}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endmacro %}
+
 {% macro upload_button(form="file_upload_form") %}
 <button class="btn btn-block btn-success h-4" form="{{ form|ccase }}">
   <span class="fas fa-upload"></span> Upload Files
