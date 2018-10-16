@@ -155,7 +155,8 @@
 {% endmacro %}
 
 {% macro source_link(doc) %}
-<a href="{{ doc.source.url }}" title="{{ doc.source.url }}" data-var="source">
+{% set url = doc.source.url|dflt(url_for("download", doc._id)) %}
+<a href="{{ url }}" title="Go to source document" data-var="source">
   {{ doc.source.name }}
 </a>
 {% endmacro %}

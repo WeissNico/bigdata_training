@@ -48,6 +48,80 @@ class DefaultDict():
         return DefaultDict(self.dict, **dictionary)
 
 
+class SDA:
+    """Provides an easy way to access nested dicts by allowing dot-notation.
+
+    Example:
+        ```
+        a = {"a": {"b": 1}}
+        b = {"a": [{"b": 1}, {"b": 2}]}
+        c = {"a": {"stupid.name": 1}}
+        SDA(a)["a.b"]  # => 1
+        SDA(a)["b.b"]  # => None
+        SDA(b)["a.1.b"]  # => 2
+        SDA(c)["a.stupid\.name"]  # => 1
+
+        SDA(a)["a.c.d"] = "b"
+        a  # {"a": {"b": 1, "c": {"d": "b"}}}
+        ```
+    """
+    def __init__(self, a_dict=None, default=None, filler=None):
+        """Initializes the safe dictionary.
+
+        Args:
+            a_dict (dict): the dictionary to wrap.
+            default (any): the default value, that should be returned,
+                when no value is found.
+            filler (any): the default value, that should be put into
+                lists when values are set.
+        """
+        self.regex = re.compile(r"(?<!\\)\.")
+        self.a_dict = a_dict
+        if self.a_dict is None:
+            self.a_dict = {}
+        self.default = default
+        self.filler = filler
+
+    def _process_keys(self, key):
+        keys = self.regex.split(key)
+        for i, k in enumerate(keys[:]):
+            k = k.replace("\\", "")
+            # try if these are a integer of float values.
+            # (in this order, because a float might be converted to int)
+            try:
+                k = int(k)
+            except ValueError as ve:
+                try:
+                    k = float(k)
+                except ValueError as ve:
+                    pass
+            keys[i] = k
+
+        print(keys)
+        return keys
+
+    def setdefault(self, default):
+        self.default = default
+
+    # delegate most methods to the internal dict.
+    def __getattr__(self, attr):
+        return getattr(self.a_dict, attr)
+
+    def __iter__(self):
+        return (k for k in self.a_dict.keys())
+
+    def __getitem__(self, key):
+        keys = self._process_keys(key)
+        return safe_dict_access(self.a_dict, keys, self.default)
+
+    def __setitem__(self, key, value):
+        keys = self._process_keys(key)
+        return safe_dict_write(self.a_dict, keys, value, self.default)
+
+    def __repr__(self):
+        return repr(self.a_dict)
+
+
 def _fw(func):
     """Stupid consumer for unused kwargs."""
     def _kw_consumer(**kwargs):
@@ -168,6 +242,35 @@ def sort_documents(documents, sort_key=None, desc=True, **kwargs):
     return sorted(documents, key=sort_func(**kwargs), reverse=desc)
 
 
+def _safe_set(dictionary, key, value, default=None):
+    """Set a key in a dictionary or list alike."""
+    try:
+        dictionary[key] = value
+    except IndexError:
+        num = key - (len(dictionary) - 1)
+        dictionary += [default] * num
+        dictionary[key] = value
+
+
+def _safe_get(dictionary, key, default=None):
+    """Get a key in a dictionary or list alike."""
+    ret = default
+    try:
+        ret = dictionary[key]
+    except (KeyError, IndexError):
+        pass
+    return ret
+
+
+def _safe_has(dictionary, key):
+    """Returns whether a key is contained in a list or dictionary."""
+    if isinstance(dictionary, (list, tuple)):
+        return 0 <= key < len(dictionary)
+    elif isinstance(dictionary, dict):
+        return key in dictionary
+    return False
+
+
 def safe_dict_access(dictionary, keys, default=None):
     """Accesses a dict with arbitrary depth in a safe fashion.
 
@@ -186,17 +289,43 @@ def safe_dict_access(dictionary, keys, default=None):
         raise ValueError("There needs to be at least one key given.")
 
     # check whether the key is in the dictionary
-    has_member = keys[0] in dictionary
-    # or whether the index lies in the length of the list.
-    if isinstance(dictionary, (list, tuple)):
-        has_member = len(dictionary) > keys[0] >= 0
-
-    if has_member:
+    if _safe_has(dictionary, keys[0]):
         if len(keys) == 1:
             return dictionary[keys[0]]
         return safe_dict_access(dictionary[keys[0]], keys[1:], default)
     else:
         return default
+
+
+def safe_dict_write(dictionary, keys, value, default=None):
+    """Writes an entry to a nested dict of arbitrary depth.
+
+    Args:
+        dictionary (dict): the (nested) dictionary that should be accessed.
+        keys (list): a list of keys, that should be accessed in the given
+            order.
+        value (any): the value that should be set.
+        default (any): the value that should be set for empty dictionary
+            entries.
+
+    Returns:
+        any: the value that was set.
+    """
+    if len(keys) == 0:
+        raise ValueError("There needs to be at least one key given.")
+
+    # break condition
+    if len(keys) == 1:
+        _safe_set(dictionary, keys[0], value, default)
+        return value
+
+    next_dict = _safe_get(dictionary, keys[0])
+    if isinstance(next_dict, (list, tuple)):
+        _safe_set(dictionary, keys[0], list(next_dict), default)
+    elif not isinstance(next_dict, dict):
+        _safe_set(dictionary, keys[0], {}, default),
+
+    return safe_dict_write(dictionary[keys[0]], keys[1:], value, default)
 
 
 def try_keys(dictionary, keys, default=None):
@@ -584,3 +713,26 @@ def clean_value(some_value):
         return clean_list[0]
 
     return some_value
+
+
+def noop(first, *args, **kwargs):
+    """A function that returns the first argument and consumes arguments."""
+    return first
+
+
+def defer(func, *args, **kwargs):
+    """A deferred function call.
+
+    Args:
+        func (str): the name of the function that should be called
+        *args (list): the arguments that should be applied to the function.
+        **kwargs (dict): the keyword arguments that should be applied to the
+            function.
+
+    Returns:
+        callable: a function, which takes an object as argument and
+            returns the item under the previously given key.
+    """
+    def _apply(obj):
+        return getattr(obj, func)(*args, **kwargs)
+    return _apply
