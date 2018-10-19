@@ -117,7 +117,7 @@
     <label class="badge-box overflow-ellipsis">
       <input type="checkbox" name="{{ name }}" value="{{ option.value }}"
              id="{{ '{}_form_{}_value'.format(name, option.value)|ccase }}"
-             {{ "checked" if option.active }} />
+             {{ 'checked' if option.active }} />
       <span class="badge badge-secondary">{{ option.count }}</span>
       <span title="{{ option.value }}">{{ option.value }}</span>
     </label>
@@ -155,7 +155,7 @@
 {% endmacro %}
 
 {% macro source_link(doc) %}
-{% set url = doc.source.url|dflt(url_for("download", doc._id)) %}
+{% set url = doc.source.url|dflt(url_for("download", doc_id=doc._id)) %}
 <a href="{{ url }}" title="Go to source document" data-var="source">
   {{ doc.source.name }}
 </a>

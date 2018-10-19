@@ -71,14 +71,14 @@
     <!-- INSERT A 10-column row around everything -->
     <div class="container-fluid padding-top">
       <div class="row">
+        <main role="main" class="col-md-8 col-lg-10 ml-sm-auto p-4">
+          {% block content %}{% endblock %}
+        </main>
         <nav class="col-md-4 col-lg-2 d-none d-md-block sidebar bg-dark">
           <div class="sidebar-sticky">
           {% block sidebar %}{% endblock %}
           </div>
         </nav>
-        <main role="main" class="col-md-8 col-lg-10 ml-sm-auto p-4">
-          {% block content %}{% endblock %}
-        </main>
         <!-- button for reaching the top -->
       </div>
     </div>

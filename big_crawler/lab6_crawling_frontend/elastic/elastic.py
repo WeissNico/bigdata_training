@@ -628,7 +628,19 @@ class Elastic():
             }
         }
         results = self.es.search(index=index, body=s_body)
-        return etrans.transform_calendar_aggs(results["aggregations"])[0]
+
+        date_dict = {
+            "date": cur_date,
+            "n_open": 0,
+            "n_waiting": 0,
+            "n_finished": 0
+        }
+
+        res_aggs = etrans.transform_calendar_aggs(results["aggregations"])
+        if len(res_aggs) > 0:
+            return res_aggs[0]
+        # if no result was found...
+        return date_dict
 
     def get_uploads(self, cur_date, min_docs=10, fields=None, **kwargs):
         """Returns all past uploads, today's uploads are always included.
