@@ -407,18 +407,17 @@ def searchdialog():
                  {"id": "tp_last_month", "name": "Last month"},
                  {"id": "tp_last_year", "name": "Last year"},
                  {"id": "tp_older", "name": "Older than 1 year"}]
-    sources = [{"id": "src_ezb",
-                "name": "EZB",
-                "link": "https://www.ecb.europa.eu/ecb/html/index.de.html"},
-               {"id": "src_bb",
-                "name": "Deutsche Bundesbank",
-                "link": ("https://www.bundesbank.de/Navigation/DE/"
-                         "Publikationen/publikationen.html")}]
+    sources = es.get_field_values(None, ["source.name"]).get("source.name")
     # render out the searchdialog template
     return render_template("searchdialog.html",
                            file_types=f_types,
                            time_periods=t_periods,
-                           sources=sources)
+                           sources=[s["value"] for s in sources])
+
+
+@app.route("/scheduler")
+def scheduler():
+    return "404"
 
 
 @app.route("/create_new_search", methods=["POST"])

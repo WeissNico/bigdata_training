@@ -530,3 +530,17 @@
   <span class="fas fa-upload"></span> Upload Files
 </button>
 {% endmacro %}
+
+{% macro custom_check_list(values, name="customCheckList") %}
+<ul class="list-group custom-check-list" id="{{ name }}">
+  {% for val in values %}
+    {% set cur_id = val.id|dflt(val) %}
+    {% set cur_name = val.name|dflt(val) %}
+    <li class="list-group-item">
+      <span class="fas fa-check"></span>
+      <input type="checkbox" name={{ cur_id }} />
+      <label for={{ cur_id }}>{{ cur_name }}</label>
+    </li>
+  {% endfor %}
+</ul>
+{% endmacro %}

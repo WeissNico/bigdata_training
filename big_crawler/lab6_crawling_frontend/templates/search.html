@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% import "macros.html" as macros %}
+{# set the active page for display in the navbar #}
+{% set active_page = "search" %}
 {% block title %}Sherlock - Search{% endblock %}
 {% block head %} {{ super() }} {% endblock%}
 {% block sidebar %} {{ macros.filter_sidebar(filters) }}

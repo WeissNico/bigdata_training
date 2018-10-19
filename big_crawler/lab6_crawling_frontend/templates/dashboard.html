@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% import "macros.html" as macros %}
+{# set the active page for display in the navbar #}
+{% set active_page = "dashboard" %}
 {% block title %}Sherlock - Dashboard{% endblock %}
 {% block head %} {{ super() }} {% endblock%}
 {% block sidebar %}

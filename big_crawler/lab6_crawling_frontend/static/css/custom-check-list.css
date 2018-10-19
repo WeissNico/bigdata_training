@@ -4,18 +4,18 @@
    
    Author: Johannes Mueller <j.mueller@reply.de> */
 
-   .custom-check-list {
-     height: auto;
-     max-height: 10rem;
-     overflow-y: scroll;
-     overflow-x: hidden;
-   }
+  .custom-check-list {
+    max-height: 10rem;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    box-shadow: inset 0 0 2rem 1rem var(--secondary);
+  }
    
-   .custom-check-list input[type=checkbox] {
-     display: none;
-     visibility: hidden;
-   }
+  .custom-check-list input[type=checkbox] {
+    display: none;
+    visibility: hidden;
+  }
 
-   .custom-check-list .fas {
-     visibility: hidden;
-   }
+  .custom-check-list .fas {
+    visibility: hidden;
+  }

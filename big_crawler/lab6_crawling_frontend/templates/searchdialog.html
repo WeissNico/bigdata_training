@@ -1,105 +1,77 @@
 {% extends "base.html" %}
+{# set the active page for display in the navbar #}
+{% set active_page = "other" %}
 {% block title %}Sherlock - Search{% endblock %}
 {% block head %}
   {{ super() }}
-  <link href={{ url_for("static", filename="css/custom-check-list.css") }} rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/custom-check-list.css') }}" rel="stylesheet">
 {% endblock %}
+{% block sidebar %}
+<!-- buttons -->
+<div class="form-row">
+  <div class="col-12">
+    <div class="form-group">
+      <button type="submit" form="newSearch" class="btn btn-primary btn-block" name="search">Search</button>
+    </div>
+  </div>
+</div>
+<div class="form-row">
+  <div class="col-12">
+    <div class="form-group">
+      <a class="btn btn-secondary btn-block" name="schedule"
+         href="{{ url_for('scheduler') }}">Scheduler</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
 {% block content %}
 <h1>New search</h1>
-<form action="{{ url_for('create_new_search') }}" method="POST">
-  <!-- divide in two parts: 10 cols for the content, 2 rows for the buttons -->
-  <div class="row">
-    <!-- content -->
-    <div class="col-md-10 col-sm-12">
-      <div class="form-row">
-        <div class="col-12">
-          <div class="form-group">
-            <label for="searchbar"><span class="fas fa-search"></span> Keywords</label>
-            <input type="text" class="form-control" placeholder="keyword keyword keyword ..." name="searchbar" />
-          </div>
-        </div>
-      </div>
-      <fieldset>
-        <legend>Search options</legend>
-        <div class="form-row">
-          <div class="col-md-6 col-sm-12">
-            <label for="file_types_list"><span class="fas fa-file"></span> File types</label>
-            <ul class="list-group custom-check-list" id="file_types_list">
-              {% for ft in file_types %}
-              <li class="list-group-item">
-                <span class="fas fa-check"></span>
-                <input type="checkbox" name={{ ft["id"] }} />
-                <label for={{ ft["id"] }}>{{ ft["name"] }}</label>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
-          <div class="col-md-6 col-sm-12">
-            <label for="time_periods_list"><span class="fas fa-clock"></span> Time periods</label>
-            <ul class="list-group custom-check-list" id="time_periods_list">
-              {% for tp in time_periods %}
-              <li class="list-group-item">
-                <span class="fas fa-check"></span>
-                <input type="checkbox" name={{ tp["id"] }} />
-                <label for={{ tp["id"] }}>{{ tp["name"] }}</label>
-              </li>
-              {% endfor %}
-            </ul>
-            <button type="button" class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#add_period_modal">
-              <span class="fas fa-plus-circle"></span> Add custom time period
-            </button>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="col-12">
-            <label for="sources_list"><span class="fas fa-book"></span> Sources</label>
-            <ul class="list-group custom-check-list" id="sources_list">
-              {% for source in sources %}
-              <li class="list-group-item">
-                <span class="fas fa-check"></span>
-                <input type="checkbox" name={{ source["id"] }} />
-                <label for={{ source["id"] }}>{{ source["name"] }}</label>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
-          <div class="col-md-3 offset-md-9 col-sm-12">
-            <button type="button" class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#add_source_modal">
-              <span class="fas fa-plus-circle"></span> Add new source
-            </button>
-          </div>
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend>Save options</legend>
-        <div class="form-row">
-          <div class="col-12">
-            <div class="form-group">
-              <label for="save_as"><span class="fas fa-save"></span> Save search as</label>
-              <input type="text" class="form-control" placeholder="Filename" name="save_as" />
-            </div>
-          </div>
-        </div>
-      </fieldset>
-    </div>
-    <!-- buttons -->
-    <div class="col-md-2 col-sm-12">
-      <div class="form-row">
-        <div class="col-12">
-          <div class="form-group">
-            <button type="submit" class="btn btn-primary btn-block" name="search">Search</button>
-          </div>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="col-12">
-          <div class="form-group">
-            <button type="submit" class="btn btn-secondary btn-block" name="schedule">Scheduler</button>
-          </div>
-        </div>
+<form action="{{ url_for('create_new_search') }}" method="POST" id="newSearch" name="newSearch">
+  <div class="form-row">
+    <div class="col-12">
+      <div class="form-group">
+        <label for="searchbar"><span class="fas fa-search"></span> Keywords</label>
+        <input type="text" class="form-control" placeholder="keyword keyword keyword ..." name="searchbar" />
       </div>
     </div>
   </div>
+  <fieldset>
+    <legend>Search options</legend>
+    <div class="form-row">
+      <div class="col-md-4 col-sm-12">
+        <label for="fileTypes"><span class="fas fa-file"></span> File types</label>
+        {{ macros.custom_check_list(file_types, "fileTypes") }}
+      </div>
+      <div class="col-md-4 col-sm-12">
+        <label for="timePeriodsList"><span class="fas fa-clock"></span> Time periods</label>
+        {{ macros.custom_check_list(time_periods, "timePeriodsList") }}
+        <button type="button" class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#add_period_modal">
+          <span class="fas fa-plus-circle"></span>
+          <span>Add custom</span>
+        </button>
+      </div>
+      <div class="col-md-4 col-sm-12">
+        <label for="sourcesList"><span class="fas fa-book"></span> Sources</label>
+        {{ macros.custom_check_list(sources, "sourcesList") }}
+        <button type="button" class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#add_source_modal">
+          <span class="fas fa-plus-circle"></span>
+          <span>Add new source</span>
+        </button>
+      </div>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Save options</legend>
+    <div class="form-row">
+      <div class="col-12">
+        <div class="form-group">
+          <label for="save_as"><span class="fas fa-save"></span> Save search as</label>
+          <input type="text" class="form-control" placeholder="Filename" name="save_as" />
+        </div>
+      </div>
+    </div>
+  </fieldset>
 </form>
 
 <!-- DEFINITION OF THE MODAL DIALOGS -->
