@@ -10,16 +10,23 @@ var STATUS_MAPPING = {"": {text: "", color: "secondary"},
 // global object for global event registration
 var GLOBAL_OBJ = {};
 
-function changeCaret(event){
+function flipIcon(event){
     // changes the caret of the cat-links according to the expansion of the
     // referenced div.
     // `event` describes the input-event
-    var $catLink = $(event.currentTarget);
-    var $collapse = $($catLink.prop("hash"));
-    var $caret = $catLink.find(".fas");
+    // EXPECTS THE CLASSES (as an array of length 2) BOUND TO `this`
+    var $btn = $(event.currentTarget);
+    var $collapse;
+    if ($btn.is("a")) {
+        $collapse = $($btn.prop("hash"));
+    }
+    else if ($btn.is("button")) {
+        $collapse = $($btn.data("target"));
+    }
+    var $icon = $btn.find(".fas");
     var toggled = $collapse.hasClass("show");
-    $caret.toggleClass("fa-caret-down", !toggled);
-    $caret.toggleClass("fa-caret-right", toggled);
+    $icon.toggleClass(this[0], toggled);
+    $icon.toggleClass(this[1], !toggled);
 }
 
 function accumulateJobs(event) {
@@ -87,7 +94,9 @@ function jsonPost(url, data, callback) {
 
 $(".badge.indicator").on("custom.change.badges", changeIndicatorColors);
 $(".category").on("custom.change.badges", accumulateJobs);
-$(".cat-link").click(changeCaret);
+$(".cat-link").click(flipIcon.bind(["fa-caret-right", "fa-caret-down"]));
+$(".btn-controls").click(flipIcon.bind(["fa-angle-double-up",
+                                        "fa-angle-double-down"]));
 $(".btn-top").click(smoothScrollToTop);
 
 $(".badge.indicator").trigger("custom.change.badges");

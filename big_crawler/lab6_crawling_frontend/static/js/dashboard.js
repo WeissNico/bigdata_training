@@ -143,7 +143,8 @@ $(".btn-status").on("custom.change.val", changeStatusButtonColor);
 $(".table-entry").on("custom.change.val", changeTableEntry);
 $(".impact-indicator").on("custom.change.val", changeImpactIndicator);
 
-$(".dashboard-header").click(changeCaret);
+$(".dashboard-header").click(flipIcon.bind(["fa-caret-right",
+                                            "fa-caret-down"]));
 $(".dashboard .dropdown-item-status").click(changeButton);
 
 $("#changeModal").on("show.bs.modal", showChangeModal);

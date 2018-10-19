@@ -36,7 +36,7 @@
 }
 
 .margin-top, .padding-top {
-  margin-top: 4rem;
+  padding-top: 4rem;
 }
 
 .position-relative {
@@ -52,23 +52,13 @@ textarea {
  */
 
 .sidebar {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
   z-index: 100; /* Behind the navbar */
-  padding: 4rem 0 0; /* Height of navbar */
+  padding: 0;
   box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
 }
 
 .sidebar-sticky {
   position: relative;
-  top: 0;
-  height: calc(100vh - 4rem);
-  padding: .5rem;
-  padding-top: 1rem;
-  overflow-x: hidden;
-  overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
 }
 
 @supports ((position: -webkit-sticky) or (position: sticky)) {
@@ -79,8 +69,28 @@ textarea {
 }
 
 .sidebar-inner {
-  margin: 0.5rem;
+  height: calc(100vh - 4rem);
+  padding: .5rem;
+  padding-top: 1rem;
   overflow-x: hidden;
+  overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
+}
+
+@media (max-width: 767.98px) {
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+  }
+  .sidebar-sticky, .sidebar-inner {
+    height: calc(100vh - 8rem);
+  }
+}
+
+@media (min-width: 768px) {
+  .sidebar-sticky {
+    display: block !important;
+    top: 4rem;
+  }
 }
 
 .sidebar-heading {
@@ -90,6 +100,9 @@ textarea {
 
 .sidebar .category {
   margin-left: 0.75rem;
+}
+
+.sidebar .category li:last-child {
   padding-bottom: 0.75rem;
 }
 
