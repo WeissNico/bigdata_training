@@ -90,7 +90,7 @@ class EurlexPlugin(BasePlugin):
                ut.defer("split", "#")])
 
     def __init__(self, elastic):
-        super().__init__(self, elastic)
+        super().__init__(elastic)
         self.entry_resource = PaginatedResource(URL_TEMPLATE)
         # register a string-join function for the lxml XPath
         ns = etree.FunctionNamespace(None)

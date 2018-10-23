@@ -11,7 +11,11 @@
 <div class="form-row">
   <div class="col-12">
     <div class="form-group">
-      <button type="submit" form="newSearch" class="btn btn-primary btn-block" name="search">Search</button>
+      <button type="submit" form="newSearch" class="btn btn-success btn-block"
+              name="search" title="Run the search through the system">
+        <span class="fas fa-search"></span>
+        <span>Search</span>
+      </button>
     </div>
   </div>
 </div>
@@ -19,14 +23,17 @@
   <div class="col-12">
     <div class="form-group">
       <a class="btn btn-secondary btn-block" name="schedule"
-         href="{{ url_for('scheduler') }}">Scheduler</a>
+         title="Schedule a search for reoccurring dates"
+         href="{{ url_for('scheduler') }}">
+        <span class="fas fa-calendar"></span>
+        <span>Scheduler</span></a>
     </div>
   </div>
 </div>
 {% endblock %}
 
 {% block content %}
-<h1>New search</h1>
+<h1>Create New Search</h1>
 <form action="{{ url_for('create_new_search') }}" method="POST" id="newSearch" name="newSearch">
   <div class="form-row">
     <div class="col-12">
@@ -67,7 +74,7 @@
       <div class="col-12">
         <div class="form-group">
           <label for="save_as"><span class="fas fa-save"></span> Save search as</label>
-          <input type="text" class="form-control" placeholder="Filename" name="save_as" />
+          <input type="text" class="form-control" placeholder="Set a name for the current search" name="save_as" />
         </div>
       </div>
     </div>
@@ -90,11 +97,11 @@
           <div class="form-row">
             <div class="col-md-6 col-sm-12 form-group">
               <label for="date_from"><span class="fas fa-calendar-alt"></span> From date</label>
-              <input type="date" class="form-control" name="date_from"/ >
+              <input type="date" class="form-control" name="date_from" id="date_from" />
             </div>
             <div class="col-md-6 col-sm-12 form-group">
               <label for="date_to"><span class="fas fa-calendar-alt"></span> To date</label>
-              <input type="date" class="form-control" name="date_to"/ >
+              <input type="date" class="form-control" name="date_to" id="date_to" />
             </div>
           </div>
         </form>
@@ -130,8 +137,7 @@
             </div>
             <div class="col-sm-12 form-group">
               <label for="source_name"><span class="fas fa-font"></span> Description</label>
-              <textarea rows="4" class="form-control" name="source_description" placeholder="Resource Description">
-              </textarea>
+              <textarea rows="4" class="form-control" name="source_description" placeholder="Resource Description"></textarea>
             </div>
           </div>
         </form>

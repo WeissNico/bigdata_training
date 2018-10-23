@@ -205,7 +205,7 @@
 
 {% macro fake_select_fixed(title, options, value=None) %}
 {% set title_low = title|lower %}
-{% set val = options|map("pair")|selectattr(0, "eq", value)|first|dflt(options|first)|pair %}
+{% set val = options|map("pair")|selectattr(0, "eq", value)|first|dflt(options|map("pair")|rejectattr(0, "in", ["###", "---"])|first) %}
 <div class="fakeSelect" id="{{ title_low }}Select">
   <input type="hidden" name="{{ title_low }}" id="{{ title_low }}Value" data-display="#current{{ title|title }}Value" value="{{ val|first }}">
   <button type="button" class="btn btn-outline-secondary btn-block dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
@@ -214,7 +214,13 @@
   </button>
   <div class="dropdown-menu dropdow-fake-select">
   {% for opt in options|map("pair") %}
+    {% if opt|first == "###" %}
+    <h6 class="dropdown-header">{{ opt|last }}</h6>
+    {% elif opt|first == "---" %}
+    <div class="dropdown-divider"></div>
+    {% else %}
     <a class="dropdown-item" href="#" data-val="{{ opt|first }}">{{ opt|last }}</a>
+    {% endif %}
   {% endfor %}
   </div>
 </div>
@@ -223,7 +229,7 @@
 {% macro fake_select_text(title, options, value=None) %}
 {% set title_low = title|lower %}
 {# very complicated sequence to pick the right default value #}
-{% set val = options|map("pair")|selectattr(0, "eq", value)|first|dflt(value)|dflt(options|first)|pair %}
+{% set val = options|map("pair")|selectattr(0, "eq", value)|first|dflt(options|map("pair")|rejectattr(0, "in", ["###", "---"])|first) %}
 <div class="fakeSelect" id="{{ title_low }}Select">
   <div class="btn-group btn-block">
     <input type="text" class="form-control" name="{{ title_low }}" id="{{ title_low }}Value" value="{{ val|last }}"/>
@@ -232,7 +238,13 @@
     </button>
     <div class="dropdown-menu dropdown-fake-select">
     {% for opt in options|map("pair") %}
+      {% if opt|first == "###" %}
+      <h6 class="dropdown-header">{{ opt|last }}</h6>
+      {% elif opt|first == "---" %}
+      <div class="dropdown-divider"></div>
+      {% else %}
       <a class="dropdown-item" href="#" data-val="{{ opt|first }}">{{ opt|last }}</a>
+      {% endif %}
     {% endfor %}
     </div>
   </div>
@@ -532,15 +544,39 @@
 {% endmacro %}
 
 {% macro custom_check_list(values, name="customCheckList") %}
-<ul class="list-group custom-check-list" id="{{ name }}">
-  {% for val in values %}
-    {% set cur_id = val.id|dflt(val) %}
-    {% set cur_name = val.name|dflt(val) %}
-    <li class="list-group-item">
-      <span class="fas fa-check"></span>
-      <input type="checkbox" name={{ cur_id }} />
-      <label for={{ cur_id }}>{{ cur_name }}</label>
-    </li>
-  {% endfor %}
-</ul>
+<div class="custom-check-list">
+  <ul class="list-group" id="{{ name }}">
+    {% for val in values %}
+      {% set cur_id = val.id|dflt(val) %}
+      {% set cur_name = val.name|dflt(val) %}
+      <li class="list-group-item">
+        <label for={{ cur_id }}>
+          <input type="checkbox" id={{ cur_id }} />
+          <span class="fas fa-check"></span>
+          <span>{{ cur_name }}</span>
+        </label>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endmacro %}
+
+{% macro display_dict(dictionary, classes="") %}
+<dl class="{{ classes }}">
+{% for arg, val in dictionary.items() %}
+  <dt>{{ arg }}</dt>
+  <dd>{{ display_dict(val, classes) if val is mapping else val }}</dd>
+{% endfor %}
+</dl>
+{% endmacro %}
+
+{% macro change_controls(job_id) %}
+<div class="input-group">
+  <button class="btn btn-outline-secondary" title="Edit this schedule">
+    <span class="fas fa-edit"></span>
+  </button>
+  <button class="btn btn-outline-secondary" title="Delete this scheduled event">
+    <span class="fas fa-trash"></span>
+  </button>
+</div>
 {% endmacro %}

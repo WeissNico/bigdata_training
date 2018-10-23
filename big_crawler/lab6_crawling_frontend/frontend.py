@@ -13,6 +13,7 @@ import utility as ut
 import mock as mck
 import diff
 import pdfuploader
+import scheduler
 
 
 app = Flask(__name__)
@@ -31,6 +32,7 @@ es = elastic.Elastic(app.config["ELASTICSEARCH_HOST"],
 client = MongoClient("mongodb://159.122.175.139:30017")
 db = client["crawler"]
 mock = mck.Mocker(db.mockuments)
+sched = scheduler.Scheduler(db.scheduled_jobs, hour=2, minute=0)
 
 
 @app.route("/dashboard")
@@ -397,33 +399,44 @@ def searchdialog():
 
     # mock some simple filetypes and time periods
     f_types = [{"id": "ft_pdf", "name": "pdf"},
+               {"id": "ft_html", "name": "html"},
                {"id": "ft_ppt", "name": "ppt"},
+               {"id": "ft_txt", "name": "txt"},
+               {"id": "ft_doc", "name": "doc"},
+               {"id": "ft_docx", "name": "docx"},
                {"id": "ft_csv", "name": "csv"},
-               {"id": "ft_png", "name": "png"},
-               {"id": "ft_jpg", "name": "jpg"},
                {"id": "ft_xls", "name": "xls"},
                {"id": "ft_xlsx", "name": "xlsx"}]
     t_periods = [{"id": "tp_last_week", "name": "Last week"},
                  {"id": "tp_last_month", "name": "Last month"},
                  {"id": "tp_last_year", "name": "Last year"},
                  {"id": "tp_older", "name": "Older than 1 year"}]
-    sources = es.get_field_values(None, ["source.name"]).get("source.name")
+    sources = [{"id": "src_web", "name": "The Web",
+                "url": "", "description": "Search the Web"}]
     # render out the searchdialog template
     return render_template("searchdialog.html",
                            file_types=f_types,
                            time_periods=t_periods,
-                           sources=[s["value"] for s in sources])
+                           sources=sources)
 
 
 @app.route("/scheduler")
 def scheduler():
-    return "404"
+    """A dialog for displaying the currently scheduled jobs.
+
+    It also facilitates changing the schedule.
+    """
+    jobs = sched.get_jobs()
+    crawlers = [c for c in sched.crawlers]
+    searches = ["asdf", "jklö"]
+    return render_template("scheduler.html", jobs=jobs, crawlers=crawlers,
+                           searches=searches)
 
 
 @app.route("/create_new_search", methods=["POST"])
 def create_new_search():
     """Receives the form of the search dialog an processes it accordingly."""
-    # TODO
+    print(request.form)
     return render_template("searchdialog.html")
 
 

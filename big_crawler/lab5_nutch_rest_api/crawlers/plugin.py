@@ -209,7 +209,7 @@ class HTMLConverter(BaseConverter):
                 `//head | //div[@id='content']`
                 for fetching the css metadata and the content-div.
         """
-        super().__init__(self)
+        super().__init__()
         self.content_xpath = content_xpath
         if content_xpath is None:
             self.content_xpath = etree.XPath("//head | //div[@id='content']")

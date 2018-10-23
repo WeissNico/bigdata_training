@@ -37,6 +37,9 @@ class DefaultDict():
 
     If the attribute can not be found, it returns `None`."""
     def __init__(self, a_dict, **kwargs):
+        # catch problems, when a NoneInstance is given.
+        if a_dict is None:
+            a_dict = {}
         self.dict = dict(a_dict, **kwargs)
 
     def __getattr__(self, name):
