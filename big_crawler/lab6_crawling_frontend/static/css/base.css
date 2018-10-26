@@ -1,5 +1,6 @@
 :root {
   /* for custom variable declaration */
+  --input-border-color: #ced4da;
   --sidebar-inactive-color: #909296;
   --sidebar-active-color: #fff;
   --dashboard-font-color: #000;

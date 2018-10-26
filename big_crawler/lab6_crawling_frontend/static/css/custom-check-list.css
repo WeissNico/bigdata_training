@@ -4,29 +4,29 @@
    
    Author: Johannes Mueller <j.mueller@reply.de> */
 
-  .custom-check-list {
-    height: 9rem;
-    overflow-y: scroll;
-    overflow-x: hidden;
-    background-image: radial-gradient(white, var(--diff-crossout-color));
-    border: 2px black;
-  }
-   
-  .custom-check-list input[type=checkbox] {
-    display: none;
-    visibility: hidden;
-  }
+.custom-check-list {
+  border: 1px solid var(--gray);
+  border-radius: 3px;
+  background-image: radial-gradient(white, var(--diff-crossout-color));
+}
 
-  .custom-check-list .fas {
-    visibility: hidden;
-  }
+.custom-check-list ul{
+  height: 9rem;
+  overflow-y: scroll;
+  overflow-x: hidden;
+}
 
-  .custom-check-list li {
-    padding: 0;
-  }
+.custom-check-list input[type=checkbox] {
+  display: none;
+  visibility: hidden;
+}
 
-  .custom-check-list label {
-    margin: 0;
-    padding: 0.6rem;
-    width: 100%;
-  }
+.custom-check-list li {
+  padding: 0;
+}
+
+.custom-check-list label {
+  margin: 0;
+  padding: 0.6rem;
+  width: 100%;
+}

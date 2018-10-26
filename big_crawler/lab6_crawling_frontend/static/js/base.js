@@ -92,6 +92,13 @@ function jsonPost(url, data, callback) {
     }).done(callback);
 }
 
+function $$(query, context) {
+    // A custom selector for querySelectorAll
+    return Array.prototype.slice.call(
+        (context || document).querySelectorAll(query)
+    );
+}
+
 $(".badge.indicator").on("custom.change.badges", changeIndicatorColors);
 $(".category").on("custom.change.badges", accumulateJobs);
 $(".cat-link").click(flipIcon.bind(["fa-caret-right", "fa-caret-down"]));

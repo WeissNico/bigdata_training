@@ -46,25 +46,20 @@
   <fieldset>
     <legend>Search options</legend>
     <div class="form-row">
-      <div class="col-md-4 col-sm-12">
+      <div class="col-md-4 col-sm-12 pt-3">
         <label for="fileTypes"><span class="fas fa-file"></span> File types</label>
-        {{ macros.custom_check_list(file_types, "fileTypes") }}
+        <!-- these custom checklists are defined and loaded using mithril -->
+        <div data-component="CheckList" data-name="fileTypes" data-items='{{ file_types|default([])|tojson }}'></div>
       </div>
-      <div class="col-md-4 col-sm-12">
+      <div class="col-md-4 col-sm-12 pt-3">
         <label for="timePeriodsList"><span class="fas fa-clock"></span> Time periods</label>
-        {{ macros.custom_check_list(time_periods, "timePeriodsList") }}
-        <button type="button" class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#add_period_modal">
-          <span class="fas fa-plus-circle"></span>
-          <span>Add custom</span>
-        </button>
+        <!-- these custom checklists are defined and loaded using mithril -->
+        <div data-component="TimePeriodCheckList" data-name="timePeriods" data-items='{{ time_periods|default([])|tojson }}'></div>
       </div>
-      <div class="col-md-4 col-sm-12">
+      <div class="col-md-4 col-sm-12 pt-3">
         <label for="sourcesList"><span class="fas fa-book"></span> Sources</label>
-        {{ macros.custom_check_list(sources, "sourcesList") }}
-        <button type="button" class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#add_source_modal">
-          <span class="fas fa-plus-circle"></span>
-          <span>Add new source</span>
-        </button>
+        <!-- these custom checklists are defined and loaded using mithril -->
+        <div data-component="SourceCheckList" data-name="sourcesList" data-items='{{ sources|default([])|tojson }}'></div>
       </div>
     </div>
   </fieldset>
@@ -81,77 +76,10 @@
   </fieldset>
 </form>
 
-<!-- DEFINITION OF THE MODAL DIALOGS -->
-<!-- Modal for time periods -->
-<div class="modal fade" id="add_period_modal" tabindex="-1" role="dialog" aria-labelledby="add_period_label" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="add_period_label">Add new time period</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <form id="add_period_form">
-          <div class="form-row">
-            <div class="col-md-6 col-sm-12 form-group">
-              <label for="date_from"><span class="fas fa-calendar-alt"></span> From date</label>
-              <input type="date" class="form-control" name="date_from" id="date_from" />
-            </div>
-            <div class="col-md-6 col-sm-12 form-group">
-              <label for="date_to"><span class="fas fa-calendar-alt"></span> To date</label>
-              <input type="date" class="form-control" name="date_to" id="date_to" />
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary" id="add_period_button">Add time period</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal for the sources-->
-<div class="modal fade" id="add_source_modal" tabindex="-1" role="dialog" aria-labelledby="add_source_label" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="add_source_label">Add a new source to search</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <form id="add_source_form">
-          <div class="form-row">
-            <div class="col-sm-12 form-group">
-              <label for="source_name"><span class="fas fa-list"></span> Name</label>
-              <input type="text" class="form-control" name="source_name" placeholder="Display name"/ >
-            </div>
-            <div class="col-sm-12 form-group">
-              <label for="source_name"><span class="fas fa-link"></span> URL</label>
-              <input type="text" class="form-control" name="source_link" placeholder="Resource URL"/ >
-            </div>
-            <div class="col-sm-12 form-group">
-              <label for="source_name"><span class="fas fa-font"></span> Description</label>
-              <textarea rows="4" class="form-control" name="source_description" placeholder="Resource Description"></textarea>
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary" id="add_source_button">Add new source</button>
-      </div>
-    </div>
-  </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/custom-check-list.js') }}"></script>
+<script src="{{ url_for('static', filename='js/m-edit-lists.js') }}"></script>
+<script src="{{ url_for('static', filename='js/searchdialog.js') }}"></script>
 {% endblock %}
