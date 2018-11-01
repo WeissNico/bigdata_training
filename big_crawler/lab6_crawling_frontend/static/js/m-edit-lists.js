@@ -1,5 +1,9 @@
+// This module provides some general functionality regarding lists.
+// It uses mithril.js.
+// Author: Johannes Müller
+
 // Create a model for the items in the list
-var ListContent = {
+const ListContent = {
     fromElement: function(element) {
         var itemString = element.getAttribute("data-items");
         var items = JSON.parse(itemString);
@@ -15,8 +19,25 @@ var ListContent = {
     }
 }
 
+var EditListItem = {
+    // This components represents a single item in a custom edit-list
+    // which can be deleted
+    view: function (vnode) {
+        return m("li.list-group-item", [
+            m("span.item-text", vnode.attrs.item.name),
+            m("a.item-delete.text-danger.float-right", {
+                href: "#",
+                onclick: vnode.attrs.deleteItem
+            },
+                m("span.fas.fa-trash")
+            )
+        ]);
+    }
+}
+
 var CheckListItem = {
-    // This components represents a single item in a checklist
+    // This components represents a single item in a custom check-list
+    // it provides a checkbox and a proper id.
     view: function (vnode) {
         return m("li.list-group-item", {
             class: vnode.attrs.item.active ? "active" : ""
@@ -27,6 +48,7 @@ var CheckListItem = {
                         oninput: m.withAttr("checked", function (arg) {
                             vnode.attrs.item.active = arg;
                         }),
+                        name: vnode.attrs.name,
                         value: vnode.attrs.item.id,
                         checked: vnode.attrs.item.active
                     }),
@@ -39,19 +61,28 @@ var CheckListItem = {
     }
 }
 
-var BlankCheckList = {
+var BlankList = {
     oninit: function(vnode) { 
         vnode.state.items = vnode.attrs.items;
     },
     view: function(vnode) {
-        return m(".custom-check-list", {
+        let itemComponent = vnode.attrs.kind || EditListItem;
+        return m("div", {
+            class: vnode.attrs.class,
             id: vnode.attrs.name
         }, [
             m("ul.list-group",
-                vnode.state.items.map(function(item) {
-                    return m(CheckListItem, {key: item.id,
-                                            item: item});
-            }))
+                vnode.state.items.map(function(item, idx) {
+                    return m(itemComponent, {
+                        key: item.id,
+                        item: item,
+                        name: vnode.attrs.name,
+                        deleteItem: function() {
+                            vnode.state.items.splice(idx, 1);
+                        }
+                    });
+                })
+            )
         ]);
     }
 }
@@ -61,10 +92,57 @@ var CheckList = {
         vnode.state.items = ListContent.fromElement(vnode.attrs.element);
     },
     view: function(vnode) {
-        return m(BlankCheckList, {
+        return m(BlankList, {
+            class: "custom-check-list",
             items: vnode.state.items,
+            kind: CheckListItem,
             name: vnode.attrs.name
         });
+    }
+}
+
+var ItemEntry = {
+    oninit: function(vnode) {
+        vnode.state.newItem = null;
+    },
+    view: function(vnode) {
+        return m(".btn-group.btn-block.my-2", [
+            m("input[type='text'].item-input.form-control", {
+                name: "newItem",
+                placeholder: "new item name",
+                oninput: m.withAttr("value", (v) => vnode.state.newItem = v)
+            }),
+            m("a.item-add.btn.btn-success", {
+                name: "addNewItem",
+                href: "#",
+                onclick: () => vnode.attrs.items.push({
+                    id: "",
+                    name: vnode.state.newItem,
+                })
+            },
+                m("span.fas.fa-plus")
+            )
+        ])
+    }
+}
+
+var EditList = {
+    oninit: function(vnode) { 
+        vnode.state.items = ListContent.fromElement(vnode.attrs.element);
+    },
+    view: function(vnode) {
+        let entry = vnode.attrs.entryComponent || ItemEntry;
+        return [
+            m(entry, {
+                items: vnode.state.items,
+            }),
+            m(BlankList, {
+                class: "editable-list",
+                items: vnode.state.items,
+                kind: EditListItem,
+                name: vnode.attrs.name
+            })
+        ];
     }
 }
 
@@ -83,8 +161,8 @@ var ModalToggler = {
 
 var ModalWrapper = {
     view: function(vnode) {
-        var modalId = vnode.attrs.id;
-        var labelId = vnode.attrs.id + "Label";
+        const modalId = vnode.attrs.id;
+        const labelId = vnode.attrs.id + "Label";
         return m(".modal.fade", {
             id: modalId,
             tabindex: -1,

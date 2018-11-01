@@ -51,7 +51,7 @@ var TimePeriodModal = {
                             name: "From " + vnode.state.dateFrom + " to " + vnode.state.dateTo,
                             active: true
                         });
-                        this.hide();
+                        $("#"+vnode.attrs.id).modal("hide");
                     }
                 },
                     "Add time period"
@@ -65,12 +65,12 @@ var TimePeriodModal = {
 var SourceModal = {
     oninit: function(vnode) {
         // initialize the states for the new resource
-        vnode.state.sourceName = "",
-        vnode.state.sourceUrl = "",
-        vnode.state.sourceDescription = ""
+        vnode.state.name = "",
+        vnode.state.url = "",
+        vnode.state.description = ""
     },
     view: function(vnode) {
-        var formId = vnode.attrs.id + "Form";
+        const formId = vnode.attrs.id + "Form";
         return m(ModalWrapper, {
             id: vnode.attrs.id,
             title: vnode.attrs.title,
@@ -84,9 +84,9 @@ var SourceModal = {
                         m("input[type='text'].form-control#sourceName", {
                             name: "name",
                             placeholder: "An Example Source",
-                            value: vnode.state.sourceName,
+                            value: vnode.state.name,
                             oninput: m.withAttr("value", function(val) {
-                                vnode.state.sourceName = val;
+                                vnode.state.name = val;
                             })
                         })
                     ]),
@@ -98,9 +98,9 @@ var SourceModal = {
                         m("input[type='url'].form-control#sourceUrl", {
                             name: "url",
                             placeholder: "http://example.com",
-                            value: vnode.state.sourceUrl,
+                            value: vnode.state.url,
                             oninput: m.withAttr("value", function(val) {
-                                vnode.state.sourceUrl = val;
+                                vnode.state.url = val;
                             })
                         })
                     ]),
@@ -113,9 +113,9 @@ var SourceModal = {
                             name: "description",
                             rows: 4,
                             placeholder: "A short description of the resource",
-                            value: vnode.state.sourceDescription,
+                            value: vnode.state.description,
                             oninput: m.withAttr("value", function(val) {
-                                vnode.state.sourceDescription = val;
+                                vnode.state.description = val;
                             })
                         })
                     ])
@@ -134,10 +134,9 @@ var SourceModal = {
                         })
                         .then(function(response) {
                             if (response.success) {
-                                console.log("Success!");
+                                vnode.attrs.items.push(response.item);
                             }
-                            vnode.attrs.items.push(response.source);
-                            this.hide();
+                            $("#"+vnode.attrs.id).modal("hide");
                         });
                     }
                 },
@@ -156,8 +155,10 @@ var TimePeriodCheckList = {
     view: function(vnode) {
         var modalId = "addPeriodsModal"
         return [
-            m(BlankCheckList, {
+            m(BlankList, {
+                class: "custom-check-list",
                 items: vnode.state.items,
+                kind: CheckListItem,
                 name: vnode.attrs.name
             }),
             m(ModalToggler, {
@@ -180,8 +181,10 @@ var SourceCheckList = {
     view: function(vnode) {
         var modalId = "addSourceModal"
         return [
-            m(BlankCheckList, {
+            m(BlankList, {
+                class: "custom-check-list",
                 items: vnode.state.items,
+                kind: CheckListItem,
                 name: vnode.attrs.name
             }),
             m(ModalToggler, {

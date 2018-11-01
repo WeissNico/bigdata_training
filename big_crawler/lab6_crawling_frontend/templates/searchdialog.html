@@ -49,17 +49,17 @@
       <div class="col-md-4 col-sm-12 pt-3">
         <label for="fileTypes"><span class="fas fa-file"></span> File types</label>
         <!-- these custom checklists are defined and loaded using mithril -->
-        <div data-component="CheckList" data-name="fileTypes" data-items='{{ file_types|default([])|tojson }}'></div>
+        <div data-component="CheckList" data-name="fileType" data-items='{{ file_types|default([])|tojson }}'></div>
       </div>
       <div class="col-md-4 col-sm-12 pt-3">
         <label for="timePeriodsList"><span class="fas fa-clock"></span> Time periods</label>
         <!-- these custom checklists are defined and loaded using mithril -->
-        <div data-component="TimePeriodCheckList" data-name="timePeriods" data-items='{{ time_periods|default([])|tojson }}'></div>
+        <div data-component="TimePeriodCheckList" data-name="timePeriod" data-items='{{ time_periods|default([])|tojson }}'></div>
       </div>
       <div class="col-md-4 col-sm-12 pt-3">
         <label for="sourcesList"><span class="fas fa-book"></span> Sources</label>
         <!-- these custom checklists are defined and loaded using mithril -->
-        <div data-component="SourceCheckList" data-name="sourcesList" data-items='{{ sources|default([])|tojson }}'></div>
+        <div data-component="SourceCheckList" data-name="source" data-items='{{ sources|default([])|tojson }}'></div>
       </div>
     </div>
   </fieldset>

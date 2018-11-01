@@ -411,13 +411,32 @@ def searchdialog():
                  {"id": "tp_last_month", "name": "Last month"},
                  {"id": "tp_last_year", "name": "Last year"},
                  {"id": "tp_older", "name": "Older than 1 year"}]
-    sources = [{"id": "src_web", "name": "The Web",
-                "url": "", "description": "Search the Web"}]
+    sources = es.get_seeds()
+    for s in sources:
+        s["id"] = s["_id"]
+        del s["_id"]
     # render out the searchdialog template
     return render_template("searchdialog.html",
                            file_types=f_types,
                            time_periods=t_periods,
                            sources=sources)
+
+
+@app.route("/add_source", methods=["POST"])
+def create_new_source():
+    """Adds a new source for crawling certain sites.
+
+    It consists of an url, a displayed name and a short description.
+    """
+    new_source = None
+    if request.json:
+        new_source = request.json
+        new_source["id"] = None
+
+    res = es.add_seed(new_source)
+    if res["result"] == "created":
+        return jsonify(success=True, item=dict(new_source, id=res["_id"]))
+    return jsonify(success=False)
 
 
 @app.route("/scheduler")
@@ -437,7 +456,7 @@ def scheduler():
 def create_new_search():
     """Receives the form of the search dialog an processes it accordingly."""
     print(request.form)
-    return render_template("searchdialog.html")
+    return redirect("searchdialog")
 
 
 @app.route("/train")
@@ -547,10 +566,10 @@ def add_seed():
         "url": url,
         "name": name,
         "category": category,
-        "doc_id": doc_id
+        "id": doc_id
     }
 
-    es.set_seed(seed)
+    es.add_seed(seed)
 
     return "update successfully"
 

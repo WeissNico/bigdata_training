@@ -75,6 +75,15 @@ class Elastic():
         }
     }
 
+    SEED_MAPPING = {
+        "properties": {
+            "url": {"type": "keyword"},
+            "name": {"type": "keyword"},
+            "description": {"type": "text"},
+            "category": {"type": "keyword"}
+        }
+    }
+
     SCRIPTS = {
         "keyword_sort": {
             "script": {
@@ -148,6 +157,7 @@ class Elastic():
             "seeds_index": "seeds",
             "docs_index": "eurlex",
             "doc_type": "nutch",
+            "seed_type": "seed",
             "size": 10
         }, **kwargs))
 
@@ -159,12 +169,28 @@ class Elastic():
             self.es.put_script(id=script_id, body=script_body)
 
         # check whether the document index exists, if not create it.
-        if not self.es.indices.exists(index=self.defaults.docs_index()):
-            self.es.indices.create(index=self.defaults.docs_index())
+        self._create_index(self.defaults.docs_index(),
+                           self.defaults.doc_type(),
+                           self.DOC_MAPPING)
+        self._create_index(self.defaults.seeds_index(),
+                           self.defaults.seed_type(),
+                           self.SEED_MAPPING)
+
+    def _create_index(self, index, doc_type, mapping):
+        """Checks whether an index is present, if not, creates it.
+
+        Uses the mapping provided.
+
+        Args:
+            index (str): the index that should be used.
+            doc_type (str): the doc_type for the mapping.
+            mapping (dict): the elastic-mapping that should be used.
+        """
+        if not self.es.indices.exists(index=index):
+            self.es.indices.create(index=index)
             # put the mapping into the docs index
-            self.es.indices.put_mapping(doc_type=self.defaults.doc_type(),
-                                        index=self.defaults.docs_index(),
-                                        body=self.DOC_MAPPING)
+            self.es.indices.put_mapping(index=index, doc_type=doc_type,
+                                        body=mapping)
 
     def _prepare_document(self, doc):
         """Prepares a document for insertion by constructing features.
@@ -403,41 +429,33 @@ class Elastic():
         index = self.defaults.seeds_index()
 
         try:
-            res = self.es.search(index=index,
-                                 body={"query": {"match_all": {}}})
-            newlist = {}
-            for k, value in enumerate(res['hits']['hits']):
-                category = value['_source']['category']
-                val = {'id': value['_id'],
-                       'category': category,
-                       'name': value['_source']['name'],
-                       'url': value['_source']['url']}
-                if value['_source']['category'] not in newlist:
-                    newlist[category] = []
-                newlist[category].append(val)
+            res = self.es.search(index=index, body={
+                "query": {"match_all": {}}
+            })
         except Exception as e:
             logging.error(f"An error occured while retrieving the seeds. {e}")
 
-        return newlist
+        return etrans.transform_output(res)
 
-    def set_seed(self, seed):
+    def add_seed(self, seed):
         """Adds a new seed to the database.
 
         Args:
-            seed (dict): a dict containing the keys `url`, `name` and
-                `category`.
+            seed (dict): a dict containing the keys `url`, `name`,
+                `description` and [`category`].
 
         Returns:
             `elasticsearch.Response`: the response of the es database.
         """
         index = self.defaults.seeds_index()
-        doc_type = self.defaults.doc_type()
+        doc_type = self.defaults.seed_type()
 
-        doc = {k: seed.get(k) for k in ["url", "name", "category"]}
-        doc_id = seed['doc_id']
+        allowed_keys = ["url", "name", "description", "category"]
+        doc = {k: seed.get(k) for k in allowed_keys}
+        seed_id = seed["id"]
 
-        result = self.es.index(index=index, doc_type=doc_type, id=doc_id,
-                               body=doc)
+        result = self.es.index(index=index, doc_type=doc_type,
+                               id=seed_id, body=doc)
         return result
 
     def delete_seed(self, seed_id):
@@ -450,9 +468,8 @@ class Elastic():
             `elasticsearch.Response`: the response of the es database.
         """
         index = self.defaults.seeds_index()
-        doc_type = self.defaults.doc_type()
 
-        result = self.es.delete(index=index, doc_type=doc_type, id=seed_id)
+        result = self.es.delete(index=index, id=seed_id)
         return result
 
     def get_field_values(self, search_text, fields=None, active={}):
