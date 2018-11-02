@@ -84,6 +84,22 @@ class Elastic():
         }
     }
 
+    SEARCH_MAPPING = {
+        "properties": {
+            "name": {"type": "keyword"},
+            "keywords": {"type": "keyword"},
+            "time_periods": {
+                "type": "object",
+                "properties": {
+                    "from": {"type": "date"},
+                    "to": {"type": "date"}
+                }
+            },
+            "file_types": {"type": "keyword"},
+            "sources": {"type": "keyword"}
+        }
+    }
+
     SCRIPTS = {
         "keyword_sort": {
             "script": {
@@ -155,9 +171,11 @@ class Elastic():
         """
         self.defaults = utility.DefaultDict(dict({
             "seeds_index": "seeds",
+            "search_index": "searches",
             "docs_index": "eurlex",
             "doc_type": "nutch",
             "seed_type": "seed",
+            "search_type": "search",
             "size": 10
         }, **kwargs))
 
@@ -175,6 +193,9 @@ class Elastic():
         self._create_index(self.defaults.seeds_index(),
                            self.defaults.seed_type(),
                            self.SEED_MAPPING)
+        self._create_index(self.defaults.search_index(),
+                           self.defaults.search_type(),
+                           self.SEARCH_MAPPING)
 
     def _create_index(self, index, doc_type, mapping):
         """Checks whether an index is present, if not, creates it.
@@ -470,6 +491,78 @@ class Elastic():
         index = self.defaults.seeds_index()
 
         result = self.es.delete(index=index, id=seed_id)
+        return result
+
+    def get_searches(self):
+        """Returns the searches saved in the database.
+
+        Returns:
+            list: a list of saved searches seedds.
+        """
+        index = self.defaults.search_index()
+
+        try:
+            res = self.es.search(index=index, body={
+                "query": {"match_all": {}}
+            })
+        except Exception as e:
+            logging.error("An error occured while retrieving the searches."
+                          f" {e}")
+
+        return etrans.transform_output(res)
+
+    def add_search(self, search):
+        """Adds a new search job to the database.
+
+        Args:
+            search (dict): a dict containing the keys:
+                `name`, `keywords`, `time_periods`, `file_types` and `sources`.
+                The `_id` will be the name or a random id.
+
+        Returns:
+            `elasticsearch.Response`: the response of the es database.
+        """
+        index = self.defaults.search_index()
+        doc_type = self.defaults.search_type()
+
+        doc = etrans.transform_search(search)
+        allowed = ["name", "keywords", "file_types", "time_periods", "sources"]
+        required = ["keywords", "file_types", "time_periods", "sources"]
+
+        try:
+            etrans.check_dict(doc, allowed, required)
+        except KeyError as e:
+            return {
+                "result": "failed",
+                "message": str(e)
+            }
+        # create some numbering for the existing search names
+        search_id = doc.get("name")
+        if not search_id:
+            search_id = "Unnamed query"
+        org_id = search_id
+        i = 2
+        while self.es.exists(index=index, doc_type=doc_type, id=search_id,
+                             _source=False):
+            search_id = f"{org_id}-{i}"
+            i += 1
+
+        result = self.es.index(index=index, doc_type=doc_type,
+                               id=search_id, body=doc)
+        return result
+
+    def delete_search(self, search_id):
+        """Removes a seed from the database.
+
+        Args:
+            search_id (str): the id of the search, that will be deleted.
+
+        Returns:
+            `elasticsearch.Response`: the response of the es database.
+        """
+        index = self.defaults.search_index()
+
+        result = self.es.delete(index=index, id=search_id)
         return result
 
     def get_field_values(self, search_text, fields=None, active={}):

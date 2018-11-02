@@ -19,6 +19,70 @@ const ListContent = {
     }
 }
 
+const makePair = (el) => {
+    if (typeof el !== "string" && Array.isArray(el) && el.length > 1) {
+        return el.slice(0,2);
+    }
+    return [el, el];
+}
+
+const makePairs = (list) => {
+    list = list || [];
+    return list.map(makePair);
+}
+
+var FakeSelect = {
+    oninit: (vnode) => {
+        vnode.state.items = makePairs(vnode.attrs.items);
+        vnode.state.default = vnode.attrs.value;
+        if (!vnode.attrs.value) {
+            let justValues = vnode.state.items.filter(item => {
+                return item[0] !== "###" && item[0] !== "---";
+            });
+            vnode.state.default = (justValues.length > 0) && justValues[0];
+        }
+    },
+    view: (vnode) => {
+        return m(".fakeSelect", {
+            id: vnode.attrs.name + "Select"
+        }, [
+            m("input[type='hidden']", {
+                id: vnode.attrs.name + "Value",
+                name: vnode.attrs.name,
+                value: vnode.attrs.value || vnode.state.default
+            }),
+            m("button[type='button'].btn.btn-outline-secondary.btn-block.dropdown-toggle", {
+                "data-toggle": "dropdown",
+                "aria-expanded": false
+            }, [
+                m("span.sr-only", "Toggle selection dropdown"),
+                // don't use the first value for attrs, since it will already
+                // be stripped down (saved as val[0])
+                m("span", makePair(vnode.attrs.value)[1] || vnode.state.default[1])
+            ]),
+            m(".dropdown-menu dropdown-fake-select", 
+                vnode.state.items.map(item => {
+                    if (item[0] === "###") {
+                        return m("h6.dropdown-header", item[1])
+                    }
+                    else if (item[0] === "---") {
+                        return m(".dropdown-divider")
+                    }
+                    else {
+                        return m("a.dropdown-item[href='#']", {
+                            onclick: () => {
+                                vnode.attrs.value = item;
+                                vnode.attrs.onselect(vnode.attrs.value);
+                            }
+                        },
+                        item[1])
+                    }
+                })
+            )
+        ])
+    }
+}
+
 var EditListItem = {
     // This components represents a single item in a custom edit-list
     // which can be deleted
@@ -152,7 +216,7 @@ var ModalToggler = {
             "type": "button",
             "data-toggle": "modal",
             "data-target": vnode.attrs.target
-        }, [
+        }, vnode.attrs.children || [
             m("span.fas.fa-plus-circle"),
             m("span", " Add custom")
         ]);
@@ -189,18 +253,4 @@ var ModalWrapper = {
             ])
         ]);
     }
-}
-
-function findComponents() {
-    // Finds the mount points for the components in a page and updates them
-    // accoringly.
-    var elements = $$("[data-component]");
-    elements.forEach(function(el) {
-        // retrieve the component by name
-        var component = this[el.getAttribute("data-component")] || CheckList;
-        m.mount(el, {view: function () {return m(component, {
-            element: el,
-            name: el.getAttribute("data-name")
-        })}});
-    });
 }

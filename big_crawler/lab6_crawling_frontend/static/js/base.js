@@ -10,6 +10,21 @@ var STATUS_MAPPING = {"": {text: "", color: "secondary"},
 // global object for global event registration
 var GLOBAL_OBJ = {};
 
+function toTitleCase(str) {
+    // Changes a snake- or kebab-case word into a title-cased sentence.
+    // `str` is a snake- or kebab-case word.
+    // EXAMPLES: 
+    //  toTitleCase("next_run")  // => "Next Run"
+    //  toTitleCase("this-is-not-helpful")  // => "This Is Not Helpful"
+    var words = str.split(/[_-]/);
+    return words.map(word => {
+        if (word.length == 0) {
+            return word
+        }
+        return word[0].toUpperCase() + word.slice(1);
+    }).join(" ")
+}
+
 function flipIcon(event){
     // changes the caret of the cat-links according to the expansion of the
     // referenced div.
@@ -97,6 +112,30 @@ function $$(query, context) {
     return Array.prototype.slice.call(
         (context || document).querySelectorAll(query)
     );
+}
+
+function findComponents() {
+    // Finds the mount points for the components in a page and updates them
+    // accoringly.
+    var elements = $$("[data-component]");
+    elements.forEach(function(el) {
+        // retrieve the component by name
+        const component = window[el.getAttribute("data-component")] || CheckList;
+        var attributes = {};
+        // parse all attributes as JSON strings.
+        for (var attr in el.dataset) {
+            try {
+                attributes[attr] = JSON.parse(el.dataset[attr]);
+            }
+            catch (e) {
+                // catch the json parse errors and assign the string instead
+                attributes[attr] = el.dataset[attr]
+            }
+        }
+        attributes.element = el;
+        
+        m.mount(el, {view: function () {return m(component, attributes)}});
+    });
 }
 
 $(".badge.indicator").on("custom.change.badges", changeIndicatorColors);

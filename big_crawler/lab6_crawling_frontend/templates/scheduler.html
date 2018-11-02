@@ -1,75 +1,24 @@
 {% extends "base.html" %}
 {# set the active page for display in the navbar #}
-{% set active_page = "scheduler" %}
 {% block title %}Sherlock - Crawling Schedules{% endblock %}
 {% block head %} {{ super() }} {% endblock%}
 {% block sidebar %}
 <h6 class="sidebar-heading pt-2">Controls</h6>
-<button class="btn btn-success btn-block" data-toggle="modal" data-target="#addJobModal">
-  <span class="fas fa-plus-circle"></span>
-  <span>New Schedule</span>
+<div data-component="ScheduleModalToggler" data-target="#addSchedule"></div>
 </button>
 {% endblock %}
 {% block content %}
 <h1>Scheduler</h1>
-<table class="schedules table table-hover table-responsive-lg">
-  <thead>
-    <tr>
-      <th scope="col">ID</th>
-      <th scope="col">Crawler</th>
-      <th scope="col">Arguments</th>
-      <th scope="col">Schedule</th>
-      <th scope="col">Next Run</th>
-      <th scope="col">Controls</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for job in jobs %}
-    <tr data-document={{ job.id }}>
-      <td>{{ job.id }}</td>
-      <td>{{ job.crawler }}</td>
-      <td>{{ macros.display_dict(job.arguments) }}</td>
-      <td>{{ macros.display_schedule(job.schedule) }}</td>
-      <td> 
-        {{ macros.change_controls(job.id) }}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-<!-- Modal dialog for adding or editing a schedule -->
-<div class="modal fade" id="addJobModal" tabindex="-1" role="dialog" aria-labelledby="addJobLabel" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="addJobLabel">Add a new schedule</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <form id="addJobForm" action="/new_job" method="POST">
-          <div class="form-row">
-            <div class="col-sm-12 form-group">
-              <label for="sourceSelect"><span class="fas fa-atlas"></span> Source</label>
-              {{ macros.fake_select_fixed("source", [("###", "Crawlers")] + crawlers + [("###", "Searches")] + searches) }}
-            </div>
-            <div class="col-sm-12 form-group">
-              <!-- TODO Reoccurrence selector -->
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        <button type="submit" class="btn btn-primary" id="addJobButton" form="addJobForm">Add this Job</button>
-      </div>
-    </div>
-  </div>
-</div>
+<div data-component="ScheduleTable"
+     data-keys='{{ ["id", "crawler", "arguments", "schedule", "next_run", "controls"]|tojson }}'></div>
+<div data-component="ScheduleModal"
+     data-sources='{{ ([("###", "Crawlers")] + crawlers + [("###", "Searches")] + searches)|tojson }}'
+     data-id="addSchedule" data-title="New scheduled query"></div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/fake-select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mithril-components.js') }}"></script>
+<script src="{{ url_for('static', filename='js/scheduler.js') }}"></script>
 {% endblock %}

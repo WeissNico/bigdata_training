@@ -11,6 +11,30 @@ import utility as ut
 sda = ut.safe_dict_access
 
 
+def _extract_tp(some_tp_id):
+    """Try to extract the given dates from the time_period id.
+
+    Returns standard values on failure.
+
+    Args:
+        some_tp_id (str): a time periods id, something like:
+            `tp_2015-10-01_2015-12-01`.
+
+    Returns:
+        dict: a time range dict, holding from and to keys.
+    """
+    d_range = {
+        "from": ut.from_date(datetime.datetime.min),
+        "to": ut.from_date()
+    }
+
+    parts = some_tp_id.split("_")
+    if len(parts) == 3:
+        d_range["from"] = ut.date_from_string(parts[1])
+        d_range["to"] = ut.date_from_string(parts[1])
+    return d_range
+
+
 OUTPUT_CONV = {
     "_default": lambda x: x,
     "reading_time": lambda x: x[0],
@@ -18,6 +42,37 @@ OUTPUT_CONV = {
 }
 """Rules for converting fields into an easy processable format."""
 
+TIME_PERIODS = {
+    "_default": _extract_tp,
+    "tp_last_week": lambda x: {
+        "from": ut.from_date() - datetime.timedelta(days=7),
+        "to": ut.from_date()
+    },
+    "tp_last_month": lambda x: {
+        "from": ut.from_date() - datetime.timedelta(days=30),
+        "to": ut.from_date()
+    },
+    "tp_last_year": lambda x: {
+        "from": ut.from_date() - datetime.timedelta(days=365),
+        "to": ut.from_date()
+    },
+    "tp_older": lambda x: {
+        "from": ut.from_date(datetime.datetime.min),
+        "to": ut.from_date()
+    }
+}
+"""Rules for converting the time period ids."""
+
+
+SEARCH_CONV = {
+    "_default": lambda x: x,
+    "name": lambda x: x[0],
+    "keywords": lambda x: x[0],
+    "time_periods": lambda x: [
+        TIME_PERIODS.get(it, TIME_PERIODS["_default"])(it) for it in x
+    ]
+}
+"""Rules for converting the keys of a search dict."""
 
 INPUT_CHECKS = {
     "_default": lambda x: False,
@@ -391,3 +446,48 @@ def transform_input(update):
             filtered[k] = v
 
     return filtered
+
+
+def transform_search(search):
+    """Prepares a search dict for inserting it into the database.
+
+    Args:
+        search (dict): the search, as retrieved from the POST.
+
+    Returns:
+        dict: a nicely prepared dictionary for insertion.
+    """
+    trans = {k: SEARCH_CONV.get(k, SEARCH_CONV["_default"])(v)
+             for k, v in search.items()}
+
+    return trans
+
+
+def check_dict(dictionary, allowed=None, required=None):
+    """Transforms and checks a dictionary.
+
+    Args:
+        dictionary (dict): the dictionary, that should be inspected.
+        allowed (list): a list of keys that are allowed, hence, others will
+            be excluded. defaults to None, which allows all keys.
+        required (list): a list of keys that are required, returns an error,
+            when these are not present.
+
+    Returns:
+        dict: the processed dictionary.
+
+    Raises:
+        KeyError
+    """
+    clean_dict = {}
+    errors = []
+    for k in dictionary:
+        if k in allowed:
+            clean_dict[k] = dictionary[k]
+    for k in required:
+        if not clean_dict.get(k):
+            errors.append(k)
+
+    if errors:
+        raise(KeyError("Couldn't find values for the following keys: "
+                       + ", ".join(errors)))

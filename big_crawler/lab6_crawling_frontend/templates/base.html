@@ -69,7 +69,6 @@
     </nav>
     <!-- anchor for jumping to the top of the page -->
     <span id="topAnchor"></span>
-    <!-- INSERT A 10-column row around everything -->
     <div class="container-fluid padding-top">
       <div class="row">
         <nav class="col-sm-12 col-md-4 col-lg-2 order-sm-last order-md-first sidebar bg-dark">
@@ -88,6 +87,9 @@
           </div>
         </nav>
         <main role="main" class="col-sm-12 col-md-8 col-lg-10 ml-sm-auto p-4">
+          {% for category, message in get_flashed_messages(with_categories=True) %}
+            {{ macros.show_flash(category, message) }}
+          {% endfor %}
           {% block content %}{% endblock %}
         </main>
       </div>

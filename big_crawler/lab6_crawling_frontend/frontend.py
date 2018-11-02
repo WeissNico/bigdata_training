@@ -6,7 +6,7 @@ import re
 import elastic
 from pymongo import MongoClient
 from flask import (Flask, request, redirect, render_template, url_for,
-                   send_file, jsonify)
+                   send_file, jsonify, flash)
 
 import settings
 import utility as ut
@@ -398,15 +398,15 @@ def searchdialog():
     """
 
     # mock some simple filetypes and time periods
-    f_types = [{"id": "ft_pdf", "name": "pdf"},
-               {"id": "ft_html", "name": "html"},
-               {"id": "ft_ppt", "name": "ppt"},
-               {"id": "ft_txt", "name": "txt"},
-               {"id": "ft_doc", "name": "doc"},
-               {"id": "ft_docx", "name": "docx"},
-               {"id": "ft_csv", "name": "csv"},
-               {"id": "ft_xls", "name": "xls"},
-               {"id": "ft_xlsx", "name": "xlsx"}]
+    f_types = [{"id": "pdf", "name": "pdf"},
+               {"id": "html", "name": "html"},
+               {"id": "ppt", "name": "ppt"},
+               {"id": "txt", "name": "txt"},
+               {"id": "doc", "name": "doc"},
+               {"id": "docx", "name": "docx"},
+               {"id": "csv", "name": "csv"},
+               {"id": "xls", "name": "xls"},
+               {"id": "xlsx", "name": "xlsx"}]
     t_periods = [{"id": "tp_last_week", "name": "Last week"},
                  {"id": "tp_last_month", "name": "Last month"},
                  {"id": "tp_last_year", "name": "Last year"},
@@ -439,6 +439,18 @@ def create_new_source():
     return jsonify(success=False)
 
 
+@app.route("/create_new_search", methods=["POST"])
+def create_new_search():
+    """Receives the form of the search dialog an processes it accordingly."""
+    new_search = request.form.to_dict(flat=False)
+    res = es.add_search(new_search)
+    if res["result"] == "created":
+        flash(f"New search with id '{res['_id']}' created!", "success")
+    else:
+        flash(res["message"], "danger")
+    return redirect("searchdialog")
+
+
 @app.route("/scheduler")
 def scheduler():
     """A dialog for displaying the currently scheduled jobs.
@@ -447,16 +459,9 @@ def scheduler():
     """
     jobs = sched.get_jobs()
     crawlers = [c for c in sched.crawlers]
-    searches = ["asdf", "jklö"]
+    searches = [s["_id"] for s in es.get_searches()]
     return render_template("scheduler.html", jobs=jobs, crawlers=crawlers,
                            searches=searches)
-
-
-@app.route("/create_new_search", methods=["POST"])
-def create_new_search():
-    """Receives the form of the search dialog an processes it accordingly."""
-    print(request.form)
-    return redirect("searchdialog")
 
 
 @app.route("/train")

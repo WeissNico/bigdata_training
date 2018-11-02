@@ -56,6 +56,16 @@
 </ul>
 {% endmacro %}
 
+{% macro show_flash(category, message) %}
+<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+  <strong>{{ category|titlecase }}</strong>
+  <span>{{ message }}</span>
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <span class="far fa-times-circle" aria-hidden="true"></span>
+  </button>
+</div>
+{% endmacro %}
+
 {% macro search_field() %}
 <div class="input-group">
   <input type="search" name="q" class="form-control" placeholder="Search for keywords"

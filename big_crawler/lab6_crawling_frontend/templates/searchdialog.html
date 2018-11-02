@@ -38,8 +38,8 @@
   <div class="form-row">
     <div class="col-12">
       <div class="form-group">
-        <label for="searchbar"><span class="fas fa-search"></span> Keywords</label>
-        <input type="text" class="form-control" placeholder="keyword keyword keyword ..." name="searchbar" />
+        <label for="keywords"><span class="fas fa-search"></span> Keywords</label>
+        <input type="text" class="form-control" placeholder="keyword keyword keyword ..." id="keywords" name="keywords" />
       </div>
     </div>
   </div>
@@ -49,17 +49,17 @@
       <div class="col-md-4 col-sm-12 pt-3">
         <label for="fileTypes"><span class="fas fa-file"></span> File types</label>
         <!-- these custom checklists are defined and loaded using mithril -->
-        <div data-component="CheckList" data-name="fileType" data-items='{{ file_types|default([])|tojson }}'></div>
+        <div data-component="CheckList" data-name="file_types" data-items='{{ file_types|default([])|tojson }}'></div>
       </div>
       <div class="col-md-4 col-sm-12 pt-3">
         <label for="timePeriodsList"><span class="fas fa-clock"></span> Time periods</label>
         <!-- these custom checklists are defined and loaded using mithril -->
-        <div data-component="TimePeriodCheckList" data-name="timePeriod" data-items='{{ time_periods|default([])|tojson }}'></div>
+        <div data-component="TimePeriodCheckList" data-name="time_periods" data-items='{{ time_periods|default([])|tojson }}'></div>
       </div>
       <div class="col-md-4 col-sm-12 pt-3">
         <label for="sourcesList"><span class="fas fa-book"></span> Sources</label>
         <!-- these custom checklists are defined and loaded using mithril -->
-        <div data-component="SourceCheckList" data-name="source" data-items='{{ sources|default([])|tojson }}'></div>
+        <div data-component="SourceCheckList" data-name="sources" data-items='{{ sources|default([])|tojson }}'></div>
       </div>
     </div>
   </fieldset>
@@ -68,8 +68,8 @@
     <div class="form-row">
       <div class="col-12">
         <div class="form-group">
-          <label for="save_as"><span class="fas fa-save"></span> Save search as</label>
-          <input type="text" class="form-control" placeholder="Set a name for the current search" name="save_as" />
+          <label for="name"><span class="fas fa-save"></span> Save search as</label>
+          <input type="text" id="name" class="form-control" placeholder="Set a name for the current search" name="name" />
         </div>
       </div>
     </div>
@@ -80,6 +80,6 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/m-edit-lists.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mithril-components.js') }}"></script>
 <script src="{{ url_for('static', filename='js/searchdialog.js') }}"></script>
 {% endblock %}
