@@ -6,6 +6,6 @@ every other class inherits from.
 Author: Johannes Müller <j.mueller@reply.de>
 """
 
-from . import eurlex
+from . import eurlex, search
 
-__all__ = [eurlex.EurlexPlugin]
+__all__ = [eurlex.EurlexPlugin, search.SearchPlugin]

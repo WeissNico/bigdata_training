@@ -83,7 +83,7 @@ class SDA:
         if self.a_dict is None:
             self.a_dict = {}
         self.default = default
-        self.filler = filler
+        self.filler = filler or default
 
     def _process_keys(self, key):
         keys = self.regex.split(key)
@@ -100,7 +100,6 @@ class SDA:
                     pass
             keys[i] = k
 
-        print(keys)
         return keys
 
     def setdefault(self, default):
@@ -119,7 +118,7 @@ class SDA:
 
     def __setitem__(self, key, value):
         keys = self._process_keys(key)
-        return safe_dict_write(self.a_dict, keys, value, self.default)
+        return safe_dict_write(self.a_dict, keys, value, self.filler)
 
     def __repr__(self):
         return repr(self.a_dict)
@@ -739,3 +738,19 @@ def defer(func, *args, **kwargs):
     def _apply(obj):
         return getattr(obj, func)(*args, **kwargs)
     return _apply
+
+
+def coerce_bool(expr):
+    """Returns the boolean value of an expression, especially handling strings.
+
+    Returns true for the strings: "true", "yes", "active", "on", "1".
+
+    Args:
+        expr (any): some expression.
+
+    Returns:
+        bool: whether the expression is truthy or not.
+    """
+    if isinstance(expr, str):
+        return expr.lower() in {"true", "yes", "active", "on", "1"}
+    return bool(expr)

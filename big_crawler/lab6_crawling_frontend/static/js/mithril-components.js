@@ -21,9 +21,14 @@ const ListContent = {
 
 const makePair = (el) => {
     if (typeof el !== "string" && Array.isArray(el) && el.length > 1) {
-        return el.slice(0,2);
+        return {id: el[0], name: el[1]};
     }
-    return [el, el];
+    else if (el && (el.hasOwnProperty("id") || el.hasOwnProperty("name"))) {
+        el.id = el.id || el.name;
+        el.name = el.name || el.id;
+        return el;
+    }
+    return {id: el, name:el};
 }
 
 const makePairs = (list) => {
@@ -37,7 +42,7 @@ var FakeSelect = {
         vnode.state.default = vnode.attrs.value;
         if (!vnode.attrs.value) {
             let justValues = vnode.state.items.filter(item => {
-                return item[0] !== "###" && item[0] !== "---";
+                return item.id !== "###" && item.id !== "---";
             });
             vnode.state.default = (justValues.length > 0) && justValues[0];
         }
@@ -51,31 +56,29 @@ var FakeSelect = {
                 name: vnode.attrs.name,
                 value: vnode.attrs.value || vnode.state.default
             }),
-            m("button[type='button'].btn.btn-outline-secondary.btn-block.dropdown-toggle", {
+            m("button[type='button'].btn.btn-outline-secondary.btn-block.dropdown-toggle.overflow-ellipsis", {
                 "data-toggle": "dropdown",
                 "aria-expanded": false
             }, [
                 m("span.sr-only", "Toggle selection dropdown"),
-                // don't use the first value for attrs, since it will already
-                // be stripped down (saved as val[0])
-                m("span", makePair(vnode.attrs.value)[1] || vnode.state.default[1])
+                // display the first name entry
+                m("span", makePair(vnode.attrs.value).name || vnode.state.default.name)
             ]),
             m(".dropdown-menu dropdown-fake-select", 
                 vnode.state.items.map(item => {
-                    if (item[0] === "###") {
-                        return m("h6.dropdown-header", item[1])
+                    if (item.id === "###") {
+                        return m("h6.dropdown-header", item.name)
                     }
-                    else if (item[0] === "---") {
+                    else if (item.id === "---") {
                         return m(".dropdown-divider")
                     }
                     else {
                         return m("a.dropdown-item[href='#']", {
                             onclick: () => {
-                                vnode.attrs.value = item;
-                                vnode.attrs.onselect(vnode.attrs.value);
+                                vnode.attrs.onselect(item);
                             }
                         },
-                        item[1])
+                        item.name)
                     }
                 })
             )
@@ -83,10 +86,37 @@ var FakeSelect = {
     }
 }
 
+var CheckBoxes = {
+    // This component represents a dynamic array of checkboxes.
+    view: (vnode) => {
+        return m(".check-array", 
+            vnode.attrs.values.map((el, idx) => {
+                return m("label.badge-box.m-1", {
+                    for: el.id + "Value",
+                    key: el.name
+                }, [
+                    m("input[type='checkbox']", {
+                        id: el.id + "Value",
+                        name: "options",
+                        value: el.id,
+                        // checked has problems with 'undefined'
+                        checked: el.active || false,
+                        oninput: m.withAttr("checked", (checked) => {
+                            el.active = checked;
+                        })
+                    }),
+                    m("span.badge", el.name)
+                ])
+            })
+        )
+    }
+}
+                    
+
 var EditListItem = {
     // This components represents a single item in a custom edit-list
     // which can be deleted
-    view: function (vnode) {
+    view: (vnode) => {
         return m("li.list-group-item", [
             m("span.item-text", vnode.attrs.item.name),
             m("a.item-delete.text-danger.float-right", {

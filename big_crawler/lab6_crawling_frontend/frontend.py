@@ -32,7 +32,8 @@ es = elastic.Elastic(app.config["ELASTICSEARCH_HOST"],
 client = MongoClient("mongodb://159.122.175.139:30017")
 db = client["crawler"]
 mock = mck.Mocker(db.mockuments)
-sched = scheduler.Scheduler(db.scheduled_jobs, hour=2, minute=0)
+sched = scheduler.Scheduler(db.scheduled_jobs,
+                            crawler_args={"elastic": es}, hour=2, minute=0)
 
 
 @app.route("/dashboard")
@@ -451,17 +452,44 @@ def create_new_search():
     return redirect("searchdialog")
 
 
-@app.route("/scheduler")
+@app.route("/scheduler", methods=["GET"])
 def scheduler():
     """A dialog for displaying the currently scheduled jobs.
 
     It also facilitates changing the schedule.
     """
     jobs = sched.get_jobs()
+    triggers = sched.get_triggers()
     crawlers = [c for c in sched.crawlers]
     searches = [s["_id"] for s in es.get_searches()]
     return render_template("scheduler.html", jobs=jobs, crawlers=crawlers,
-                           searches=searches)
+                           triggers=triggers, searches=searches)
+
+
+@app.route("/scheduler", methods=["POST"])
+def sync_schedules():
+    """Endpoint for syncing the list of schedules with the server.
+
+    Expects a list of jobs, defined as follows:
+    ```[
+        {
+            "id": "..." or None,
+            "crawler": {"id": "...", "...": "..."},
+            "schedule": {"id": "...", "options": [
+                {"id": 0, "active": True or False},
+                {"id": 1, "active": True or False},
+            ],
+            "next_run": "..."
+        },
+        ...
+    ]```
+    """
+    new_joblist = request.json
+
+    sched.sync_jobs(new_joblist)
+    jobs = sched.get_jobs()
+
+    return jsonify(success=True, schedules=jobs)
 
 
 @app.route("/train")

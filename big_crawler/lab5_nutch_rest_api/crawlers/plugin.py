@@ -248,7 +248,7 @@ class BasePlugin:
         self.entry_resource = []
         self.documents = []
 
-    def get_entries(self, limit=100, **kwargs):
+    def __call__(self, limit=100, **kwargs):
         """Fetches new entries for the given resource.
 
         Args:

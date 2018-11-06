@@ -25,6 +25,25 @@ function toTitleCase(str) {
     }).join(" ")
 }
 
+function omap(obj, func) {
+    // Maps a function over the values of an object.
+    return Object.keys(obj).reduce((acc, key) => {
+        acc[key] = func(obj[key]);
+        return acc
+    }, {});
+}
+
+function deepcopy(element) {
+    // Creates a deep copy of an object. Quite naïve.
+    if (Array.isArray(element)) {
+        return element.map(deepcopy)
+    }
+    else if (element !== null && typeof(element) === 'object') {
+        return omap(element, deepcopy)
+    }
+    return element
+}
+
 function flipIcon(event){
     // changes the caret of the cat-links according to the expansion of the
     // referenced div.
