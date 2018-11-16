@@ -449,6 +449,7 @@ class Elastic():
         """
         index = self.defaults.seeds_index()
 
+        res = {}
         try:
             res = self.es.search(index=index, body={
                 "query": {"match_all": {}}

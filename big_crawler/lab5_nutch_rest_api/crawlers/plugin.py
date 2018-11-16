@@ -2,6 +2,7 @@
 
 Author: Johannes Müller <j.mueller@reply.de>
 """
+from abc import abstractmethod
 import logging
 import requests
 from lxml import etree, html
@@ -116,7 +117,7 @@ class XPathResource:
             tree = map(func, tree)
         self.results = _flat_map(self.xpath, tree)
         for func in self.after:
-            self.results = map(func, self.results)
+            self.results = func(self.results)
         return self.results
 
     def each(self, func, inplace=False, **args):
@@ -162,7 +163,7 @@ class PaginatedResource:
         return self
 
     def __next__(self):
-        if self._cur_page > self._max_page:
+        if self.max_page and (self._cur_page > self.max_page):
             raise StopIteration
         resp = self.url_fetcher(self.url_template.format(page=self._cur_page),
                                 "get",
@@ -176,10 +177,19 @@ class PaginatedResource:
 class BaseConverter:
 
     def __init__(self):
+        super(BaseConverter, self).__init__()
         self.url_fetcher = _retry_connection
 
+    @abstractmethod
     def convert(self, content):
-        return content
+        """Converts the content into another format.
+
+        Args:
+            content (bytes): some content.
+
+        Returns:
+            bytes: content in a different format.
+        """
 
     def __call__(self, url, **fetch_args):
         resp = self.url_fetcher(url, "get", **fetch_args)
@@ -192,7 +202,8 @@ class PDFConverter(BaseConverter):
 
     Just fetches the content and returns it.
     """
-    pass
+    def convert(self, content):
+        return content
 
 
 class HTMLConverter(BaseConverter):
@@ -243,16 +254,30 @@ class BasePlugin:
     }
 
     def __init__(self, elastic):
+        super(BasePlugin, self).__init__()
         self.elastic = elastic
         self.url_fetcher = _retry_connection
         self.entry_resource = []
         self.documents = []
 
-    def __call__(self, limit=100, **kwargs):
+    def __call__(self, **kwargs):
+        """Runs the plugin, by fetching all documents and saving them.
+
+        Args:
+            **kwargs (dict): keyword arguments that will be passed on to all
+                steps.
+        """
+        self.get_documents(**kwargs)
+        self.process_documents(**kwargs)
+        self.convert_documents(**kwargs)
+        self.insert_documents(**kwargs)
+
+    def get_documents(self, limit=100, **kwargs):
         """Fetches new entries for the given resource.
 
         Args:
             limit (int): maximum number of entries to pull.
+            **kwargs (dict): additional keyword args, which are only consumed.
 
         Returns:
             BasePlugin: self.
@@ -298,25 +323,11 @@ class BasePlugin:
                 break
         return self
 
-    def find_entries(self, page, **kwargs):
-        """Find the entries in the given page and return them as a list.
-
-        THIS MUST BE OVERRIDEN IN THE CHILDREN.
-
-        Args:
-            page (lxml.etree): a html ressource, a result page.
-            **kwargs (dict): additional keyword-arguments.
-
-        Returns:
-            list: a list of documents holding the url and some metadata.
-        """
-        return []
-
     def process_documents(self, **kwargs):
         """Process the documents.
 
         Args:
-            **kwargs (dict): additional keyword-arguments.
+            **kwargs (dict): additional keyword args, which are only consumed.
 
         Returns:
             BasePlugin: self.
@@ -324,6 +335,35 @@ class BasePlugin:
         for doc in self.documents:
             self.process_document(doc, **kwargs)
         return self
+
+    def convert_documents(self, **kwargs):
+        """Converts all included documents to pdf.
+
+        Args:
+            **kwargs (dict): additional keyword args, which are only consumed.
+
+        Returns:
+            BasePlugin: self.
+        """
+        for doc in self.documents:
+            self.convert_document(doc)
+        return self
+
+    def insert_documents(self, **kwargs):
+        """Inserts the documents into the database.
+
+        Args:
+            **kwargs (dict): additional keyword args, which are only consumed.
+
+        Returns:
+            int: the number of newly inserted documents.
+        """
+        doc_count = 0
+        for doc in self.documents:
+            res = self.elastic.insert_document(doc)
+            if res["action"] == "created":
+                doc_count += 1
+        return doc_count
 
     def convert(self, mimetype, content):
         """Converts the given content with the given mimetype to pdf.
@@ -344,6 +384,7 @@ class BasePlugin:
         Args:
             document (dict): the document that should be prepared, expects
                 at least an "url" key.
+            **kwargs (dict): additional keyword args, which are only consumed.
 
         Returns:
             dict: a document with added "content" field.
@@ -359,10 +400,21 @@ class BasePlugin:
         document["content"] = content
         return document
 
+    @abstractmethod
+    def find_entries(self, page, **kwargs):
+        """Find the entries in the given page and return them as a list.
+
+        Args:
+            page (lxml.etree): a html ressource, a result page.
+            **kwargs (dict): additional keyword-arguments.
+
+        Returns:
+            list: a list of documents holding the url and some metadata.
+        """
+
+    @abstractmethod
     def process_document(self, document, **kwargs):
         """Process a given document.
-
-        THIS SHOULD BE OVERRIDEN IN THE CHILDREN.
 
         Args:
             document (dict): a document, providing at least an "url", "date"
@@ -372,20 +424,3 @@ class BasePlugin:
         Returns:
             dict: an enriched document.
         """
-        return document
-
-    def insert_documents(self, **kwargs):
-        """Inserts the documents into the database.
-
-        Args:
-            **kwargs (dict): additional keyword-arguments.
-
-        Returns:
-            int: the number of newly inserted documents.
-        """
-        doc_count = 0
-        for doc in self.documents:
-            res = self.elastic.insert_document(doc)
-            if res["action"] == "created":
-                doc_count += 1
-        return doc_count

@@ -6,12 +6,14 @@
 <h6 class="sidebar-heading pt-2">Controls</h6>
 <div data-component="ScheduleModalToggler" data-target="#addSchedule"></div>
 <div data-component="SubmitButton"></div>
+<div data-component="RevertButton"></div>
 </button>
 {% endblock %}
 {% block content %}
 <h1>Scheduler</h1>
 <div data-component="ScheduleTable"
-     data-keys='{{ ["id", "crawler", "schedule", "next_run", "controls"]|tojson }}'></div>
+     data-keys='{{ ["name", "crawler", "schedule", "next_run", "controls"]|tojson }}'
+     data-jobs='{{ jobs|tojson }}'></div>
 <div data-component="ScheduleModal"
      data-sources='{{ ([("###", "Crawlers")] + crawlers + [("###", "Searches")] + searches)|tojson }}'
      data-triggers='{{ triggers|tojson }}'

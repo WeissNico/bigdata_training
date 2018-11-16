@@ -32,8 +32,8 @@ es = elastic.Elastic(app.config["ELASTICSEARCH_HOST"],
 client = MongoClient("mongodb://159.122.175.139:30017")
 db = client["crawler"]
 mock = mck.Mocker(db.mockuments)
-sched = scheduler.Scheduler(db.scheduled_jobs,
-                            crawler_args={"elastic": es}, hour=2, minute=0)
+sched = scheduler.Scheduler(es.es, crawler_args={"elastic": es},
+                            hour=2, minute=0)
 
 
 @app.route("/dashboard")
@@ -462,6 +462,11 @@ def scheduler():
     triggers = sched.get_triggers()
     crawlers = [c for c in sched.crawlers]
     searches = [s["_id"] for s in es.get_searches()]
+
+    # if this is just a json request, return only the jobs.
+    if request.is_xhr:
+        return jsonify(success=True, schedules=jobs)
+
     return render_template("scheduler.html", jobs=jobs, crawlers=crawlers,
                            triggers=triggers, searches=searches)
 
@@ -490,6 +495,13 @@ def sync_schedules():
     jobs = sched.get_jobs()
 
     return jsonify(success=True, schedules=jobs)
+
+
+@app.route("/scheduler/run/<job_id>", methods=["POST"])
+def run_job(job_id):
+    """Endpoint for running a specific job immediately. """
+    success = sched.run_job(job_id)
+    return jsonify(success=success)
 
 
 @app.route("/train")

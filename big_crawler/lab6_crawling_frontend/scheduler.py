@@ -7,13 +7,32 @@ Author: Johannes Müller <j.mueller@reply.de>
 from pytz import utc
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.jobstores.mongodb import MongoDBJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
 from apscheduler.triggers.cron import CronTrigger
 import cerberus
 
 import crawlers
 import utility
+from elasticjobstore import InjectorJobStore
+
+
+def _run_plugin(crawler_by_ref, run_args=None, **init_args):
+    """A wrapper for allowing to run the given crawler from global scope.
+
+    It simply instanciates the plugin with init_args, and then runs it
+    using the run_args.
+
+    Args:
+        run_args (dict): a dictionary of arguments that should be passed
+            to the crawlers runtime.
+        **init_args (dict): a dictionary of arguments that should be passed
+            to the initialization of the plugin.
+    """
+    if run_args is None:
+        run_args = {}
+    crawler = _detect_crawlers()[crawler_by_ref]
+    instance = crawler(**init_args)
+    instance(**run_args)
 
 
 def _find_subclasses(klass):
@@ -44,7 +63,6 @@ SCHEMATA = {
         "id": {"type": "string", "nullable": True, "required": False},
         "crawler": {
             "type": "dict",
-            "allow_unknown": True,
             "schema": {
                 "id": {
                     "type": "string",
@@ -54,7 +72,6 @@ SCHEMATA = {
         },
         "schedule": {
             "type": "dict",
-            "allow_unknown": True,
             "schema": {
                 "id": {
                     "type": "string",
@@ -64,10 +81,9 @@ SCHEMATA = {
                 "name": {"type": "string", "required": False},
                 "options": {
                     "type": "list",
-                    "empty": True,
+                    "minlength": 0,
                     "schema": {
                         "type": "dict",
-                        "allow_unknown": True,
                         "schema": {
                             "id": {
                                 "type": "integer",
@@ -85,7 +101,7 @@ SCHEMATA = {
                 }
             },
         },
-        "next_run": {"type": "datetime", "required": False}
+        "next_run": {"type": "dict", "required": False}
     }
 }
 
@@ -93,21 +109,26 @@ SCHEMATA = {
 class Scheduler:
     TRIGGERS = {
         "trig_hourly": {
+            "id": "trig_hourly",
             "name": "Each hour",
             "options": [],
-            "schema": {"type": "dict", "allow_unknown": True},
-            "trigger_args": lambda args: dict(hour="*")
+            "schema": {},
+            "trigger_args": lambda args: dict(hour="*"),
+            "from_trigger": lambda trig: []
         },
         "trig_daily": {
+            "id": "trig_daily",
             "name": "Each day",
             "options": [],
-            "schema": {"type": "dict", "allow_unknown": True},
-            "trigger_args": lambda args: dict(day="*")
+            "schema": {},
+            "trigger_args": lambda args: dict(day="*"),
+            "from_trigger": lambda trig: []
         },
         "trig_weekday": {
+            "id": "trig_weekday",
             "name": "Each weekday",
-            "options": [{"id": idx, "name": el} for idx, el in
-                        enumerate("Sun Mon Tue Wed Thu Fri Sat".split())],
+            "options": [{"id": i, "name": el, "active": True} for i, el in
+                        enumerate("Mon Tue Wed Thu Fri Sat Sun".split())],
             "schema": {
                 "id": {
                     "type": "integer",
@@ -123,11 +144,14 @@ class Scheduler:
                 }
             },
             "trigger_args": lambda args:
-                dict(day_of_week=",".join(str(a) for a in args))
+                dict(day_of_week=",".join(str(a) for a in args)),
+            "from_trigger": lambda trig:
+                [int(d) for d in str(trig.fields[4]).split(",")]
         },
         "trig_monthly": {
+            "id": "trig_monthly",
             "name": "Each month",
-            "options": [{"id": idx+1, "name": el} for idx, el in
+            "options": [{"id": i+1, "name": el, "active": True} for i, el in
                         enumerate(("Jan Feb Mar Apr May Jun "
                                    "Jul Aug Sep Oct Nov Dec").split())],
             "schema": {
@@ -145,18 +169,20 @@ class Scheduler:
                 }
             },
             "trigger_args": lambda args:
-                dict(month=",".join(str(a) for a in args))
-        }
+                dict(month=",".join(str(a) for a in args)),
+            "from_trigger": lambda trig:
+                [int(d) for d in str(trig.fields[1]).split(",")]
+        },
     }
     """Predefined triggers and their argument checks."""
 
-    def __init__(self, mongo_collection, crawler_dir="crawlers",
+    def __init__(self, elastic, crawler_dir="crawlers",
                  crawler_args={}, **cron_defaults):
-        """Initializes the scheduler by binding it to it's mongodb.
+        """Initializes the scheduler by binding it to it's elasticsearch db.
 
         Args:
-            mongo_collection (pymongo.collection.Collection): The collection
-                where the crawling jobs should be saved to.
+            elastic (elasticsearch.Elasticsearh): The es-client to save the
+                crawling jobs in.
             crawler_dir (str): the directory, where the crawlers will be found.
                 Defaults to "crawlers".
             job_defaults (dict): a dictionary of keyword arguments for
@@ -169,17 +195,13 @@ class Scheduler:
         """
         jobstores = {
             "default": {"type": "memory"},
-            "mongo": MongoDBJobStore(database=mongo_collection.database.name,
-                                     collection=mongo_collection.name,
-                                     client=mongo_collection.database.client)
+            "elastic": InjectorJobStore(crawler_args, client=elastic)
         }
 
         executors = {
             "default": ThreadPoolExecutor(),
             "processpool": ProcessPoolExecutor()
         }
-
-        self.crawler_defaults = utility.DefaultDict(crawler_args)
 
         self.cron_defaults = utility.DefaultDict({
             # standard is every day at 00:00:00
@@ -196,7 +218,7 @@ class Scheduler:
         # set up the validator schema.
         self.job_validator = cerberus.Validator(SCHEMATA["job"]({
             "trigger_ids": list(self.TRIGGERS)
-        }))
+        }), allow_unknown=True)
         self.scheduler.start()
 
     def upsert_job(self, job_dict, **crawler_args):
@@ -213,55 +235,44 @@ class Scheduler:
         Returns:
             apscheduler.job.Job: a new job Object.
         """
-        if self.job_validator(job_dict):
+        if not self.job_validator.validate(job_dict):
             raise(AssertionError(str(self.job_validator.errors)))
 
         doc = utility.SDA(job_dict)
 
-        args = self.crawler_defaults.other(crawler_args).dict
         job = self.crawlers.get(doc["crawler.id"], None)
         # default to the SearchPlugin, and give the search name as argument.
         if job is None:
-            inst = self.crawlers["SearchPlugin"](search_id=doc["crawler.id"],
-                                                 **args)
+            inst = {
+                "args": (
+                    "SearchPlugin",
+                    crawler_args
+                ),
+                "kwargs": dict(search_id=doc["crawler.id"])
+            }
         else:
-            inst = job(**args)
+            inst = {
+                "args": (
+                    doc["crawler.id"],
+                    crawler_args
+                ),
+                "kwargs": {}
+            }
         trigger = self._make_trigger(doc["schedule"])
 
         if doc["id"]:
-            new_job = self.scheduler.modify_job(doc["id"], jobstore="mongo",
-                                                func=inst,
+            new_job = self.scheduler.modify_job(doc["id"], jobstore="elastic",
+                                                func=_run_plugin,
                                                 trigger=trigger,
-                                                name=doc["name"])
+                                                name=doc["name.name"], **inst)
         else:
-            new_job = self.scheduler.add_job(inst, jobstore="mongo",
+            # use the crawler id as name, when the job is created.
+            new_job = self.scheduler.add_job(_run_plugin,
+                                             jobstore="elastic",
                                              trigger=trigger,
-                                             name=doc["name"])
+                                             name=doc["crawler.id"], **inst)
 
         return new_job
-
-    def raw_add_job(self, crawler, crawler_args={}, **cron_args):
-        """Adds a job to the scheduler using the provided arguments.
-
-        Args:
-            crawler_args (dict): the arguments passed to the crawler
-                initialization.
-            **cron_args (dict): the arguments for setting the cron job.
-
-        Returns:
-            apscheduler.job.Job: a job object.
-        """
-        job = self.crawlers[crawler]
-        # initialize the given crawler
-        job_inst = job(**crawler_args)
-        # check for a given trigger id:
-        if cron_args.has("id"):
-            trigger = self.get_trigger(cron_args["id"], cron_args.get("args"))
-            new_job = self.scheduler.add_job(job_inst, trigger)
-        else:
-            args = self.cron_defaults.other(cron_args)
-            new_job = self.scheduler.add_job(job_inst, "cron", args)
-        return new_job.id
 
     def get_triggers(self):
         """Returns a list of triggers, that are predefined in the system.
@@ -269,8 +280,8 @@ class Scheduler:
         Returns:
             list: a list of tuples, holding id and name for each trigger.
         """
-        return [{"id": k, "name": v["name"], "options": v["options"]}
-                for k, v in self.TRIGGERS.items()]
+        return [{"id": v["id"], "name": v["name"], "options": v["options"]}
+                for v in self.TRIGGERS.values()]
 
     def sync_jobs(self, joblist):
         """Synchronize the current jobs with a given list of jobs.
@@ -291,7 +302,7 @@ class Scheduler:
         # remove old jobs
         for job in current_jobs:
             if job["id"] not in jobs_to_keep:
-                self.scheduler.remove_job(job["id"], jobstore="mongo")
+                self.scheduler.remove_job(job["id"], jobstore="elastic")
 
         # update and add jobs
         for job in joblist:
@@ -311,6 +322,36 @@ class Scheduler:
         trigger_args = cur_trigger["trigger_args"](args)
         return CronTrigger(**trigger_args)
 
+    def _serialize_trigger(self, trigger):
+        """Serializes a trigger into a json array, as defined in TRIGGERS."""
+        # since we only have a defined set of triggers, the following is
+        # possible.
+        mapping = [(v["trigger_args"]([]).keys(), k) for k, v
+                   in self.TRIGGERS.items()]
+
+        trigger_doc = None
+        result = {}
+        for keys, name in mapping:
+            # all keys for the mapping need to be defined.
+            def_keys = [f.name for f in trigger.fields if not f.is_default]
+            if all([(key in def_keys) for key in keys]):
+                trigger_doc = self.TRIGGERS[name]
+                break
+
+        if not trigger_doc:
+            return result
+
+        result["name"] = trigger_doc["name"]
+        result["id"] = trigger_doc["id"]
+        args = set(trigger_doc["from_trigger"](trigger))
+        # copy the list of options (otherwise this leads to nasty side effects)
+        options = [dict(**item) for item in trigger_doc["options"]]
+        for option in options:
+            option["active"] = option["id"] in args
+        result["options"] = options
+
+        return result
+
     def get_jobs(self):
         """Returns a list of jobs that are scheduled in the system.
 
@@ -322,9 +363,25 @@ class Scheduler:
         for job in jobs:
             joblist.append({
                 "id": job.id,
-                "name": job.name,
-                "crawler": job.func.__name__,
-                "schedule": job.trigger,
-                "next_run": job.next_run_time
+                "name": {"name": job.name},
+                "crawler": {"id": job.args[0]},
+                "schedule": self._serialize_trigger(job.trigger),
+                "next_run": {"name": job.next_run_time}
             })
         return joblist
+
+    def run_job(self, job_id):
+        """Runs the job with the specified id immediately.
+
+        Args:
+            job_id: the id of the job that should be run.
+
+        Returns:
+            bool: whether running the job succeeded or not.
+        """
+        cur_job = self.scheduler.get_job(job_id, jobstore="elastic")
+        if cur_job is None:
+            return False
+
+        cur_job.func(*cur_job.args, **cur_job.kwargs)
+        return True

@@ -103,6 +103,7 @@ var CheckBoxes = {
                         checked: el.active || false,
                         oninput: m.withAttr("checked", (checked) => {
                             el.active = checked;
+                            vnode.attrs.oninput && vnode.attrs.oninput(checked);
                         })
                     }),
                     m("span.badge", el.name)

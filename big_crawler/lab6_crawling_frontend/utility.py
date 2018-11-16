@@ -740,6 +740,23 @@ def defer(func, *args, **kwargs):
     return _apply
 
 
+def curry(func, **kwargs):
+    """A curried function call.
+
+    Args:
+        func (callable): the function that should be called with curried args.
+        **kwargs (dict): the keyword arguments that should be applied to the
+            function.
+
+    Returns:
+        callable: a function, which takes the remaining list of arguments as
+            an input. Careful when considering argument order.
+    """
+    def _curried(*cargs, **cwargs):
+        return func(*cargs, **dict(cwargs, **kwargs))
+    return _curried
+
+
 def coerce_bool(expr):
     """Returns the boolean value of an expression, especially handling strings.
 

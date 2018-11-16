@@ -51,6 +51,7 @@ def _convert_date(date_string):
 
 
 class EurlexPlugin(BasePlugin):
+    CWD = "https://eur-lex.europa.eu"
 
     entry_path = XPathResource("//div[@class = 'SearchResult']")
     date_path = XPathResource(
@@ -64,12 +65,14 @@ class EurlexPlugin(BasePlugin):
         .//ul[contains(@class, 'SearchResultDoc')]/li
         /a[contains(@href, 'PDF') or contains(@href, 'HTML')]/@href
         """,
-        after=[ut.defer("__getitem__", 0), _make_resource_path])
+        after=[ut.defer("__getitem__", 0),
+               ut.curry(_make_resource_path, cwd=CWD)]
+    )
     title_path = XPathResource(".//h2/a[@class = 'title']/text()",
                                after=[ut.defer("__getitem__", 0)])
     detail_path = XPathResource(".//h2/a[@class = 'title']/@href",
                                 after=[ut.defer("__getitem__", 0),
-                                       _make_resource_path])
+                                       ut.curry(_make_resource_path, cwd=CWD)])
 
     meta_path = XPathResource("//dl[contains(@class, 'NMetadata')]/dd")
     key_path = XPathResource("normalize-space(./preceding-sibling::dt[1])",

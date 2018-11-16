@@ -20,6 +20,7 @@ var Schedule = {
         m.request({
             url: "/scheduler",
             method: "POST",
+            headers: {"X-Requested-With": "XMLHttpRequest"},
             data: Schedule.schedules
         }).then((response) => {
             if (response.success) {
@@ -28,6 +29,38 @@ var Schedule = {
             }
             else {
                 Schedule.status = "changed";
+            }
+        });
+    },
+    reload: () => {
+        Schedule.status = "refreshing";
+        m.request({
+            url: "/scheduler",
+            method: "GET",
+            headers: {"X-Requested-With": "XMLHttpRequest"},
+        }).then((response) => {
+            if (response.success) {
+                Schedule.status = "current";
+                Schedule.schedules = response.schedules;
+            }
+            else {
+                Schedule.status = "changed";
+            }
+        });
+    },
+    run: (job) => {
+        job.status = "running";
+        m.request({
+            url: "/scheduler/run/:id",
+            method: "POST",
+            headers: {"X-Requested-With": "XMLHttpRequest"},
+            data: {id: job.id}
+        }).then((response) => {
+            if (response.success) {
+                job.status = "done";
+            }
+            else {
+                job.status = "failed";
             }
         });
     }
@@ -39,7 +72,7 @@ var ScheduleModal = {
     view: (vnode) => {
         return m(ModalWrapper, {
             id: vnode.attrs.id,
-            title: vnode.attrs.title,
+            title: (Schedule.current && Schedule.current.name && Schedule.current.name.name) || vnode.attrs.title,
             body: m(".form-row", [
                 m(".col-md-6.col-sm-12.form-group", [
                     m("Label[for='crawler']", [
@@ -50,7 +83,10 @@ var ScheduleModal = {
                         name: "crawler",
                         value: Schedule.current.crawler,  
                         items: vnode.attrs.sources,
-                        onselect: (val) => Schedule.current.crawler = val
+                        onselect: (val) => {
+                            Schedule.current.crawler = val;
+                            Schedule.status = "changed";
+                        }
                     })
                 ]),
                 m(".col-md-6.col-sm-12.form-group", [
@@ -62,11 +98,15 @@ var ScheduleModal = {
                         name: "schedule",
                         value: Schedule.current.schedule,
                         items: vnode.attrs.triggers,
-                        onselect: (val) => Schedule.current.schedule = deepcopy(val)
+                        onselect: (val) => {
+                            Schedule.current.schedule = deepcopy(val);
+                            Schedule.status = "changed";
+                        }
                     }),
                     m(CheckBoxes, {
                         name: "scheduleOptions",
                         values: Schedule.current.schedule && Schedule.current.schedule.options || [],
+                        oninput: () => Schedule.status = "changed"
                     })
                 ])
             ]),
@@ -77,8 +117,8 @@ var ScheduleModal = {
                 m("button[type='button'].btn.btn-primary", {
                     onclick: () => {
                         Schedule.status = "changed";
-                        if (Schedule.current.hasOwnProperty("_id")) {
-                            p("editing");
+                        if (Schedule.current.hasOwnProperty("id")) {
+                            $("#" + vnode.attrs.id).modal("hide");
                         }
                         else {
                             Schedule.schedules.push(Schedule.current);
@@ -124,9 +164,27 @@ var SubmitButton = {
     }
 }
 
+var RevertButton = {
+    view: (vnode) => {
+        return m("button.btn.btn-block.mb-3", {
+            type: "button",
+            class: (Schedule.status === "current")
+                    ? "btn-outline-secondary"
+                    : "btn-secondary",
+            onclick: Schedule.reload
+        }, [
+            m("span.fas.fa-undo-alt", {
+                class: Schedule.status === "refreshing" && "fa-spin"
+            }),
+            m("span", " Revert changes")
+        ]);
+    }
+}
+
 var ScheduleTable = {
     oninit: vnode => {
         vnode.state.keys = vnode.attrs.keys;
+        Schedule.schedules = vnode.attrs.jobs;
     },
     view: vnode => {
         return m("table.schedules.table.table-hover.table-responsive-lg", [
@@ -140,25 +198,42 @@ var ScheduleTable = {
                     return m("tr", 
                         vnode.state.keys.map(item => {
                             if (job.hasOwnProperty(item)) {
-                                return m("td", job[item].name)
+                                return m("td", job[item].name || job[item].id)
                             }
                             else if (item === "controls") {
                                 return m("td", 
                                     m(".btn-group[role='group']", [
                                         m("button[type='button'].btn.btn-secondary", {
+                                            title: "Run job immediately",
+                                            disabled: job.hasOwnProperty("id")
+                                                      ? false
+                                                      : true,
                                             onclick: () => {
-                                                Schedule.schedules.splice(idx, 1);
+                                                Schedule.run(job);
                                             }
                                         },
-                                            m("span.fas.fa-trash")
+                                            m("span.fas.fa-paper-plane", {
+                                                class: job.status == "running"
+                                                       && "fa-pulse"
+                                            })
                                         ),
                                         m("button[type='button'].btn.btn-secondary", {
+                                            title: "Edit job properties",
                                             onclick: () => {
                                                 Schedule.current = job;
                                                 $("#addSchedule").modal("show");
                                             }
                                         },
                                             m("span.fas.fa-edit")
+                                        ),
+                                        m("button[type='button'].btn.btn-secondary", {
+                                            title: "Remove job from schedule",
+                                            onclick: () => {
+                                                Schedule.status = "changed";
+                                                Schedule.schedules.splice(idx, 1);
+                                            }
+                                        },
+                                            m("span.fas.fa-trash")
                                         )
                                     ])
                                 );
