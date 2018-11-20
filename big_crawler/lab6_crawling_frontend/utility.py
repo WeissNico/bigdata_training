@@ -116,6 +116,10 @@ class SDA:
         keys = self._process_keys(key)
         return safe_dict_access(self.a_dict, keys, self.default)
 
+    def __contains__(self, key):
+        keys = self._process_keys(key)
+        return safe_dict_has(self.a_dict, keys)
+
     def __setitem__(self, key, value):
         keys = self._process_keys(key)
         return safe_dict_write(self.a_dict, keys, value, self.filler)
@@ -330,6 +334,29 @@ def safe_dict_write(dictionary, keys, value, default=None):
     return safe_dict_write(dictionary[keys[0]], keys[1:], value, default)
 
 
+def safe_dict_has(dictionary, keys):
+    """Returns whether a sequence of keys exist in the given dictionary.
+
+    Args:
+        dictionary (dict): the (nested) dictionary that should be accessed.
+        keys (list): a list of keys, that should be accessed in the given
+            order.
+
+    Returns:
+        bool: whether this sequence of keys exists or not.
+    """
+    if len(keys) == 0:
+        raise ValueError("There needs to be at least one key given.")
+
+    # break condition
+    if len(keys) == 1:
+        return _safe_has(dictionary, keys[0])
+
+    if _safe_has(dictionary, keys[0]):
+        return safe_dict_has(dictionary[keys[0]], keys[1:])
+    return False
+
+
 def try_keys(dictionary, keys, default=None):
     """Accesses a list of keys one after another, until a value is found.
 
@@ -381,6 +408,42 @@ def dict_construct(dictionary, mapping):
     for key, tupl in mapping.items():
         opt = safe_dict_access(dictionary, *tupl)
         new_dict[key] = opt
+    return new_dict
+
+
+def merge_dicts(*dictionaries):
+    """Merges a list of dictionaries into one, using a recursive approach.
+
+    Meaning, if a dictionary includes a nested dictionary, this will not be
+    replaced by the merge dictionary.
+
+    Example: ```
+        merge_dicts({"a": {"b": 1}}, {"a": {"c": 2}})
+        #  => {"a": {"b": 1, "c": 2}}
+    ```
+
+    Dictionaries defined first have a lower precedence (they will be
+    overwritten by the dictionaries after).
+
+    Args:
+        *dictionaries (list): a list of dicts that should be merged.
+    """
+
+    if len(dictionaries) == 0:
+        raise IndexError("At least one dictionary is required!")
+    elif len(dictionaries) == 1:
+        return dictionaries[0]
+
+    new_dict = dict(dictionaries[0])
+    for other in dictionaries[1:]:
+        for key in other.keys():
+            cur_el = new_dict.get(key)
+            if cur_el and isinstance(cur_el, dict):
+                # if this is a dictionary call recursively
+                new_dict[key] = merge_dicts(new_dict[key], other[key])
+            # override only if the other key is not None
+            elif other[key] is not None:
+                new_dict[key] = other[key]
     return new_dict
 
 
@@ -437,7 +500,7 @@ def date_from_string(datestring):
     this_date = None
     try:
         this_date = dt.datetime.strptime(datestring[:10], "%Y-%m-%d")
-    except ValueError:
+    except (ValueError, IndexError):
         pass
     return from_date(this_date)
 

@@ -12,7 +12,6 @@ import settings
 import utility as ut
 import mock as mck
 import diff
-import pdfuploader
 import scheduler
 
 
@@ -150,9 +149,13 @@ def upload():
 
     files = request.files.getlist("file_input")
     for fl in files:
-        pdf_conv = pdfuploader.PDFConverter(es, filename=fl.filename,
-                                            mimetype=fl.mimetype)
-        res = pdf_conv.read_stream(fl.stream, save=True)
+        res = es.insert_document({
+            "content": fl.stream.read(),
+            "metadata": {
+                "filename": fl.filename,
+                "mimetype": fl.mimetype
+            }
+        })
 
     docs = []
     if is_ajax:

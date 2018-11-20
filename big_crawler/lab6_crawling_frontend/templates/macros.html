@@ -263,6 +263,7 @@
 
 {% macro progress_bar(number, max) %}
 <div class="progress">
+  {% set max = max if max > 0 else 1 %}
   {% set width = (number|abs / max) * 100|int %}
   <div class="progress-bar progress-bar-striped bg-{{ 'success' if number > 0 else 'danger' }}" role="progressbar" 
       aria-valuenow="{{ number|abs }}" aria-valuemin="0" aria-valuemax="{{ max }}"

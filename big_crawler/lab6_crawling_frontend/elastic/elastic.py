@@ -10,6 +10,7 @@ import time
 import elasticsearch as es
 
 import utility
+import analyzers
 from . import transforms as etrans
 from . import filestore
 
@@ -217,67 +218,30 @@ class Elastic():
         """Prepares a document for insertion by constructing features.
 
         This also saves the contents to filesystem.
+        This also runs the analyzers.
 
         Args:
             doc (dict): the document to insert.
-                Expects the keys `content`, `text` and `metadata`.
+                Expects the keys `content` and `metadata`.
 
         Returns:
             tuple: the enriched document (dict) and a unique identifier (str)
         """
         doc_hash = self.fs.set(doc.get("content", None))
         doc_timestamp = time.time()
-
         doc_id = f"{doc_hash}.{doc_timestamp}"
 
-        lines, words = utility.calculate_quantity(doc.get("text", ""))
+        pipeline = [analyzers.DefaultAnalyzer(), analyzers.PDFAnalyzer(),
+                    analyzers.MetaAnalyzer(), analyzers.TextAnalyzer()]
 
-        doc_url = utility.safe_dict_access(doc, ["metadata", "url"], None)
+        new_doc = dict(doc)
+        for step in pipeline:
+            new_doc = step(new_doc)
 
-        new_doc = {
-            "date": utility.date_from_string(
-                utility.try_keys(doc["metadata"],
-                                 ["date", "ModDate", "Last-Modified",
-                                  "modified", "crawl_date"],
-                                 None)),
-            "source": {
-                "url": doc_url,
-                "name": utility.get_base_url(doc_url) or "inhouse"
-            },
-            "hash": doc_hash,
-            "version": doc_timestamp,
-            "content_type": utility.try_keys(doc,
-                                             ["contentType",
-                                              ("metadata", "mimetype"),
-                                              ("metadata", "Content-Type"),
-                                              ("metadata", "dc:format")],
-                                             "application/pdf"),
-            "content": doc_hash,
-            "document": utility.try_keys(doc,
-                                         [("metadata", "title"),
-                                          ("metadata", "Title"),
-                                          ("metadata", "dc:title"),
-                                          ("metadata", "filename")],
-                                         "No Title"),
-            "text": doc.get("text", ""),
-            "tags": [],
-            "keywords": {},
-            "entities": {},
-            "quantity": {"lines": lines, "words": words},
-            "change": {"lines_added": lines, "lines_removed": 0},
-            "metadata": doc.get("metadata", {}),
-            "type": "?",
-            "category": "?",
-            "fingerprint": "placeholder",
-            "version_key": doc_id,
-            "connections": {},
-            "impact": "low",
-            "status": "open",
-            "new": True,
-        }
-
-        # merge in the values that were already set, except for content
-        new_doc.update(utility.filter_dict(doc, exclude=["content"]))
+        new_doc["hash"] = doc_hash
+        new_doc["version"] = doc_timestamp
+        new_doc["content"] = doc_hash
+        new_doc["version_key"] = doc_id
 
         return new_doc, doc_id
 

@@ -1,4 +1,4 @@
-"""This module provides the class PDFConverter, for reading in PDF-Documents.
+"""This module provides the class PDFAnalyzer, for reading in PDF-Documents.
 
 It provides functionallity to extract all necessary metadata from a PDF-File
 and process it such that it fits into our elasticsearch db.
@@ -6,6 +6,7 @@ and process it such that it fits into our elasticsearch db.
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import os
+import io
 import sys
 import subprocess
 import tempfile
@@ -14,8 +15,8 @@ import datetime as dt
 from PyPDF2 import PdfFileReader
 
 import utility
+from analyzers.analyzer import BaseAnalyzer
 
-DIR = os.path.dirname(__file__)
 PLATFORM = sys.platform
 
 EXEC_SUFFIXES = {
@@ -64,24 +65,27 @@ def _datetime_from_meta_string(datestring):
     return this_date
 
 
-class PDFConverter():
+class PDFAnalyzer(BaseAnalyzer):
 
-    def __init__(self, elastic, **kwargs):
-        """Initializes the PDFConverter with an `elastic.Elastic` instance.
+    required = ["content"]
+
+    def __init__(self, base_dir=None, **kwargs):
+        """Initializes the PDFAnalyzer with an `elastic.Elastic` instance.
 
         Args:
-            elastic (elastic.Elastic): an elasticsearch connection.
+            base_dir (str): the base_directory to work in.
+                Defaults to the parent folder of this files folder.
             **kwargs (dict): keyword-arguments for further options.
 
         Returns:
             PDFConverter: a new PDFConverter instance.
         """
-        # construct a default dictionary
-        self._defaults = dict({
-            "tmp_path": os.path.join(DIR, "tmp"),
+        super().__init__()
+        base_dir = os.path.join(os.path.dirname(__file__), "..")
+        self.defaults = utility.DefaultDict({
+            "bin_path": os.path.join(base_dir, "bin", PLATFORM)
         }, **kwargs)
-        self.defaults = utility.DefaultDict(self._defaults)
-        self.elastic = elastic
+        self.base_dir = base_dir
 
     def _convert_pdf(self, content, exc, tmp_pdf, tmp_txt, **kwargs):
         """Converts a binary pdf-stream to text, by using xpdf utilties.
@@ -105,8 +109,11 @@ class PDFConverter():
     def _pdftotext(self, content, **kwargs):
         """Returns the contained text of the PDF-File."""
         # get the path to the executable
-        path_to_exc = os.path.join(DIR, "bin", PLATFORM,
+        path_to_exc = os.path.join(self.defaults.bin_path(),
                                    f"pdftotext{EXEC_SUFFIXES[PLATFORM]}")
+        if not os.path.exists(path_to_exc):
+            raise ValueError(f"The current path '{path_to_exc}' does not lead "
+                             " to an actual file.")
         text = None
         # get the temporary paths
         with tempfile.TemporaryDirectory(prefix=".pdfconv_") as tmp_dir:
@@ -120,15 +127,15 @@ class PDFConverter():
                 text = fl.read()
         return text
 
-    def _getpdfmeta(self, stream, **kwargs):
+    def _getpdfmeta(self, content, **kwargs):
         """Returns a dict containing the pdfs-metadata."""
         # other possible implementations
         # https://stackoverflow.com/questions/14209214/reading-the-pdf-properties-metadata-in-python
         # http://blog.matt-swain.com/post/25650072381/a-lightweight-xmp-parser-for-extracting-pdf
         password = self.defaults.other(kwargs).password()
-        filename = self.defaults.other(kwargs).filename("No Title")
+        filename = self.defaults.other(kwargs).filename("No Filename")
         mimetype = self.defaults.other(kwargs).mimetype("application/pdf")
-        pdf = PdfFileReader(stream)
+        pdf = PdfFileReader(io.BytesIO(content))
         if pdf.isEncrypted:
             pdf.decrypt(password)
         # retrieve the info documents
@@ -161,49 +168,13 @@ class PDFConverter():
 
         return metadata
 
-    def read_stream(self, stream, save=False, **kwargs):
-        """Reads and analyzes a pdf-file given as a stream.
+    def analyze(self, doc, **kwargs):
+        meta = self._getpdfmeta(doc["content"], **kwargs)
+        text = self._pdftotext(doc["content"], **kwargs)
 
-        If save flag is set, immediately saves it into the elasticsearch DB.
-
-        Args:
-            stream (): the bytes of the pdf-file.
-            save (boolean): whether the data should be written through into
-                the elastic DB.
-
-        Returns:
-            A dictionary holding all relevant information about this text file.
-        """
-        meta = self._getpdfmeta(stream, **kwargs)
-        # reread the stream
-        stream.seek(0)
-        content = stream.read()
-        text = self._pdftotext(content, **kwargs)
-
-        doc = {
-            "content": content,
+        merge_doc = {
             "text": text,
             "metadata": meta
         }
 
-        res = doc
-        if save is True:
-            res = self.elastic.insert_document(doc)
-
-        return res
-
-    def read_file(self, path_to_file, save=False, **kwargs):
-        """Reads and analyzes a pdf-file from disk.
-
-        If save flag is set, immediately saves it into the elasticsearch DB.
-
-        Args:
-            path_to_file (str): the path to the pdf-file.
-            save (boolean): whether the data should be written through into
-                the elastic DB.
-
-        Returns:
-            A dictionary holding all relevant information about this text file.
-        """
-        with open(path_to_file, "rb") as handle:
-            return self.read_stream(handle, save, **kwargs)
+        return merge_doc

@@ -23,7 +23,7 @@ def _make_resource_path(path, cwd):
     Also cuts away the unnecessary `rid` and `qid` attributes.
 
     Args:
-        path (str): the relative path (containing '.')
+        path (str): the relative path (containing '.' and '.')
         cwd (str): the current working directory, to root the paths.
 
     Returns:
@@ -51,7 +51,12 @@ def _convert_date(date_string):
 
 
 class EurlexPlugin(BasePlugin):
+
     CWD = "https://eur-lex.europa.eu"
+    """Directory to use when localizing the relative paths."""
+
+    source_name = "EurLex"
+    """Name that should be displayed as source."""
 
     entry_path = XPathResource("//div[@class = 'SearchResult']")
     date_path = XPathResource(
@@ -76,8 +81,7 @@ class EurlexPlugin(BasePlugin):
 
     meta_path = XPathResource("//dl[contains(@class, 'NMetadata')]/dd")
     key_path = XPathResource("normalize-space(./preceding-sibling::dt[1])",
-                             after=[ut.defer("__getitem__", 0),
-                                    ut.defer("strip", " .:,;!?-_#")])
+                             after=[ut.defer("strip", " .:,;!?-_#")])
     value_path = XPathResource(
         """
         normalize-space(
@@ -88,9 +92,7 @@ class EurlexPlugin(BasePlugin):
             )
         )
         """,
-        after=[ut.defer("__getitem__", 0),
-               ut.defer("strip", " .:,;!?-_#"),
-               ut.defer("split", "#")])
+        after=[ut.defer("strip", " .:,;!?-_#"), ut.defer("split", "#")])
 
     def __init__(self, elastic):
         super().__init__(elastic)
@@ -103,11 +105,10 @@ class EurlexPlugin(BasePlugin):
         docs = []
         for entry in self.entry_path(page):
             doc = ut.SDA({}, "N/A")
-            doc["url"] = self.doc_path(entry)
-            doc["date"] = self.date_path(entry)
+            doc["metadata.url"] = self.doc_path(entry)
+            doc["metadata.date"] = self.date_path(entry)
             doc["metadata.title"] = self.title_path(entry)
             doc["metadata.detail_url"] = self.detail_path(entry)
-            doc["metadata.crawl_date"] = ut.from_date()
             docs.append(doc.a_dict)
 
         return docs

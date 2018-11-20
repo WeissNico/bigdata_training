@@ -6,6 +6,7 @@ from abc import abstractmethod
 import logging
 import requests
 from lxml import etree, html
+from urllib.parse import urljoin
 import time
 from functools import reduce
 import io
@@ -30,6 +31,7 @@ def _flat_map(func, iterable):
     Returns:
         list: a flat list.
     """
+
     def _red_func(acc, el):
         res = func(el)
         # check if the resulting is a list in a way that supports duck typing
@@ -48,14 +50,14 @@ def _flat_map(func, iterable):
     return reduce(_red_func, iterable, [])
 
 
-def _retry_connection(url, method, max_retries=10, **kwargs):
+def _retry_connection(url, method="get", max_retries=10, **kwargs):
     """Repeats the connection with increasing pauses until an answer arrives.
 
     This should ease out of the 10054 Error, that windows throws.
 
     Args:
         url (str): the destination url.
-        method (str): a valid HTTP verb.
+        method (str): a valid HTTP verb, defaults to "get".
         max_retries (int): the number of maximum retries.
         kwargs (dict): keyword arguments for requests.
 
@@ -114,10 +116,23 @@ class XPathResource:
 
     def __call__(self, tree):
         for func in self.before:
-            tree = map(func, tree)
-        self.results = _flat_map(self.xpath, tree)
+            try:
+                tree = func(tree)
+            except (AttributeError, ValueError, IndexError, TypeError) as err:
+                logging.error(f"Before function '{func.__name__}' failed.")
+                tree = []
+
+        if isinstance(tree, list):
+            self.results = _flat_map(self.xpath, tree)
+        else:
+            self.results = self.xpath(tree)
+
         for func in self.after:
-            self.results = func(self.results)
+            try:
+                self.results = func(self.results)
+            except (AttributeError, ValueError, IndexError, TypeError) as err:
+                logging.error(f"After function '{func.__name__}' failed.")
+                self.results = None
         return self.results
 
     def each(self, func, inplace=False, **args):
@@ -178,22 +193,32 @@ class BaseConverter:
 
     def __init__(self):
         super(BaseConverter, self).__init__()
-        self.url_fetcher = _retry_connection
 
     @abstractmethod
-    def convert(self, content):
+    def convert(self, content, **kwargs):
         """Converts the content into another format.
 
         Args:
             content (bytes): some content.
+            **kwargs (dict): additional parameters used in the implementations
+                convert method.
 
         Returns:
             bytes: content in a different format.
         """
 
-    def __call__(self, url, **fetch_args):
-        resp = self.url_fetcher(url, "get", **fetch_args)
-        ret = self.convert(resp.content)
+    def __call__(self, content, **additional_args):
+        """Converts the content into another format.
+
+        Args:
+            content (bytes): some content.
+            **additional_args (dict): additional args to pass to the convert
+                function.
+
+        Returns:
+            bytes: content in a different format.
+        """
+        ret = self.convert(content, **additional_args)
         return ret
 
 
@@ -202,7 +227,7 @@ class PDFConverter(BaseConverter):
 
     Just fetches the content and returns it.
     """
-    def convert(self, content):
+    def convert(self, content, **kwargs):
         return content
 
 
@@ -211,25 +236,38 @@ class HTMLConverter(BaseConverter):
 
     Just fetches the content and converts it using weasyprint.
     """
-    def __init__(self, content_xpath=None):
+    def __init__(self, content_xpath=None, css_xpath=None):
         """Initializes the HTML converter.
 
         Args:
             content_xpath (etree.XPath): an XPath pointing to the relevant
-                html portions. Defaults to
-                `//head | //div[@id='content']`
-                for fetching the css metadata and the content-div.
+                html portions. Defaults to `//body`
+                for fetching all the contents of the page.
         """
         super().__init__()
         self.content_xpath = content_xpath
         if content_xpath is None:
-            self.content_xpath = etree.XPath("//head | //div[@id='content']")
+            self.content_xpath = XPathResource(
+                "//body",
+                after=[utility.defer("__getitem__", 0)]
+            )
+            self.css_xpath = XPathResource(
+                "//head/link[@rel = 'stylesheet']/@href"
+            )
 
-    def convert(self, content):
+    def convert(self, content, **kwargs):
         tree = html.fromstring(content)
+        # retrieve base url from kwargs
         relevant_html = self.content_xpath(tree)
+        # base_url = kwargs.get("base_url", None)
+        # extract the stylesheets
+        # stylesheets = [weasyprint.CSS(urljoin(base_url, p))
+        #                for p in self.css_xpath(tree)]
+        # stringify this!
+        # TODO work around cairocffi bug
+        html_string = html.tostring(relevant_html)
+        doc = weasyprint.HTML(string=html_string)
         stream = io.BytesIO()
-        doc = weasyprint.HTML(string=relevant_html.tostring())
         doc.write_pdf(stream)
         return stream.getvalue()
 
@@ -247,6 +285,9 @@ class BasePlugin:
             such that a valid pdf-file is returned.
         documents (list): a list of entries, found during the last crawl.
     """
+
+    source_name = "No Name"
+    """Name that should be displayed as source."""
 
     content_converters = {
         "application/pdf": PDFConverter(),
@@ -272,7 +313,7 @@ class BasePlugin:
         self.convert_documents(**kwargs)
         self.insert_documents(**kwargs)
 
-    def get_documents(self, limit=100, **kwargs):
+    def get_documents(self, limit=20, **kwargs):
         """Fetches new entries for the given resource.
 
         Args:
@@ -287,7 +328,8 @@ class BasePlugin:
         for page in self.entry_resource:
             # insert the entries into documents, if they aren't already tracked
             for doc in self.find_entries(page, **kwargs):
-                doc_url = doc.get("url")
+                doc = utility.SDA(doc)
+                doc_url = doc["metadata.url"]
                 # skip entries where no url is given
                 if not doc_url:
                     logging.debug("Document contains no url. SKIP.")
@@ -299,7 +341,7 @@ class BasePlugin:
                 if exists:
                     logging.debug(f"Document for url '{doc_url}' does already "
                                   "exist. SKIP.")
-                    doc_date = doc.get("date")
+                    doc_date = doc["metadata.date"]
                     today = utility.from_date()
                     if doc_date and doc_date < today:
                         logging.debug("Document's date lies in the past."
@@ -308,7 +350,9 @@ class BasePlugin:
                         break
                     continue
 
-                self.documents.append(doc)
+                logging.info(f"Found document {doc_url}.")
+                doc["metadata.source"] = self.source_name
+                self.documents.append(doc.a_dict)
                 doc_count += 1
 
                 # break when the number of retrieved documents reaches the
@@ -332,7 +376,8 @@ class BasePlugin:
         Returns:
             BasePlugin: self.
         """
-        for doc in self.documents:
+        for idx, doc in enumerate(self.documents):
+            logging.info(f"Processing doc {idx} of {len(self.documents)}...")
             self.process_document(doc, **kwargs)
         return self
 
@@ -345,7 +390,8 @@ class BasePlugin:
         Returns:
             BasePlugin: self.
         """
-        for doc in self.documents:
+        for idx, doc in enumerate(self.documents):
+            logging.info(f"Converting doc {idx} of {len(self.documents)}...")
             self.convert_document(doc)
         return self
 
@@ -359,24 +405,32 @@ class BasePlugin:
             int: the number of newly inserted documents.
         """
         doc_count = 0
-        for doc in self.documents:
+        for idx, doc in enumerate(self.documents):
+            logging.info(f"Inserting doc {idx} of {len(self.documents)}"
+                         " into the database.")
             res = self.elastic.insert_document(doc)
-            if res["action"] == "created":
+            if res["result"] == "created":
                 doc_count += 1
         return doc_count
 
-    def convert(self, mimetype, content):
+    def convert(self, mimetype, content, **kwargs):
         """Converts the given content with the given mimetype to pdf.
 
         Args:
             mimetype (str): the mimetype.
             content (bytes): the content of the file.
+            **kwargs (dict): passed on to the converter.
 
         Returns:
             bytes: the converted content.
         """
-        conv = self.content_converters.get(mimetype, BaseConverter())
-        return conv(content)
+        mime, *args = mimetype.split("; ")
+        for arg in args:
+            kw, *vals = arg.strip(" .,;:_").split("=")
+            kwargs[kw] = vals and vals[0]
+
+        conv = self.content_converters.get(mime, BaseConverter())
+        return conv(content, **kwargs)
 
     def convert_document(self, document, **kwargs):
         """Fetches the url of a document and sets the content of the document.
@@ -390,13 +444,13 @@ class BasePlugin:
             dict: a document with added "content" field.
         """
         # fetch body
-        doc_url = document.get("url")
+        doc_url = utility.SDA(document)["metadata.url"]
         if not doc_url:
             document["content"] = None
             return document
-        resp = _retry_connection(doc_url, "get")
+        resp = self.url_fetcher(doc_url)
         content_type = resp.headers["content-type"]
-        content = self.convert(content_type, resp.content)
+        content = self.convert(content_type, resp.content, base_url=doc_url)
         document["content"] = content
         return document
 
