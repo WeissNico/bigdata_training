@@ -51,9 +51,9 @@ class ElasticJobStore(BaseJobStore):
         "script": {
             "lang": "painless",
             "source": """
-                params.forEach((String k, def v) -> {
-                    ctx._source[k] = v
-                })
+                for (k in params.body.keySet()) {
+                    ctx._source[k] = params.body[k];
+                }
             """
         }
     }

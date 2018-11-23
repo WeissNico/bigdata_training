@@ -148,9 +148,9 @@ class Elastic():
             "script": {
                 "lang": "painless",
                 "source": """
-                    params.body.forEach((String k, def v) -> {
-                        ctx._source[k] = v
-                    })
+                    for (k in params.body.keySet()) {
+                        ctx._source[k] = params.body[k];
+                    }
                 """
             }
         }

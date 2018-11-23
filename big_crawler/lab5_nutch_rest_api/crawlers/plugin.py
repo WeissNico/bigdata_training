@@ -9,9 +9,8 @@ from lxml import etree, html
 from urllib.parse import urljoin
 import time
 from functools import reduce
-import io
 
-import weasyprint
+import pdfkit
 
 import utility
 
@@ -245,31 +244,43 @@ class HTMLConverter(BaseConverter):
                 for fetching all the contents of the page.
         """
         super().__init__()
+
         self.content_xpath = content_xpath
         if content_xpath is None:
             self.content_xpath = XPathResource(
-                "//body",
-                after=[utility.defer("__getitem__", 0)]
+                "//head | //body"
             )
-            self.css_xpath = XPathResource(
-                "//head/link[@rel = 'stylesheet']/@href"
+            self.link_xpath = XPathResource(
+                ".//head/link[@href]"
             )
+
+        self.pdfkit_config = pdfkit.configuration(
+            wkhtmltopdf=utility.path_in_project("wkhtmltopdf", True)
+        )
+
+    def _replace_relative(self, tree, base_url):
+        """Replaces relative href attributes in the header.
+
+        Args:
+            tree (lxml.etree): An html-ETree.
+            base_url (str): the base url.
+        """
+        for elem in tree.findall(str(self.link_xpath.xpath)):
+            elem.attrib["href"] = urljoin(base_url, elem.attrib["href"])
 
     def convert(self, content, **kwargs):
         tree = html.fromstring(content)
         # retrieve base url from kwargs
+        base_url = kwargs.get("base_url", None)
+        # replace relative links
+        self._replace_relative(tree, base_url)
         relevant_html = self.content_xpath(tree)
-        # base_url = kwargs.get("base_url", None)
-        # extract the stylesheets
-        # stylesheets = [weasyprint.CSS(urljoin(base_url, p))
-        #                for p in self.css_xpath(tree)]
-        # stringify this!
-        # TODO work around cairocffi bug
-        html_string = html.tostring(relevant_html)
-        doc = weasyprint.HTML(string=html_string)
-        stream = io.BytesIO()
-        doc.write_pdf(stream)
-        return stream.getvalue()
+        # stringify the portions together
+        html_string = "\n".join([html.tostring(part).decode("utf-8")
+                                 for part in relevant_html])
+        doc = pdfkit.from_string(html_string, False,  # css=stylesheets,
+                                 configuration=self.pdfkit_config)
+        return doc
 
 
 class BasePlugin:

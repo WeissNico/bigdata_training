@@ -9,9 +9,20 @@ import hashlib
 import datetime as dt
 import time
 import re
+import sys
+import os
 
 ORDER_STATUS = {"open": 2, "waiting": 1, "finished": 0}
 ORDER_IMPACT = {"high": 2, "medium": 1, "low": 0}
+
+PLATFORM = sys.platform
+
+EXEC_SUFFIXES = {
+    "win32": ".exe",
+    "cygwin": ".exe",
+    "linux": "",
+    "darwin": ""
+}
 
 
 class _DefaultEntry():
@@ -834,3 +845,26 @@ def coerce_bool(expr):
     if isinstance(expr, str):
         return expr.lower() in {"true", "yes", "active", "on", "1"}
     return bool(expr)
+
+
+def path_in_project(path, is_executable=False):
+    """Returns the absolute path to a relative path in the project.
+
+    If the option `is_executable` is provided, `path` becomes the filename and
+    the function returns the absolute path to the executable.
+
+    Args:
+        path (str): Either a relative path in the project or the base name
+            of an executable.
+        is_executable (bool): when this option is given, `path` is treated like
+            the base name of an executable file.
+
+    Returns:
+        str: a relative path to an executable.
+    """
+    base_dir = os.path.dirname(__file__)
+    if not is_executable:
+        return os.path.join(base_dir, path.strip("/\\"))
+    # if this is an executable base name.
+    return os.path.join(base_dir, "bin", PLATFORM,
+                        path + EXEC_SUFFIXES[PLATFORM])

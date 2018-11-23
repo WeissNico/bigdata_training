@@ -5,26 +5,17 @@ and process it such that it fits into our elasticsearch db.
 
 Author: Johannes Mueller <j.mueller@reply.de>
 """
-import os
 import io
-import sys
+import os
 import subprocess
 import tempfile
 import datetime as dt
+import logging
 
 from PyPDF2 import PdfFileReader
 
 import utility
 from analyzers.analyzer import BaseAnalyzer
-
-PLATFORM = sys.platform
-
-EXEC_SUFFIXES = {
-    "win32": ".exe",
-    "cygwin": ".exe",
-    "linux": "",
-    "darwin": ""
-}
 
 XMP_NAMESPACES = {
     "http://purl.org/dc/elements/1.1/": "dc",
@@ -81,11 +72,9 @@ class PDFAnalyzer(BaseAnalyzer):
             PDFConverter: a new PDFConverter instance.
         """
         super().__init__()
-        base_dir = os.path.join(os.path.dirname(__file__), "..")
         self.defaults = utility.DefaultDict({
-            "bin_path": os.path.join(base_dir, "bin", PLATFORM)
+            "bin_path": utility.path_in_project("pdftotext", True)
         }, **kwargs)
-        self.base_dir = base_dir
 
     def _convert_pdf(self, content, exc, tmp_pdf, tmp_txt, **kwargs):
         """Converts a binary pdf-stream to text, by using xpdf utilties.
@@ -109,22 +98,27 @@ class PDFAnalyzer(BaseAnalyzer):
     def _pdftotext(self, content, **kwargs):
         """Returns the contained text of the PDF-File."""
         # get the path to the executable
-        path_to_exc = os.path.join(self.defaults.bin_path(),
-                                   f"pdftotext{EXEC_SUFFIXES[PLATFORM]}")
+        path_to_exc = self.defaults.bin_path()
         if not os.path.exists(path_to_exc):
             raise ValueError(f"The current path '{path_to_exc}' does not lead "
                              " to an actual file.")
         text = None
         # get the temporary paths
-        with tempfile.TemporaryDirectory(prefix=".pdfconv_") as tmp_dir:
-            tmp_pdf = os.path.join(tmp_dir, "input.pdf")
-            tmp_txt = os.path.join(tmp_dir, "output.txt")
+        try:
+            with tempfile.TemporaryDirectory(prefix=".pdfconv_") as tmp_dir:
+                tmp_pdf = os.path.join(tmp_dir, "input.pdf")
+                tmp_txt = os.path.join(tmp_dir, "output.txt")
 
-            self._convert_pdf(content, path_to_exc, tmp_pdf, tmp_txt, **kwargs)
+                self._convert_pdf(content, path_to_exc, tmp_pdf, tmp_txt,
+                                  **kwargs)
 
-            # read back the write results
-            with open(tmp_txt, "r", encoding="utf-8") as fl:
-                text = fl.read()
+                # read back the write results
+                with open(tmp_txt, "r", encoding="utf-8") as fl:
+                    text = fl.read()
+        # handle an OSError (could surface because of AntiVir)
+        except OSError as ose:
+            logging.error("Supressed an OSError while handling the "
+                          " temp-folder.")
         return text
 
     def _getpdfmeta(self, content, **kwargs):

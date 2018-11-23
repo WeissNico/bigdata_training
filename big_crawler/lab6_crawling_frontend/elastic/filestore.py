@@ -64,8 +64,7 @@ class FileStore():
 
         # set a default path
         if self.dir is None:
-            cur_dir = os.path.dirname(__file__)
-            self.dir = os.path.join(cur_dir, "..", "uploads")
+            self.dir = utility.path_in_project("uploads")
 
         if not _create_dir(self.dir):
             raise IOError(f"Couldn't create the upload folder: {self.dir}")
