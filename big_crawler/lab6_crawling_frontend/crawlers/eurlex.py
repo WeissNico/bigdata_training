@@ -1,14 +1,8 @@
-"""The Plugin for the BaFin-webpage.
-
-The Idea is to use the rss feed as the source of news and and update
-the database accordingly.
-
-The connected files have to be considered recursively...
+"""The Plugin for the eurlex-webpage.
 
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import datetime as dt
-import locale
 import re
 
 from lxml import etree, html
@@ -18,14 +12,9 @@ from crawlers.plugin import BasePlugin, PaginatedResource, XPathResource
 import utility as ut
 
 
-URL_TEMPLATE = ("https://www.bafin.de/SiteGlobals/Functions/Solr/Suche/"
-                "Ergebnisdarstellung/Expertensuche/rssnewsfeed.xml"
-                "?cms_input_=7844616"
-                "&cms_gts=7855320_list%253DdateOfIssue_dt%252Bdesc"
-                "&cms_gtp=7855320_list%253D{page}"
-                "&https=1&cms_resourceId=7844738"
-                "&cms_rss=rss"
-                "&cms_language_={locale}&cms_pageLocale={locale}")
+URL_TEMPLATE = ("https://eur-lex.europa.eu/search.html?lang={locale}"
+                "&type=quick&scope=EURLEX&sortOneOrder=desc"
+                "&sortOne=DD&locale={locale}&page={page}")
 
 
 def _make_resource_path(path, cwd):
@@ -52,44 +41,43 @@ def _string_join(context, elements, separator):
 
 
 def _convert_date(date_string):
-    """Converts the date from a given date string:
-
-    Example `Fri, 23 Nov 2018 15:00:00 +0100`
-    """
-    match = re.search(r"\w{3}, (\d+ \w{3} \d{4} \d{2}:\d{2}:\d{2} [+-]\d{4})",
-                      date_string)
+    """Converts the date from a given DD/MM/YYYY string"""
+    match = re.search(r"(\d+\/\d+\/\d+)", date_string)
 
     doc_date = dt.datetime.now()
-    # date is given using english locale...
-    locale.setlocale(locale.LC_TIME, "en_US")
     if match:
-        doc_date = dt.datetime.strptime(match[1], "%d %b %Y %H:%M:S %z")
-    locale.setlocale(locale.LC_TIME, "")
+        doc_date = dt.datetime.strptime(match[1], "%d/%m/%Y")
     return doc_date
 
 
-class BafinPlugin(BasePlugin):
+class EurlexPlugin(BasePlugin):
 
     CWD = "https://eur-lex.europa.eu"
     """Directory to use when localizing the relative paths."""
 
-    source_name = "BaFin"
+    source_name = "EurLex"
     """Name that should be displayed as source."""
 
-    entry_path = XPathResource("//rss/channel/item")
+    entry_path = XPathResource("//div[@class = 'SearchResult']")
     date_path = XPathResource(
-        "./pubDate/text()",
-        after=[ut.defer("__getitem__", 0), _convert_date]
-    )
+        """
+        .//dl/dd[preceding-sibling::dt[contains(text(), 'Date') or
+                                       contains(text(), 'Datum')]]/text()
+        """,
+        after=[ut.defer("__getitem__", 0), _convert_date])
     doc_path = XPathResource(
-        "./link/text()",
+        """
+        .//ul[contains(@class, 'SearchResultDoc')]/li
+        /a[contains(@href, 'PDF') or contains(@href, 'HTML')]/@href
+        """,
         after=[ut.defer("__getitem__", 0),
                ut.curry(_make_resource_path, cwd=CWD)]
     )
-    title_path = XPathResource("./title/text()",
+    title_path = XPathResource(".//h2/a[@class = 'title']/text()",
                                after=[ut.defer("__getitem__", 0)])
-    detail_path = XPathResource("./link/text()",
-                                after=[ut.defer("__getitem__", 0)])
+    detail_path = XPathResource(".//h2/a[@class = 'title']/@href",
+                                after=[ut.defer("__getitem__", 0),
+                                       ut.curry(_make_resource_path, cwd=CWD)])
 
     meta_path = XPathResource("//dl[contains(@class, 'NMetadata')]/dd")
     key_path = XPathResource("normalize-space(./preceding-sibling::dt[1])",

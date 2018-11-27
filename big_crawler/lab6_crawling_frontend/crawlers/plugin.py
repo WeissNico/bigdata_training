@@ -6,7 +6,7 @@ from abc import abstractmethod
 import logging
 import requests
 from lxml import etree, html
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 import time
 from functools import reduce
 
@@ -65,12 +65,16 @@ def _retry_connection(url, method="get", max_retries=10, **kwargs):
     """
     retry = 0
     response = None
+    # create an default dictionary for the request arguments.
+    defaults = utility.DefaultDict({
+        "headers": {"user-agent": "Sherlock/0.0.1"}
+    })
 
     while response is None and retry < max_retries:
         try:
             with requests.Session() as s:
                 logging.debug(f"Try to {method.upper()} to '{url}'.")
-                response = s.request(method, url, **kwargs)
+                response = s.request(method, url, **(defaults.other(kwargs)))
         except requests.exceptions.ConnectionError as connErr:
             # sleep increasing (exponential time intervals)
             logging.error("Detected an Error while connecting... "
@@ -153,10 +157,12 @@ class PaginatedResource:
             wildcard for the page.
         min_page (int): the number to start iterating the pages.
         max_page (int): the maximum page, defaults to None.
+        locale (str): the locale string used on this resource.
         url_fetcher (callable): a callable taking a url as argument and returns
             a `requests.Response`. Defaults to _retry_connection.
     """
-    def __init__(self, url_template, min_page=1, max_page=None, **fetch_args):
+    def __init__(self, url_template, min_page=1, max_page=None, locale="de",
+                 **fetch_args):
         """Initialize the `PaginatedResults`.
 
         Args:
@@ -171,6 +177,7 @@ class PaginatedResource:
         self.max_page = max_page
         self._cur_page = min_page
         self._fetch_args = fetch_args
+        self.locale = locale
         self.url_fetcher = _retry_connection
 
     def __iter__(self):
@@ -179,7 +186,8 @@ class PaginatedResource:
     def __next__(self):
         if self.max_page and (self._cur_page > self.max_page):
             raise StopIteration
-        resp = self.url_fetcher(self.url_template.format(page=self._cur_page),
+        resp = self.url_fetcher(self.url_template.format(page=self._cur_page,
+                                                         locale=self.locale),
                                 "get",
                                 **self._fetch_args)
         if not resp:
@@ -235,7 +243,7 @@ class HTMLConverter(BaseConverter):
 
     Just fetches the content and converts it using weasyprint.
     """
-    def __init__(self, content_xpath=None, css_xpath=None):
+    def __init__(self, content_xpath=None):
         """Initializes the HTML converter.
 
         Args:
@@ -248,33 +256,46 @@ class HTMLConverter(BaseConverter):
         self.content_xpath = content_xpath
         if content_xpath is None:
             self.content_xpath = XPathResource(
-                "//head | //body"
+                "//body"
             )
-            self.link_xpath = XPathResource(
-                ".//head/link[@href]"
-            )
-
+        self.head_xpath = XPathResource(
+            "//head"
+        )
+        self.link_xpath = XPathResource(
+            "//*[@href or @src]"
+        )
+        self.base_xpath = XPathResource(
+            "//head/base/@href",
+            after=[utility.defer("__getitem__", 0)]
+        )
         self.pdfkit_config = pdfkit.configuration(
             wkhtmltopdf=utility.path_in_project("wkhtmltopdf", True)
         )
 
     def _replace_relative(self, tree, base_url):
-        """Replaces relative href attributes in the header.
+        """Replaces relative href and src attributes.
 
         Args:
             tree (lxml.etree): An html-ETree.
             base_url (str): the base url.
         """
-        for elem in tree.findall(str(self.link_xpath.xpath)):
-            elem.attrib["href"] = urljoin(base_url, elem.attrib["href"])
+        for elem in self.link_xpath(tree):
+            for attr in ["href", "src"]:
+                if attr not in elem.attrib:
+                    continue
+                elem.attrib[attr] = urljoin(base_url, elem.attrib[attr])
 
     def convert(self, content, **kwargs):
         tree = html.fromstring(content)
         # retrieve base url from kwargs
         base_url = kwargs.get("base_url", None)
+        base_url_found = self.base_xpath(tree)
+        if base_url_found:
+            base_url = base_url_found
         # replace relative links
         self._replace_relative(tree, base_url)
-        relevant_html = self.content_xpath(tree)
+        relevant_html = self.head_xpath(tree)
+        relevant_html.extend(self.content_xpath(tree))
         # stringify the portions together
         html_string = "\n".join([html.tostring(part).decode("utf-8")
                                  for part in relevant_html])
@@ -435,7 +456,7 @@ class BasePlugin:
         Returns:
             bytes: the converted content.
         """
-        mime, *args = mimetype.split("; ")
+        mime, *args = mimetype.split(";")
         for arg in args:
             kw, *vals = arg.strip(" .,;:_").split("=")
             kwargs[kw] = vals and vals[0]
@@ -461,7 +482,9 @@ class BasePlugin:
             return document
         resp = self.url_fetcher(doc_url)
         content_type = resp.headers["content-type"]
-        content = self.convert(content_type, resp.content, base_url=doc_url)
+        url_parts = urlparse(doc_url)
+        url_stem = f"{url_parts[0]}://{url_parts[1]}/"
+        content = self.convert(content_type, resp.content, base_url=url_stem)
         document["content"] = content
         return document
 

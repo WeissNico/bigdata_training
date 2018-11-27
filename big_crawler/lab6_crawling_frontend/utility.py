@@ -54,8 +54,21 @@ class DefaultDict():
         self.dict = dict(a_dict, **kwargs)
 
     def __getattr__(self, name):
-        # skip internal values event when they're present in the dict.
+        # check whether the attribute is defined on a dict.
+        if hasattr(self.dict, name):
+            return getattr(self.dict, name)
+        # skip AttributeError and return a dictionary key or none.
         return _DefaultEntry(self.dict.get(name, None))
+
+    # delegate subscriptability to dict.
+    def __getitem__(self, key):
+        return self.dict[key]
+
+    def __contains__(self, key):
+        return key in self.dict
+
+    def __setitem__(self, key, value):
+        self.dict[key] = value
 
     def other(self, dictionary):
         """Returns a combined dictionary, favors the new one."""
@@ -511,7 +524,7 @@ def date_from_string(datestring):
     this_date = None
     try:
         this_date = dt.datetime.strptime(datestring[:10], "%Y-%m-%d")
-    except (ValueError, IndexError):
+    except (ValueError, IndexError, TypeError):
         pass
     return from_date(this_date)
 
@@ -814,7 +827,7 @@ def defer(func, *args, **kwargs):
     return _apply
 
 
-def curry(func, **kwargs):
+def curry(func, *args, **kwargs):
     """A curried function call.
 
     Args:
@@ -827,7 +840,7 @@ def curry(func, **kwargs):
             an input. Careful when considering argument order.
     """
     def _curried(*cargs, **cwargs):
-        return func(*cargs, **dict(cwargs, **kwargs))
+        return func(*(args + cargs), **dict(cwargs, **kwargs))
     return _curried
 
 
