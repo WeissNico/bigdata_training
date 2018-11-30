@@ -12,6 +12,8 @@ import logging
 
 import utility
 
+logger = logging.getLogger(__name__)
+
 
 def _create_dir(dirpath):
     """Creates a directory if it's not already existant.
@@ -26,7 +28,7 @@ def _create_dir(dirpath):
         try:
             os.mkdir(dirpath)
         except IOError as ioe:
-            logging.error(f"IOError occured, while trying to create {dirpath}")
+            logger.error(f"IOError occured, while trying to create {dirpath}")
             return False
     return True
 
@@ -93,6 +95,7 @@ class FileStore():
         with open(path, "w" + mode) as fl:
             fl.write(content)
 
+        logger.debug(f"Created file '{filename}'.")
         return filename
 
     def get(self, filename, mode="b"):
@@ -135,5 +138,8 @@ class FileStore():
         try:
             os.remove(path)
         except IOError as ioe:
+            logger.error(f"Failed to delete file '{path}'.")
             return False
+
+        logger.debug(f"Deleted file '{path}'.")
         return True

@@ -15,6 +15,9 @@ from . import transforms as etrans
 from . import filestore
 
 
+logger = logging.getLogger(__name__)
+
+
 # shortcut for safe_dict_access
 sda = utility.safe_dict_access
 
@@ -419,7 +422,7 @@ class Elastic():
                 "query": {"match_all": {}}
             })
         except Exception as e:
-            logging.error(f"An error occured while retrieving the seeds. {e}")
+            logger.error(f"An error occured while retrieving the seeds. {e}")
 
         return etrans.transform_output(res)
 
@@ -471,8 +474,8 @@ class Elastic():
                 "query": {"match_all": {}}
             })
         except Exception as e:
-            logging.error("An error occured while retrieving the searches."
-                          f" {e}")
+            logger.error("An error occured while retrieving the searches."
+                         f" {e}")
 
         return etrans.transform_output(res)
 
@@ -543,7 +546,7 @@ class Elastic():
             dict: a dictionary of aggregations.
         """
         index = self.defaults.docs_index()
-        logging.debug(f"Searching for {search_text} on '{index}'")
+        logger.debug(f"Searching for {search_text} on '{index}'")
 
         search = {
             "simple_query_string": {
@@ -1000,7 +1003,7 @@ class Elastic():
                 `num_results`, `total_pages` and `results`.
         """
         index = self.defaults.docs_index()
-        logging.debug(f"Searching for {search_text} on '{index}'")
+        logger.debug(f"Searching for {search_text} on '{index}'")
 
         start = (page - 1) * self.defaults.size()
         search = {

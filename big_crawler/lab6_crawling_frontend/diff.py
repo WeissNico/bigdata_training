@@ -7,6 +7,9 @@ Author: Johannes Mueller <j.mueller@reply.de>
 
 import difflib
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 CONTEXT_LINE_REGEX = r"^@@ ([+-])(\d+,)?(\d+) ([+-])(\d+,)?(\d+) @@\s*$"
 IDENTIFIER_MAP = {"+ ": 2, "- ": 1, "  ": 0}

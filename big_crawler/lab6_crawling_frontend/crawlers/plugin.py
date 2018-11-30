@@ -15,6 +15,9 @@ import pdfkit
 import utility
 
 
+logger = logging.getLogger(__name__)
+
+
 def _flat_map(func, iterable):
     """Runs a function func on each element in an iterator.
 
@@ -38,7 +41,7 @@ def _flat_map(func, iterable):
         try:
             lst = list(res)
         except ValueError as e:
-            logging.error("Tried to convert a non iterable type to list.")
+            logger.error("Tried to convert a non iterable type to list.")
 
         if lst is not None:
             acc += lst
@@ -73,12 +76,12 @@ def _retry_connection(url, method="get", max_retries=10, **kwargs):
     while response is None and retry < max_retries:
         try:
             with requests.Session() as s:
-                logging.debug(f"Try to {method.upper()} to '{url}'.")
+                logger.debug(f"Try to {method.upper()} to '{url}'.")
                 response = s.request(method, url, **(defaults.other(kwargs)))
         except requests.exceptions.ConnectionError as connErr:
             # sleep increasing (exponential time intervals)
-            logging.error("Detected an Error while connecting... "
-                          f"retry ({retry})")
+            logger.error("Detected an Error while connecting... "
+                         f"retry ({retry})")
             time.sleep(2 ** retry)
     return response
 
@@ -122,7 +125,7 @@ class XPathResource:
             try:
                 tree = func(tree)
             except (AttributeError, ValueError, IndexError, TypeError) as err:
-                logging.error(f"Before function '{func.__name__}' failed.")
+                logger.error(f"Before function '{func.__name__}' failed.")
                 tree = []
 
         if isinstance(tree, list):
@@ -134,7 +137,7 @@ class XPathResource:
             try:
                 self.results = func(self.results)
             except (AttributeError, ValueError, IndexError, TypeError) as err:
-                logging.error(f"After function '{func.__name__}' failed.")
+                logger.error(f"After function '{func.__name__}' failed.")
                 self.results = None
         return self.results
 
@@ -364,25 +367,25 @@ class BasePlugin:
                 doc_url = doc["metadata.url"]
                 # skip entries where no url is given
                 if not doc_url:
-                    logging.debug("Document contains no url. SKIP.")
+                    logger.debug("Document contains no url. SKIP.")
                     continue
                 exists = self.elastic.exist_document(source_url=doc_url)
 
                 # handle existing files, if they have a date field, which lies
                 # in the past, break the loop.
                 if exists:
-                    logging.debug(f"Document for url '{doc_url}' does already "
-                                  "exist. SKIP.")
+                    logger.debug(f"Document for url '{doc_url}' does already "
+                                 "exist. SKIP.")
                     doc_date = doc["metadata.date"]
                     today = utility.from_date()
                     if doc_date and doc_date < today:
-                        logging.debug("Document's date lies in the past."
-                                      "Stop search.")
+                        logger.debug("Document's date lies in the past."
+                                     "Stop search.")
                         has_unseen_docs = False
                         break
                     continue
 
-                logging.info(f"Found document {doc_url}.")
+                logger.info(f"Found document {doc_url}.")
                 doc["metadata.source"] = self.source_name
                 self.documents.append(doc.a_dict)
                 doc_count += 1
@@ -409,7 +412,7 @@ class BasePlugin:
             BasePlugin: self.
         """
         for idx, doc in enumerate(self.documents):
-            logging.info(f"Processing doc {idx} of {len(self.documents)}...")
+            logger.info(f"Processing doc {idx+1} of {len(self.documents)}...")
             self.process_document(doc, **kwargs)
         return self
 
@@ -423,7 +426,7 @@ class BasePlugin:
             BasePlugin: self.
         """
         for idx, doc in enumerate(self.documents):
-            logging.info(f"Converting doc {idx} of {len(self.documents)}...")
+            logger.info(f"Converting doc {idx+1} of {len(self.documents)}...")
             self.convert_document(doc)
         return self
 
@@ -438,8 +441,8 @@ class BasePlugin:
         """
         doc_count = 0
         for idx, doc in enumerate(self.documents):
-            logging.info(f"Inserting doc {idx} of {len(self.documents)}"
-                         " into the database.")
+            logger.info(f"Inserting doc {idx+1} of {len(self.documents)}"
+                        " into the database.")
             res = self.elastic.insert_document(doc)
             if res["result"] == "created":
                 doc_count += 1

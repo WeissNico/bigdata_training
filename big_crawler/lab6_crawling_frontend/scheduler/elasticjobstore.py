@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import warnings
 import base64
+import logging
 
 from apscheduler.jobstores.base import (
     BaseJobStore, JobLookupError, ConflictingIdError
@@ -21,6 +22,8 @@ except ImportError:  # pragma: nocover
     raise ImportError("ElasticJobStore needs elasticsearch to be installed.")
 
 from utility import SDA
+
+logger = logging.getLogger(__name__)
 
 
 class ElasticJobStore(BaseJobStore):
@@ -186,7 +189,7 @@ class ElasticJobStore(BaseJobStore):
                                               self.pickle_protocol)).decode()
             }
         result = self.client.index(index=self.index, doc_type=self.doc_type,
-                                   id=job.id, body=doc)
+                                   id=job.id, body=doc, refresh=True)
         if SDA(result, 0)["_shards.successful"] == 0:
             raise ConflictingIdError(job.id)
 
@@ -201,7 +204,7 @@ class ElasticJobStore(BaseJobStore):
             "doc": changes
         }
         result = self.client.update(index=self.index, doc_type=self.doc_type,
-                                    id=job.id, body=upd_body)
+                                    id=job.id, body=upd_body, refresh=True)
         if SDA(result, 0)["_shards.failed"] > 0:
             raise JobLookupError(job.id)
 
@@ -260,26 +263,44 @@ class InjectorJobStore(ElasticJobStore):
     These dynamic arguments are appended to the jobs.kwargs, before executing.
     """
 
-    def __init__(self, runtime_args={}, **connector_args):
-        super().__init__(**connector_args)
-        self.args = runtime_args
+    def __init__(self, args=[], kwargs={}, **js_args):
+        """Initializes a new Elastic JobStore, inject arguments at runtime.
+
+        Args:
+            args (list): list of arguments to inject into the job.
+            kwargs (dict): dictionary of keyword arguments to inject.
+            **js_args (dict): additional arguments for the jobstore.
+
+        Returns:
+            `InjectorJobStore`: a new InjectorJobStore.
+        """
+        super().__init__(**js_args)
+        self.args = tuple(args)
+        self.kwargs = kwargs
 
     def _reconstitute_job(self, job_state):
         # add the keyword arguments
         job = super()._reconstitute_job(job_state)
-        job.kwargs = dict(job.kwargs, **self.args)
+        job.args = job.args + self.args
+        job.kwargs = dict(job.kwargs, **self.kwargs)
+        logger.debug(f"Reconstituted job {job.id} with the following kwargs: "
+                     f"'{job.kwargs}'")
         return job
 
     def add_job(self, job):
-        # remove the keyword arguments
-        self._remove_kwargs(job)
+        # remove the runtime arguments
+        self._remove_rtargs(job)
         super().add_job(job)
 
     def update_job(self, job):
-        # remove the keyword arguments
-        self._remove_kwargs(job)
+        # remove the runtime arguments
+        self._remove_rtargs(job)
         super().update_job(job)
 
-    def _remove_kwargs(self, job):
+    def _remove_rtargs(self, job):
+        # remove all runtime arguments, that are already saved in the
+        # injector.
+        if len(self.args) > 0:
+            job.args = job.args[:-len(self.args)]
         job.kwargs = {k: v for k, v in job.kwargs.items()
-                      if k not in self.args}
+                      if k not in self.kwargs}

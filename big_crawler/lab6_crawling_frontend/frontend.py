@@ -20,6 +20,10 @@ app.config.from_object(settings)
 
 # set the logging level according to the config
 logging.basicConfig(level=app.config["LOGGING_LEVEL"])
+for lib in "requests urllib3 elasticsearch".split():
+    logging.getLogger(lib).setLevel(logging.WARNING)
+
+logger = logging.getLogger(__name__)
 
 # connect to the elasticDB
 es = elastic.Elastic(app.config["ELASTICSEARCH_HOST"],
@@ -545,7 +549,7 @@ def old_search():
                 ret_doc["text"] = highlight["text"]
             # shorten text
             ret_doc["text"] = ret_doc["text"][0][:200]
-            logging.debug("Appending '{filename}': {tags}".format(**ret_doc))
+            logger.debug("Appending '{filename}': {tags}".format(**ret_doc))
             search_result.append(ret_doc)
 
     return render_template('old_search.html', results=search_result)

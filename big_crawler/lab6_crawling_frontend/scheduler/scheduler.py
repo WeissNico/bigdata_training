@@ -13,7 +13,10 @@ import cerberus
 
 import crawlers
 import utility
-from elasticjobstore import InjectorJobStore
+import logging
+from scheduler.elasticjobstore import InjectorJobStore
+
+logger = logging.getLogger(__name__)
 
 
 def _run_plugin(crawler_by_ref, run_args=None, **init_args):
@@ -31,8 +34,11 @@ def _run_plugin(crawler_by_ref, run_args=None, **init_args):
     if run_args is None:
         run_args = {}
     crawler = _detect_crawlers()[crawler_by_ref]
+    logger.info(f"Starting up crawler '{crawler.__name__}'.")
+    logger.debug(f"Received run_args: {run_args} and init_args: {init_args}.")
     instance = crawler(**init_args)
     instance(**run_args)
+    logger.info(f"Crawler '{crawler.__name__}' finished.")
 
 
 def _find_subclasses(klass):
@@ -108,6 +114,14 @@ SCHEMATA = {
 
 class Scheduler:
     TRIGGERS = {
+        "trig_5minutes": {
+            "id": "trig_5minutes",
+            "name": "Every five minutes",
+            "options": [],
+            "schema": {},
+            "trigger_args": lambda args: dict(minute="*/5"),
+            "from_trigger": lambda trig: []
+        },
         "trig_hourly": {
             "id": "trig_hourly",
             "name": "Each hour",
@@ -195,12 +209,17 @@ class Scheduler:
         """
         jobstores = {
             "default": {"type": "memory"},
-            "elastic": InjectorJobStore(crawler_args, client=elastic)
+            "elastic": InjectorJobStore(kwargs=crawler_args, client=elastic)
         }
 
         executors = {
-            "default": ThreadPoolExecutor(),
-            "processpool": ProcessPoolExecutor()
+            "default": ThreadPoolExecutor(10),
+            "processpool": ProcessPoolExecutor(10)
+        }
+
+        job_defaults = {
+            "misfire_grace_time": 5*60,  # 5min
+            "coalesce": True,
         }
 
         self.cron_defaults = utility.DefaultDict({
@@ -212,6 +231,7 @@ class Scheduler:
 
         self.scheduler = BackgroundScheduler(jobstores=jobstores,
                                              executors=executors,
+                                             job_defaults=job_defaults,
                                              timezone=utc)
 
         self.crawlers = _detect_crawlers()
@@ -261,10 +281,12 @@ class Scheduler:
         trigger = self._make_trigger(doc["schedule"])
 
         if doc["id"]:
-            new_job = self.scheduler.modify_job(doc["id"], jobstore="elastic",
-                                                func=_run_plugin,
-                                                trigger=trigger,
-                                                name=doc["name.name"], **inst)
+            self.scheduler.modify_job(doc["id"], jobstore="elastic",
+                                      func=_run_plugin,
+                                      name=doc["name.name"], **inst)
+            new_job = self.scheduler.reschedule_job(doc["id"],
+                                                    jobstore="elastic",
+                                                    trigger=trigger)
         else:
             # use the crawler id as name, when the job is created.
             new_job = self.scheduler.add_job(_run_plugin,
@@ -296,6 +318,7 @@ class Scheduler:
         Returns:
             bool: whether this operation was successful or not.
         """
+        logger.debug("Syncing job lists ...")
         current_jobs = self.get_jobs()
         jobs_to_keep = {j["id"] for j in joblist if j.get("id")}
 
@@ -368,6 +391,7 @@ class Scheduler:
                 "schedule": self._serialize_trigger(job.trigger),
                 "next_run": {"name": job.next_run_time}
             })
+        logger.debug(f"Retrieved {len(joblist)} jobs from the jobstore.")
         return joblist
 
     def run_job(self, job_id):
@@ -379,6 +403,7 @@ class Scheduler:
         Returns:
             bool: whether running the job succeeded or not.
         """
+        logger.debug(f"Running job '{job_id}' directly.")
         cur_job = self.scheduler.get_job(job_id, jobstore="elastic")
         if cur_job is None:
             return False
