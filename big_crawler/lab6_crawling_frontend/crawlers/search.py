@@ -4,117 +4,119 @@ Author: Johannes Mueller <j.mueller@reply.de>
 """
 import datetime as dt
 import re
-
-from lxml import etree, html
+from urllib.parse import quote_plus
 
 from crawlers.plugin import BasePlugin, PaginatedResource, XPathResource
 
 import utility as ut
 
-# TODO MAKE THIS A GOOGLE SEARCH PLUGIN.
 
-URL_TEMPLATE = ("https://eur-lex.europa.eu/search.html?lang=de"
-                "&type=quick&scope=EURLEX&sortOneOrder=desc"
-                "&sortOne=DD&locale=de&page={page}")
+URL_TEMPLATE = ("https://www.google.com/search?q={query}&hl={{locale}}"
+                "&tbs={tp}&start={{page}}")
+"""The template string for the PaginatedResource, page and locale escaped."""
 
+USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+              " (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36")
 
-def _make_resource_path(path, cwd):
-    """Takes a relative `path` and a `cwd` and returns an absolute  path.
+Q_SRC_TEMPLATE = "site:{src}"
+Q_FT_TEMPLATE = "filetype:{ft}"
+Q_TP_TEMPLATE = "qdr:{type}"
+Q_TF_TEMPLATE = "cdr:1,cd_min:{from:%m/%d/%Y},cd_max:{to:%m/%d/%Y}"
 
-    Also cuts away the unnecessary `rid` and `qid` attributes.
-
-    Args:
-        path (str): the relative path (containing '.')
-        cwd (str): the current working directory, to root the paths.
-
-    Returns:
-        str: a new absolute path
-    """
-    # TODO make more general.
-    without_rid_qid = re.sub(r"([?&][qr]id=[^&]+)", "", path)
-    with_server = without_rid_qid.replace(".", cwd)
-    return with_server.replace("AUTO", "DE/ALL")
-
-
-def _string_join(context, elements, separator):
-    ret = str(separator).join(elements)
-    return ret
+Q_TYPE_HIERARCHY = {
+    "c": 16,
+    "": 8,
+    "y": 4,
+    "m": 2,
+    "w": 1
+}
 
 
 def _convert_date(date_string):
-    """Converts the date from a given DD/MM/YYYY string"""
-    match = re.search(r"(\d+\/\d+\/\d+)", date_string)
+    """Converts the date from a given DD.MM.YYYY string"""
+    match = re.search(r"(\d{2}\.\d{2}\.\d{4})", date_string)
 
     doc_date = dt.datetime.now()
     if match:
-        doc_date = dt.datetime.strptime(match[1], "%d/%m/%Y")
+        doc_date = dt.datetime.strptime(match[1], "%d.%m.%Y")
     return doc_date
+
+
+def _query_from_search(search):
+    """Creates a query string and a tbs-value for the given search-dict."""
+    s = ut.SDA(search)
+    query = []
+    query.append(s["keywords"])
+    query.append(" OR ".join([Q_FT_TEMPLATE.format(ft=ft)
+                              for ft in s["file_types"]]))
+    query.append(" OR ".join([Q_SRC_TEMPLATE.format(src=src)
+                              for src in s["sources"]]))
+
+    tp = ""
+    max_level = 0
+
+    for cur_tp in s["time_periods"]:
+        cur_level = Q_TYPE_HIERARCHY.get(cur_tp["type"], 0)
+        if cur_level <= max_level:
+            continue
+
+        if cur_tp["type"] == "c":
+            tp = Q_TF_TEMPLATE.format(**cur_tp)
+        else:
+            tp = Q_TP_TEMPLATE.format(**cur_tp)
+        max_level = cur_level
+
+    return {
+        "query": quote_plus(" ".join(query)),
+        "tp": quote_plus(tp)
+    }
 
 
 class SearchPlugin(BasePlugin):
 
-    entry_path = XPathResource("//div[@class = 'SearchResult']")
+    entry_path = XPathResource("//div[@class = 'g']")
     date_path = XPathResource(
         """
-        .//dl/dd[preceding-sibling::dt[contains(text(), 'Date') or
-                                        contains(text(), 'Datum')]]/text()
+        .//div[@class = 's']/div/span[@class = 'st']/span[@class = 'f']/text()
         """,
-        after=[ut.defer("__getitem__", 0), _convert_date])
+        after=[ut.defer("__getitem__", 0), _convert_date]
+    )
     doc_path = XPathResource(
         """
-        .//ul[contains(@class, 'SearchResultDoc')]/li
-        /a[contains(@href, 'PDF') or contains(@href, 'HTML')]/@href
+        .//div[@class = 'rc']/div[@class = 'r']/a/@href
         """,
-        after=[ut.defer("__getitem__", 0), _make_resource_path])
-    title_path = XPathResource(".//h2/a[@class = 'title']/text()",
-                               after=[ut.defer("__getitem__", 0)])
-    detail_path = XPathResource(".//h2/a[@class = 'title']/@href",
-                                after=[ut.defer("__getitem__", 0),
-                                       _make_resource_path])
-
-    meta_path = XPathResource("//dl[contains(@class, 'NMetadata')]/dd")
-    key_path = XPathResource("normalize-space(./preceding-sibling::dt[1])",
-                             after=[ut.defer("__getitem__", 0),
-                                    ut.defer("strip", " .:,;!?-_#")])
-    value_path = XPathResource(
+        after=[ut.defer("__getitem__", 0)]
+    )
+    title_path = XPathResource(
         """
-        normalize-space(
-            string-join(
-                ./text() | .//*[self::span[@lang] or
-                                self::a[not(child::span)] or
-                                self::i[not(child::span)]]/text(), "#"
-            )
-        )
+        .//div[@class = 'rc']/div[@class = 'r']/a/h3/text()
         """,
-        after=[ut.defer("__getitem__", 0),
-               ut.defer("strip", " .:,;!?-_#"),
-               ut.defer("split", "#")])
+        after=[ut.defer("__getitem__", 0)]
+    )
 
     def __init__(self, elastic, **search_args):
         super().__init__(elastic)
-        self.entry_resource = PaginatedResource(URL_TEMPLATE)
-        # register a string-join function for the lxml XPath
-        ns = etree.FunctionNamespace(None)
-        ns["string-join"] = _string_join
+        search_id = search_args.get("search_id")
+        search = self.elastic.get_search(search_id)
+
+        self.entry_resource = PaginatedResource(
+            URL_TEMPLATE.format(**_query_from_search(search)),
+            min_page=0,
+            page_step=10,
+            headers={"user-agent": USER_AGENT}
+        )
 
     def find_entries(self, page):
         docs = []
         for entry in self.entry_path(page):
             doc = ut.SDA({}, "N/A")
-            doc["url"] = self.doc_path(entry)
-            doc["date"] = self.date_path(entry)
+            doc["metadata.url"] = self.doc_path(entry)
+            doc["metadata.date"] = self.date_path(entry)
             doc["metadata.title"] = self.title_path(entry)
-            doc["metadata.detail_url"] = self.detail_path(entry)
             doc["metadata.crawl_date"] = ut.from_date()
             docs.append(doc.a_dict)
 
         return docs
 
     def process_document(self, document, **kwargs):
-        doc = ut.SDA(document)
-        resp = self.url_fetcher(doc["metadata.detail_url"])
-        tree = html.fromstring(resp.content)
-        for entry in self.meta_path(tree):
-            key = self.key_path(entry)
-            value = self.value_path(entry)
-            doc[f"metadata.{key}"] = value
+        return document

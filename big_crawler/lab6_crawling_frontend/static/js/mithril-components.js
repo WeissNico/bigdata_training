@@ -144,7 +144,7 @@ var CheckListItem = {
                             vnode.attrs.item.active = arg;
                         }),
                         name: vnode.attrs.name,
-                        value: vnode.attrs.item.id,
+                        value: vnode.attrs.item.value || vnode.attrs.item.id,
                         checked: vnode.attrs.item.active
                     }),
                     m("span.far", { 

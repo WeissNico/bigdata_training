@@ -24,6 +24,7 @@ def _extract_tp(some_tp_id):
         dict: a time range dict, holding from and to keys.
     """
     d_range = {
+        "type": "c",
         "from": ut.from_date(datetime.datetime.min),
         "to": ut.from_date()
     }
@@ -45,18 +46,22 @@ OUTPUT_CONV = {
 TIME_PERIODS = {
     "_default": _extract_tp,
     "tp_last_week": lambda x: {
+        "type": "w",
         "from": ut.from_date() - datetime.timedelta(days=7),
         "to": ut.from_date()
     },
     "tp_last_month": lambda x: {
+        "type": "m",
         "from": ut.from_date() - datetime.timedelta(days=30),
         "to": ut.from_date()
     },
     "tp_last_year": lambda x: {
+        "type": "y",
         "from": ut.from_date() - datetime.timedelta(days=365),
         "to": ut.from_date()
     },
     "tp_older": lambda x: {
+        "type": "",
         "from": ut.from_date(datetime.datetime.min),
         "to": ut.from_date()
     }
@@ -408,6 +413,19 @@ def transform_agg_filters(aggregations, active={}):
     return {k: _transform_agg(k, v) for k, v in aggregations.items()}
 
 
+def _transform_document(doc):
+    """Transforms a single resulting document in a well-processable form."""
+    # append all source fields + run OUTPUT_CONVerters
+    ret = {k: OUTPUT_CONV.get(k, OUTPUT_CONV["_default"])(v)
+           for k, v in doc.get("_source", {}).items()}
+    # append id field
+    ret["_id"] = doc.get("_id", None)
+    # append all other fields + run OUTPUT_CONVerters
+    ret.update({k: OUTPUT_CONV.get(k, OUTPUT_CONV["_default"])(v)
+                for k, v in doc.get("fields", {}).items()})
+    return ret
+
+
 def transform_output(results):
     """Transforms the results dictionary into an easy readable document list.
 
@@ -418,16 +436,12 @@ def transform_output(results):
         list: a list of cleaned documents.
     """
 
-    ret = []
-    for doc in sda(results, ["hits", "hits"], []):
-        ret.append(doc.get("_source", {}))
-        ret[-1]["_id"] = doc.get("_id", None)
-        ret[-1].update(doc.get("fields", {}))
-        # run the output converters
-        ret[-1] = {k: OUTPUT_CONV.get(k, OUTPUT_CONV["_default"])(v)
-                   for k, v in ret[-1].items()}
+    res = ut.SDA(results)
 
-    return ret
+    if not res["hits.hits"]:
+        return _transform_document(results)
+    # otherwise
+    return [_transform_document(doc) for doc in res["hits.hits"]]
 
 
 def transform_input(update):

@@ -164,8 +164,8 @@ class PaginatedResource:
         url_fetcher (callable): a callable taking a url as argument and returns
             a `requests.Response`. Defaults to _retry_connection.
     """
-    def __init__(self, url_template, min_page=1, max_page=None, locale="de",
-                 **fetch_args):
+    def __init__(self, url_template, min_page=1, max_page=None, page_step=1,
+                 locale="de", **fetch_args):
         """Initialize the `PaginatedResults`.
 
         Args:
@@ -173,11 +173,14 @@ class PaginatedResource:
                 wildcard for the page.
             min_page (int): the number to start iterating the pages.
             max_page (int): the maximum page, defaults to None.
-            **kwargs (dict): keyword-arguments that get passed to the fetcher.
+            page_step (int): the step-size between two pages.
+            locale (str): the locale to use. Defaults to "de".
+            **fetch_args (dict): keyword-args that get passed to the fetcher.
         """
         self.url_template = url_template
         self.min_page = min_page
         self.max_page = max_page
+        self.step = page_step
         self._cur_page = min_page
         self._fetch_args = fetch_args
         self.locale = locale
@@ -195,7 +198,7 @@ class PaginatedResource:
                                 **self._fetch_args)
         if not resp:
             raise StopIteration
-        self._cur_page += 1
+        self._cur_page += self.step
         return html.fromstring(resp.content)
 
 
@@ -362,7 +365,13 @@ class BasePlugin:
         doc_count = 0
         for page in self.entry_resource:
             # insert the entries into documents, if they aren't already tracked
-            for doc in self.find_entries(page, **kwargs):
+            cur_docs = self.find_entries(page, **kwargs)
+            # if there are no documents on the page, break
+            if len(cur_docs) == 0:
+                logger.info(f"No documents found on page {page}!")
+                has_unseen_docs = False
+
+            for doc in cur_docs:
                 doc = utility.SDA(doc)
                 doc_url = doc["metadata.url"]
                 # skip entries where no url is given

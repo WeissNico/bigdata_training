@@ -241,7 +241,7 @@ class Scheduler:
         }), allow_unknown=True)
         self.scheduler.start()
 
-    def upsert_job(self, job_dict, **crawler_args):
+    def upsert_job(self, job_dict, **runtime_args):
         """Adds or updates a job using the provided user_input.
 
         If an id field is present in the dict, the job is updated, otherwise
@@ -249,8 +249,8 @@ class Scheduler:
 
         Args:
             job_dict (dict): user input for a job, as defined in `SCHEMATA`.
-            **crawler_args (dict): additional arguments for the crawler
-                (especially `elastic` is needed).
+            **runtime_args (dict): additional runtime arguments for the
+                crawler.
 
         Returns:
             apscheduler.job.Job: a new job Object.
@@ -266,7 +266,7 @@ class Scheduler:
             inst = {
                 "args": (
                     "SearchPlugin",
-                    crawler_args
+                    runtime_args
                 ),
                 "kwargs": dict(search_id=doc["crawler.id"])
             }
@@ -274,7 +274,7 @@ class Scheduler:
             inst = {
                 "args": (
                     doc["crawler.id"],
-                    crawler_args
+                    runtime_args
                 ),
                 "kwargs": {}
             }
@@ -389,7 +389,9 @@ class Scheduler:
                 "name": {"name": job.name},
                 "crawler": {"id": job.args[0]},
                 "schedule": self._serialize_trigger(job.trigger),
-                "next_run": {"name": job.next_run_time}
+                "next_run": {
+                    "name": job.next_run_time
+                }
             })
         logger.debug(f"Retrieved {len(joblist)} jobs from the jobstore.")
         return joblist

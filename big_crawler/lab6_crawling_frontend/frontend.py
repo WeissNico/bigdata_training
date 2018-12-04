@@ -18,25 +18,34 @@ import scheduler
 app = Flask(__name__)
 app.config.from_object(settings)
 
-# set the logging level according to the config
-logging.basicConfig(level=app.config["LOGGING_LEVEL"])
-for lib in "requests urllib3 elasticsearch".split():
-    logging.getLogger(lib).setLevel(logging.WARNING)
 
-logger = logging.getLogger(__name__)
+def setup_globals():
+    global es, sched, logger, mock
+    # set the logging level according to the config
+    logging.basicConfig(level=app.config["LOGGING_LEVEL"],
+                        format=("%(asctime)s %(name)s [%(threadName)s]: "
+                                "%(message)s"))
+    for lib in "requests urllib3 elasticsearch".split():
+        logging.getLogger(lib).setLevel(logging.WARNING)
 
-# connect to the elasticDB
-es = elastic.Elastic(app.config["ELASTICSEARCH_HOST"],
-                     app.config["ELASTICSEARCH_PORT"],
-                     (app.config["ELASTICSEARCH_USER"],
-                      app.config["ELASTICSEARCH_PASSWORT"]),
-                     docs_index="eur_lex")
-# connect to the mongoDB
-client = MongoClient("mongodb://159.122.175.139:30017")
-db = client["crawler"]
-mock = mck.Mocker(db.mockuments)
-sched = scheduler.Scheduler(es.es, crawler_args={"elastic": es},
-                            hour=2, minute=0)
+    logger = logging.getLogger(__name__)
+
+    # connect to the elasticDB
+    es = elastic.Elastic(app.config["ELASTICSEARCH_HOST"],
+                         app.config["ELASTICSEARCH_PORT"],
+                         (app.config["ELASTICSEARCH_USER"],
+                         app.config["ELASTICSEARCH_PASSWORT"]),
+                         docs_index="eur_lex")
+    # connect to the mongoDB
+    client = MongoClient("mongodb://159.122.175.139:30017")
+    db = client["crawler"]
+    mock = mck.Mocker(db.mockuments)
+    sched = scheduler.Scheduler(es.es, crawler_args={"elastic": es},
+                                hour=2, minute=0)
+
+
+# setup the global objects
+setup_globals()
 
 
 @app.route("/dashboard")
@@ -421,7 +430,9 @@ def searchdialog():
                  {"id": "tp_older", "name": "Older than 1 year"}]
     sources = es.get_seeds()
     for s in sources:
+        # add an id and value field to all seed entries
         s["id"] = s["_id"]
+        s["value"] = s["url"]
         del s["_id"]
     # render out the searchdialog template
     return render_template("searchdialog.html",
@@ -460,7 +471,7 @@ def create_new_search():
 
 
 @app.route("/scheduler", methods=["GET"])
-def scheduler():
+def schedules():
     """A dialog for displaying the currently scheduled jobs.
 
     It also facilitates changing the schedule.

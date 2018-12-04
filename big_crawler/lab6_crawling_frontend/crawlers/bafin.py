@@ -44,7 +44,7 @@ def _make_resource_path(path, cwd):
     """
     if path is None:
         return None
-    without_jsessionid = re.sub(r";jsessionid=.+(?:\?.+)?$", "", path)
+    without_jsessionid = re.sub(r";jsessionid=[^?]+((?:\?.+)?)$", r"\1", path)
     return urljoin(cwd, without_jsessionid)
 
 
@@ -53,7 +53,7 @@ def _convert_date(date_string):
 
     Example `vom 20. November 2018`
     """
-    match = re.search(r"(\d{2}\. \w+ \d{4})", date_string)
+    match = re.search(r"(\d{2}\.\d{2}\.\d{4})", date_string)
 
     doc_date = dt.datetime.now()
     # date is given using german locale...
@@ -63,7 +63,7 @@ def _convert_date(date_string):
         except locale.Error as le:
             logging.error(f"Couldn't set locale string '{loc}'.")
     if match:
-        doc_date = dt.datetime.strptime(match[1], "%d. %B %Y")
+        doc_date = dt.datetime.strptime(match[1], "%d.%m.%Y")
     # reset locale
     locale.setlocale(locale.LC_TIME, "")
     return doc_date
@@ -167,4 +167,4 @@ class BafinPlugin(BasePlugin):
         content = self.content_path(tree)
         doc["metadata.mentionned"] = [_make_resource_path(e, self.CWD)
                                       for e in self.connected_path(content)]
-        return
+        return doc.a_dict

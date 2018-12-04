@@ -95,6 +95,7 @@ class Elastic():
             "time_periods": {
                 "type": "object",
                 "properties": {
+                    "type": {"type": "keyword"},
                     "from": {"type": "date"},
                     "to": {"type": "date"}
                 }
@@ -461,23 +462,47 @@ class Elastic():
         result = self.es.delete(index=index, id=seed_id)
         return result
 
+    def get_search(self, search_id):
+        """Returns the search saved at a given search_id.
+
+        Args:
+            search_id (str): the id ('name') of the query.
+
+        Returns:
+            dict: a matching search.
+        """
+        index = self.defaults.search_index()
+        doc_type = self.defaults.search_type()
+
+        res = None
+        try:
+            res = self.es.get(index=index, doc_type=doc_type, id=search_id)
+        except Exception as e:
+            logger.error("An error occured while retrieving the searches."
+                         f" {e}")
+
+        return etrans.transform_output(res)
+
     def get_searches(self):
         """Returns the searches saved in the database.
 
         Returns:
-            list: a list of saved searches seedds.
+            list: a list of saved searches.
         """
         index = self.defaults.search_index()
+        doc_type = self.defaults.search_type()
 
         try:
-            res = self.es.search(index=index, body={
+            res = self.es.search(index=index, doc_type=doc_type, body={
                 "query": {"match_all": {}}
             })
         except Exception as e:
             logger.error("An error occured while retrieving the searches."
                          f" {e}")
 
-        return etrans.transform_output(res)
+        if res["found"]:
+            return etrans.transform_output(res)
+        return None
 
     def add_search(self, search):
         """Adds a new search job to the database.

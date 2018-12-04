@@ -121,3 +121,4 @@ class EurlexPlugin(BasePlugin):
             key = self.key_path(entry)
             value = self.value_path(entry)
             doc[f"metadata.{key}"] = value
+        return doc.a_dict

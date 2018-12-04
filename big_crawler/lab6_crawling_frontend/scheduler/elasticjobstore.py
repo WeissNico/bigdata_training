@@ -223,6 +223,7 @@ class ElasticJobStore(BaseJobStore):
         pass
 
     def _reconstitute_job(self, job_state):
+        logger.debug("Trying to reconstitute job from job state")
         job_state = pickle.loads(base64.b64decode(job_state))
         job = Job.__new__(Job)
         job.__setstate__(job_state)
@@ -289,18 +290,23 @@ class InjectorJobStore(ElasticJobStore):
 
     def add_job(self, job):
         # remove the runtime arguments
-        self._remove_rtargs(job)
-        super().add_job(job)
+        copy = self._remove_rtargs(job)
+        super().add_job(copy)
 
     def update_job(self, job):
         # remove the runtime arguments
-        self._remove_rtargs(job)
-        super().update_job(job)
+        copy = self._remove_rtargs(job)
+        logger.debug(f"Updating job: {job.id}, remaining kwargs: {job.kwargs}")
+        super().update_job(copy)
 
     def _remove_rtargs(self, job):
         # remove all runtime arguments, that are already saved in the
-        # injector.
+        # injector, use a copy of the job, such that the threading error is
+        # resolved.
+        copy = Job.__new__(Job)
+        copy.__setstate__(job.__getstate__())
         if len(self.args) > 0:
-            job.args = job.args[:-len(self.args)]
-        job.kwargs = {k: v for k, v in job.kwargs.items()
-                      if k not in self.kwargs}
+            copy.args = copy.args[:-len(self.args)]
+        copy.kwargs = {k: v for k, v in copy.kwargs.items()
+                       if k not in self.kwargs}
+        return copy
