@@ -103,7 +103,7 @@ class SearchPlugin(BasePlugin):
             URL_TEMPLATE.format(**_query_from_search(search)),
             min_page=0,
             page_step=10,
-            headers={"user-agent": USER_AGENT}
+            headers={"User-Agent": USER_AGENT}
         )
 
     def find_entries(self, page):

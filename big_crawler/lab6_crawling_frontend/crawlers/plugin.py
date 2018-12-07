@@ -70,7 +70,7 @@ def _retry_connection(url, method="get", max_retries=10, **kwargs):
     response = None
     # create an default dictionary for the request arguments.
     defaults = utility.DefaultDict({
-        "headers": {"user-agent": "Sherlock/0.0.1"}
+        "headers": {"User-Agent": "Sherlock/0.0.1"}
     })
 
     while response is None and retry < max_retries:

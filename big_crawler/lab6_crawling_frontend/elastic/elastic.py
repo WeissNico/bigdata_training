@@ -492,6 +492,7 @@ class Elastic():
         index = self.defaults.search_index()
         doc_type = self.defaults.search_type()
 
+        res = None
         try:
             res = self.es.search(index=index, doc_type=doc_type, body={
                 "query": {"match_all": {}}
@@ -500,7 +501,7 @@ class Elastic():
             logger.error("An error occured while retrieving the searches."
                          f" {e}")
 
-        if res["found"]:
+        if res is not None:
             return etrans.transform_output(res)
         return None
 
