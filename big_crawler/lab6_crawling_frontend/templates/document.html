@@ -55,7 +55,7 @@
       <span class="fas fa-signal"></span>
       Impact
     </th>
-    <td>
+    <td data-val>
       {{ macros.fake_select_fixed("Impact", [("high", "High"), ("medium", "Medium"), ("low", "Low")], doc.impact) }}
     </td>
   </tr>
@@ -176,9 +176,7 @@
         </button>
       </div>
       <div class="modal-body">
-      {{ macros.edit_list([],
-                          url_for('document_add_words', doc_id=cur_doc._id),
-                          url_for('document_remove_words', doc_id=cur_doc._id)) }}
+      {{ macros.edit_list([]) }}
       </div>
     </div>
   </div>

@@ -98,6 +98,7 @@ class SearchPlugin(BasePlugin):
         super().__init__(elastic)
         search_id = search_args.get("search_id")
         search = self.elastic.get_search(search_id)
+        self.source_name = search.get("name", search_id)
 
         self.entry_resource = PaginatedResource(
             URL_TEMPLATE.format(**_query_from_search(search)),

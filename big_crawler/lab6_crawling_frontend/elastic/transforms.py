@@ -435,13 +435,14 @@ def transform_output(results):
     Returns:
         list: a list of cleaned documents.
     """
-
     res = ut.SDA(results)
 
-    if not res["hits.hits"]:
+    if res["_source"]:
         return _transform_document(results)
+    if res["hits.total"] > 0:
+        return [_transform_document(doc) for doc in res["hits.hits"]]
     # otherwise
-    return [_transform_document(doc) for doc in res["hits.hits"]]
+    return []
 
 
 def transform_input(update):

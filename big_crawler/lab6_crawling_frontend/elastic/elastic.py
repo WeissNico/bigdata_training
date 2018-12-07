@@ -572,7 +572,7 @@ class Elastic():
             dict: a dictionary of aggregations.
         """
         index = self.defaults.docs_index()
-        logger.debug(f"Searching for {search_text} on '{index}'")
+        logger.debug(f"Searching for '{search_text or 'all'}' on '{index}'")
 
         search = {
             "simple_query_string": {

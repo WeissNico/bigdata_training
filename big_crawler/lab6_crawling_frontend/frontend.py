@@ -4,13 +4,11 @@ import datetime as dt
 import re
 
 import elastic
-from pymongo import MongoClient
 from flask import (Flask, request, redirect, render_template, url_for,
                    send_file, jsonify, flash)
 
 import settings
 import utility as ut
-import mock as mck
 import diff
 import scheduler
 
@@ -20,7 +18,7 @@ app.config.from_object(settings)
 
 
 def setup_globals():
-    global es, sched, logger, mock
+    global es, sched, logger
     # set the logging level according to the config
     logging.basicConfig(level=app.config["LOGGING_LEVEL"],
                         format=("%(asctime)s %(name)s [%(threadName)s]: "
@@ -37,9 +35,6 @@ def setup_globals():
                          app.config["ELASTICSEARCH_PASSWORT"]),
                          docs_index="eur_lex")
     # connect to the mongoDB
-    client = MongoClient("mongodb://159.122.175.139:30017")
-    db = client["crawler"]
-    mock = mck.Mocker(db.mockuments)
     sched = scheduler.Scheduler(es.es, crawler_args={"elastic": es},
                                 hour=2, minute=0)
 
@@ -88,7 +83,7 @@ def dashboard(dbdate=None):
     # get documents
     documents = es.get_documents(db_date, fields=columns+["new"],
                                  sort_by=sortby)
-    # create some mock calendar
+    # retrieve the calendar.
     calendar = es.get_calendar(db_date)
     cur_date = es.get_date(db_date)
 
@@ -212,8 +207,8 @@ def document(doc_id):
     Args:
         doc_id (str): the id of the document to reutrn.
     """
-    fields = ["status", "date", "document", "category", "type", "entities",
-              "keywords", "reading_time", "source"]
+    fields = ["status", "impact", "date", "document", "category", "type",
+              "entities", "keywords", "reading_time", "source"]
     doc = es.get_document(doc_id, fields=fields)
     calendar = es.get_calendar(doc["date"])
     cur_date = es.get_date(doc["date"])
@@ -283,14 +278,12 @@ def document_diff(doc_id):
         compare_to (str): the id of the other document which should be in the
             comparison.
     """
-    doc = mock.get_document(doc_id)
-    calendar = mock.get_or_create_calendar(doc["date"])
-    cur_date = mock.get_or_create_date(doc["date"])
+    doc = es.get_document(doc_id)
+    calendar = es.get_calendar(doc["date"])
+    cur_date = es.get_date(doc["date"])
 
-    versions = sorted(mock.get_or_create_versions(doc_id),
-                      key=lambda x: x["date"], reverse=True)
-    # document needs to be reloaded...
-    doc = mock.get_document(doc_id)
+    versions = es.get_versions(doc_id)
+
     compare_to = request.args.get("compare_to", None)
     other = None
     # when nothing is given for comparison, take the latest document
@@ -309,71 +302,6 @@ def document_diff(doc_id):
                            change=change,
                            versions=versions,
                            diff_texts=diffs)
-
-
-@app.route("/document/<doc_id>/set_status", methods=["GET", "POST"])
-def document_set_status(doc_id):
-    """Should update the status of the document as saved in the database.
-
-    Args:
-        doc_id (str): the id of the document to return.
-
-    Request Args:
-        status (str): one of `open`, `waiting` or `finished`
-    """
-    doc = mock.get_document(doc_id)
-    status = request.args.get("status", None)
-    if status not in ["open", "waiting", "finished"]:
-        return jsonify(success=False)
-    doc["status"] = status
-    mock.set_document(doc, doc_id)
-    return jsonify(status=status, success=True)
-
-
-@app.route("/document/<doc_id>/add_words", methods=["POST"])
-def document_add_words(doc_id):
-    """Adds new words to the document.
-
-    Args:
-        doc_id (str): the id of the document to reutrn.
-
-    Request Args:
-        words (list): a list of words that should be added.
-            Count will be set to one
-    """
-    doc = mock.get_document(doc_id)
-    words = request.get_json().get("words", None)
-    for i, word in enumerate(words):
-        # don't update words that already exist
-        if word in doc["words"]:
-            del words[i]
-            continue
-        doc["words"][word] = 1
-    mock.set_document(doc_id, doc)
-    return jsonify(words=words, success=True)
-
-
-@app.route("/document/<doc_id>/remove_words", methods=["POST"])
-def document_remove_words(doc_id):
-    """Removes keywords from the document.
-
-    Args:
-        doc_id (str): the id of the document to return.
-
-    Request Args:
-        words (list): a list of words that should be removed.
-    """
-    doc = mock.get_document(doc_id)
-    words = request.get_json().get("words", [])
-
-    for i, word in enumerate(words):
-        # don't remove words that do not exist
-        if word not in doc["words"]:
-            del words[i]
-            continue
-        del doc["words"][word]
-    mock.set_document(doc_id, doc)
-    return jsonify(words=words, success=True)
 
 
 @app.route("/document/<doc_id>/set_properties", methods=["POST"])
