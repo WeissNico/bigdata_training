@@ -186,7 +186,7 @@ class Elastic():
 
         self.es = es.Elasticsearch(host=host, port=port, http_auth=auth,
                                    use_ssl=True, timeout=60)
-        self.fs = filestore.FileStore(self.defaults.fs_path(None))
+        self.fs = filestore.FileStore(self.defaults.fs_dir(None))
 
         for script_id, script_body in self.SCRIPTS.items():
             self.es.put_script(id=script_id, body=script_body)

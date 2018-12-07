@@ -60,12 +60,10 @@ class PDFAnalyzer(BaseAnalyzer):
 
     required = ["content"]
 
-    def __init__(self, base_dir=None, **kwargs):
+    def __init__(self, **kwargs):
         """Initializes the PDFAnalyzer with an `elastic.Elastic` instance.
 
         Args:
-            base_dir (str): the base_directory to work in.
-                Defaults to the parent folder of this files folder.
             **kwargs (dict): keyword-arguments for further options.
 
         Returns:
