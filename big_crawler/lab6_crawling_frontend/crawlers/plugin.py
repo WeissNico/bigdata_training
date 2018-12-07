@@ -274,9 +274,12 @@ class HTMLConverter(BaseConverter):
             "//head/base/@href",
             after=[utility.defer("__getitem__", 0)]
         )
-        self.pdfkit_config = pdfkit.configuration(
-            wkhtmltopdf=utility.path_in_project("wkhtmltopdf", True)
-        )
+        self.pdfkit_config = pdfkit.configuration()
+        # treat windows specially
+        if utility.PLATFORM == "win32":
+            self.pdfkit_config = pdfkit.configuration(
+                wkhtmltopdf=utility.path_in_project("wkhtmltopdf", True)
+            )
 
     def _replace_relative(self, tree, base_url):
         """Replaces relative href and src attributes.
@@ -351,7 +354,7 @@ class BasePlugin:
         self.convert_documents(**kwargs)
         self.insert_documents(**kwargs)
 
-    def get_documents(self, limit=20, **kwargs):
+    def get_documents(self, limit=100, **kwargs):
         """Fetches new entries for the given resource.
 
         Args:

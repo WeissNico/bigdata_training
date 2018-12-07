@@ -857,11 +857,13 @@ class Elastic():
         """
         index = self.defaults.other(kwargs).docs_index()
         doc_type = self.defaults.other(kwargs).doc_type()
+        size = self.defaults.other(kwargs).size()
 
         if fields is None:
             fields = ["impact", "type", "category", "document", "change",
                       "reading_time", "status"]
         s_body = {
+            "size": size,
             "query": {
                 "bool": {
                     "must": {
@@ -904,7 +906,7 @@ class Elastic():
         """
         index = self.defaults.other(kwargs).docs_index()
         min_sim = self.defaults.other(kwargs).min_similarity(0.5)
-        size = self.defaults.other(kwargs).size(10)
+        size = self.defaults.other(kwargs).size()
 
         if fields is None:
             fields = ["date", "impact", "type", "category", "document",

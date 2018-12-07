@@ -879,5 +879,8 @@ def path_in_project(path, is_executable=False):
     if not is_executable:
         return os.path.join(base_dir, path.strip("/\\"))
     # if this is an executable base name.
-    return os.path.join(base_dir, "bin", PLATFORM,
-                        path + EXEC_SUFFIXES[PLATFORM])
+    if PLATFORM == "win32":
+        return os.path.join(base_dir, "bin", PLATFORM,
+                            path + EXEC_SUFFIXES[PLATFORM])
+    else:
+        return path + EXEC_SUFFIXES[PLATFORM]

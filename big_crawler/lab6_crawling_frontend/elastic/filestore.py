@@ -26,7 +26,7 @@ def _create_dir(dirpath):
     """
     if not os.path.exists(dirpath):
         try:
-            os.mkdir(dirpath)
+            os.makedirs(dirpath)
         except IOError as ioe:
             logger.error(f"IOError occured, while trying to create {dirpath}")
             return False

@@ -23,6 +23,7 @@ def setup_globals():
     logging.basicConfig(level=app.config["LOGGING_LEVEL"],
                         format=("%(asctime)s %(name)s [%(threadName)s]: "
                                 "%(message)s"))
+    # silence the given libraries, since they go crazy in debug-mode.
     for lib in "requests urllib3 elasticsearch".split():
         logging.getLogger(lib).setLevel(logging.WARNING)
 
@@ -33,8 +34,7 @@ def setup_globals():
                          app.config["ELASTICSEARCH_PORT"],
                          (app.config["ELASTICSEARCH_USER"],
                          app.config["ELASTICSEARCH_PASSWORT"]),
-
-                         docs_index="eur_lex",
+                         docs_index=app.config["ELASTICSEARCH_DOCS_INDEX"],
                          fs_dir=app.config["UPLOAD_DIR"])
     # connect to the mongoDB
     sched = scheduler.Scheduler(es.es, crawler_args={"elastic": es},
@@ -84,7 +84,7 @@ def dashboard(dbdate=None):
 
     # get documents
     documents = es.get_documents(db_date, fields=columns+["new"],
-                                 sort_by=sortby)
+                                 sort_by=sortby, size=100)
     # retrieve the calendar.
     calendar = es.get_calendar(db_date)
     cur_date = es.get_date(db_date)
@@ -930,6 +930,4 @@ def filter_clip(num, lower, upper):
 
 
 if __name__ == "__main__":
-    # app = create_app(config.DATABASE_URI, debug=True)
-    app.debug = True
     app.run(host="0.0.0.0", port="80")

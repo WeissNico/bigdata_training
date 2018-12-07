@@ -36,6 +36,14 @@ items:
         containers:
         - name: sherlock
           image: registry.eu-de.bluemix.net/bluereplyde/sherlock:latest
+          volumeMounts:
+            - mountPath: /data
+              name: file-store
           ports:
           - containerPort: 80
+        volumes:
+          - name: file-store
+            # use an emptydir for now.
+            emptyDir: {}
+
 kind: "List"
