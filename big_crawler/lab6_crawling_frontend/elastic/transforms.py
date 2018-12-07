@@ -381,7 +381,7 @@ def transform_agg_filters(aggregations, active={}):
     """
     def _transform_agg(name, el):
         # check whether list or dict
-        acc = None
+        acc = {}
         if el.get("buckets") is not None:
             # check if there is any bucket in the list
             if not el["buckets"]:

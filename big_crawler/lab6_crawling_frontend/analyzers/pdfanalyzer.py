@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import datetime as dt
 import logging
+import shutil
 
 from PyPDF2 import PdfFileReader
 
@@ -97,7 +98,7 @@ class PDFAnalyzer(BaseAnalyzer):
         """Returns the contained text of the PDF-File."""
         # get the path to the executable
         path_to_exc = self.defaults.bin_path()
-        if not os.path.exists(path_to_exc):
+        if not (os.path.exists(path_to_exc) or shutil.which(path_to_exc)):
             raise ValueError(f"The current path '{path_to_exc}' does not lead "
                              " to an actual file.")
         text = None
