@@ -1,16 +1,23 @@
-FROM python:3.7
+FROM python:3.7-alpine
 
-RUN apt-get update 
-RUN apt-get -y install curl unzip vim nano wkhtmltopdf xvfb poppler-utils
+## add the edge-community repository
+RUN echo "@edgecommunity http://nl.alpinelinux.org/alpine/edge/community" \
+    >> /etc/apk/repositories
+RUN apk update 
+RUN apk add build-base libxml2-dev libxslt-dev \
+    libssl1.0 openssl-dev \
+    curl unzip vim nano \
+    wkhtmltopdf@edgecommunity poppler-utils
 
 RUN python -m pip install --upgrade pip
 WORKDIR /usr/share/sherlock
 COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
-## Link the wkhtmltopdf wrapper appropriately
-RUN chmod +x wkhtmltopdf.sh
-RUN ln -s /usr/local/bin/wkhtmltopdf wkhtmltopdf.sh
+## Link the wkhtmltopdf wrapper appropriately. THIS IS ONLY NECESSARY FOR
+## the non-alpine image.
+# RUN chmod +x wkhtmltopdf.sh
+# RUN ln -s /usr/local/bin/wkhtmltopdf wkhtmltopdf.sh
 ## SETUP /data PATH
 ## This must be overriden in the deployment.yml with concrete values.
 VOLUME /data

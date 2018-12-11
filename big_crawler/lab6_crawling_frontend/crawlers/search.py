@@ -20,8 +20,8 @@ USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
 Q_SRC_TEMPLATE = "site:{src}"
 Q_FT_TEMPLATE = "filetype:{ft}"
-Q_TP_TEMPLATE = "qdr:{type}"
-Q_TF_TEMPLATE = "cdr:1,cd_min:{from:%m/%d/%Y},cd_max:{to:%m/%d/%Y}"
+Q_TP_TEMPLATE = "qdr:{type},sbd:1"
+Q_TF_TEMPLATE = "cdr:1,cd_min:{from:%m/%d/%Y},cd_max:{to:%m/%d/%Y},sbd:1"
 
 Q_TYPE_HIERARCHY = {
     "c": 16,
@@ -95,7 +95,8 @@ class SearchPlugin(BasePlugin):
     )
 
     def __init__(self, elastic, **search_args):
-        super().__init__(elastic)
+        # make sure the searches only retrieve 20 results.
+        super().__init__(elastic, fetch_limit=20)
         search_id = search_args.get("search_id")
         search = self.elastic.get_search(search_id)
         self.source_name = search.get("name", search_id)

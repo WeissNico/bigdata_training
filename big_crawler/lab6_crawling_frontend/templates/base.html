@@ -22,7 +22,7 @@
   {% set active_page = active_page|default("other") %}
   <body>
     <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top p-1 shadow">
-      <a class="navbar-brand mr-0" href="#">
+      <a class="navbar-brand mr-0" href="{{ url_for('dashboard') }}">
         <img src="{{ url_for('static', filename='logo.svg') }}" height="48"/>
       </a>
       <div class="d-flex justify-content-middle d-md-none">

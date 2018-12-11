@@ -7,8 +7,7 @@ import re
 
 from lxml import etree, html
 
-from crawlers.plugin import BasePlugin, PaginatedResource, XPathResource
-
+from crawlers.plugin import (BasePlugin, PaginatedResource, XPathResource)
 import utility as ut
 
 
@@ -33,6 +32,22 @@ def _make_resource_path(path, cwd):
     without_rid_qid = re.sub(r"([?&][qr]id=[^&]+)", "", path)
     with_server = without_rid_qid.replace(".", cwd)
     return with_server.replace("AUTO", "DE/ALL")
+
+
+def _get_html_version(path):
+    """Returns the link for an html version of the given pdf-document.
+
+    It expects a path in the format:
+    `https://eur-lex.europa.eu/legal-content/DE/TXT/PDF/?uri=CELEX:12345`
+
+    Args:
+        path (str): The path to the pdf-version as shown above.
+
+    Returns:
+        str: a string to the given resource.
+    """
+    ret = re.sub(r"(/DE/TXT/)PDF", "\\1HTML", path)
+    return ret
 
 
 def _string_join(context, elements, separator):
@@ -79,6 +94,16 @@ class EurlexPlugin(BasePlugin):
                                 after=[ut.defer("__getitem__", 0),
                                        ut.curry(_make_resource_path, cwd=CWD)])
 
+    num_of_docs_path = XPathResource(
+        """
+        count(
+            //div[@id = 'textTabContent']/
+            div[contains(@class, 'tabContent') and
+                not(contains(@class, 'documentSeparator'))]
+        )
+        """
+    )
+
     meta_path = XPathResource("//dl[contains(@class, 'NMetadata')]/dd")
     key_path = XPathResource("normalize-space(./preceding-sibling::dt[1])",
                              after=[ut.defer("strip", " .:,;!?-_#")])
@@ -121,4 +146,7 @@ class EurlexPlugin(BasePlugin):
             key = self.key_path(entry)
             value = self.value_path(entry)
             doc[f"metadata.{key}"] = value
+        # if there is more than one document included, use the HTML version.
+        if self.num_of_docs_path(tree) > 1:
+            doc["metadata.url"] = _get_html_version(doc["metadata.url"])
         return doc.a_dict

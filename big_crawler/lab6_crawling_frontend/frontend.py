@@ -393,6 +393,7 @@ def create_new_search():
     """Receives the form of the search dialog an processes it accordingly."""
     new_search = request.form.to_dict(flat=False)
     res = es.add_search(new_search)
+
     if res["result"] == "created":
         flash(f"New search with id '{res['_id']}' created!", "success")
     else:

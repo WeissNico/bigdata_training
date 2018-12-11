@@ -6,9 +6,11 @@ from abc import abstractmethod
 import logging
 import requests
 from lxml import etree, html
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 import time
 from functools import reduce
+from concurrent.futures import ThreadPoolExecutor
+import re
 
 import pdfkit
 
@@ -235,8 +237,8 @@ class BaseConverter:
         return ret
 
 
-class PDFConverter(BaseConverter):
-    """Simple Converter for the pdf mime-type.
+class DummyConverter(BaseConverter):
+    """Simple Converter for the most mime-types.
 
     Just fetches the content and returns it.
     """
@@ -270,16 +272,20 @@ class HTMLConverter(BaseConverter):
         self.link_xpath = XPathResource(
             "//*[@href or @src]"
         )
+        self.style_xpath = XPathResource(
+            "//style[@type = 'text/css' and contains(text(), 'url(')]"
+        )
         self.base_xpath = XPathResource(
             "//head/base/@href",
             after=[utility.defer("__getitem__", 0)]
         )
-        self.pdfkit_config = pdfkit.configuration()
         # treat windows specially
         if utility.PLATFORM == "win32":
             self.pdfkit_config = pdfkit.configuration(
                 wkhtmltopdf=utility.path_in_project("wkhtmltopdf", True)
             )
+        else:
+            self.pdfkit_config = pdfkit.configuration()
 
     def _replace_relative(self, tree, base_url):
         """Replaces relative href and src attributes.
@@ -288,11 +294,25 @@ class HTMLConverter(BaseConverter):
             tree (lxml.etree): An html-ETree.
             base_url (str): the base url.
         """
+        def _replace_css_url(match):
+            return (match.group(1) + urljoin(base_url, match.group(2)) +
+                    match.group(3))
+
+        # replace in the attributes
         for elem in self.link_xpath(tree):
             for attr in ["href", "src"]:
                 if attr not in elem.attrib:
                     continue
                 elem.attrib[attr] = urljoin(base_url, elem.attrib[attr])
+        # replace in css
+        for elem in self.style_xpath(tree):
+            elem.text = re.sub(r"(url\()([^\)]+)(\))", _replace_css_url,
+                               elem.text)
+            links = re.findall(r"url\(([^\)]+)\)", elem.text)
+            for link in links:
+                elem.addnext(
+                    etree.XML(f"<link rel='stylesheet' href='{link}' />")
+                )
 
     def convert(self, content, **kwargs):
         tree = html.fromstring(content)
@@ -308,7 +328,7 @@ class HTMLConverter(BaseConverter):
         # stringify the portions together
         html_string = "\n".join([html.tostring(part).decode("utf-8")
                                  for part in relevant_html])
-        doc = pdfkit.from_string(html_string, False,  # css=stylesheets,
+        doc = pdfkit.from_string(html_string, False,
                                  configuration=self.pdfkit_config)
         return doc
 
@@ -331,16 +351,20 @@ class BasePlugin:
     """Name that should be displayed as source."""
 
     content_converters = {
-        "application/pdf": PDFConverter(),
+        "application/pdf": DummyConverter(),
         "text/html": HTMLConverter()
     }
 
-    def __init__(self, elastic):
+    def __init__(self, elastic, fetch_limit=100):
         super(BasePlugin, self).__init__()
         self.elastic = elastic
+        self.defaults = utility.DefaultDict({
+            "limit": fetch_limit
+        })
         self.url_fetcher = _retry_connection
         self.entry_resource = []
         self.documents = []
+        self.threaded_executor = ThreadPoolExecutor(max_workers=10)
 
     def __call__(self, **kwargs):
         """Runs the plugin, by fetching all documents and saving them.
@@ -354,7 +378,7 @@ class BasePlugin:
         self.convert_documents(**kwargs)
         self.insert_documents(**kwargs)
 
-    def get_documents(self, limit=100, **kwargs):
+    def get_documents(self, limit=None, **kwargs):
         """Fetches new entries for the given resource.
 
         Args:
@@ -364,6 +388,7 @@ class BasePlugin:
         Returns:
             BasePlugin: self.
         """
+        limit = self.defaults.limit.also(limit)
         has_unseen_docs = True
         doc_count = 0
         for page in self.entry_resource:
@@ -423,9 +448,18 @@ class BasePlugin:
         Returns:
             BasePlugin: self.
         """
-        for idx, doc in enumerate(self.documents):
+        def process_loop(enumerated):
+            idx, doc = enumerated
             logger.info(f"Processing doc {idx+1} of {len(self.documents)}...")
             self.process_document(doc, **kwargs)
+            return 1
+
+        logger.info("--- Start processing the new documents.")
+        futures = self.threaded_executor.map(process_loop,
+                                             enumerate(self.documents))
+
+        logger.info(f"--- Done: Processed {sum(futures)} documents.")
+
         return self
 
     def convert_documents(self, **kwargs):
@@ -437,9 +471,17 @@ class BasePlugin:
         Returns:
             BasePlugin: self.
         """
-        for idx, doc in enumerate(self.documents):
+        def process_loop(enumerated):
+            idx, doc = enumerated
             logger.info(f"Converting doc {idx+1} of {len(self.documents)}...")
             self.convert_document(doc)
+            return 1
+
+        logger.info("--- Start converting the new documents.")
+        futures = self.threaded_executor.map(process_loop,
+                                             enumerate(self.documents))
+        logger.info(f"--- Done: Converted {sum(futures)} documents.")
+
         return self
 
     def insert_documents(self, **kwargs):
@@ -451,14 +493,20 @@ class BasePlugin:
         Returns:
             int: the number of newly inserted documents.
         """
-        doc_count = 0
-        for idx, doc in enumerate(self.documents):
+        def process_loop(enumerated):
+            idx, doc = enumerated
             logger.info(f"Inserting doc {idx+1} of {len(self.documents)}"
                         " into the database.")
             res = self.elastic.insert_document(doc)
             if res["result"] == "created":
-                doc_count += 1
-        return doc_count
+                return 1
+            return 0
+
+        logger.info("--- Start inserting the new documents into the db.")
+        futures = self.threaded_executor.map(process_loop,
+                                             enumerate(self.documents))
+        logger.info(f"--- Done: Inserted {sum(futures)} documents.")
+        return sum(futures)
 
     def convert(self, mimetype, content, **kwargs):
         """Converts the given content with the given mimetype to pdf.
@@ -497,9 +545,7 @@ class BasePlugin:
             return document
         resp = self.url_fetcher(doc_url)
         content_type = resp.headers["content-type"]
-        url_parts = urlparse(doc_url)
-        url_stem = f"{url_parts[0]}://{url_parts[1]}/"
-        content = self.convert(content_type, resp.content, base_url=url_stem)
+        content = self.convert(content_type, resp.content, base_url=doc_url)
         document["content"] = content
         return document
 
