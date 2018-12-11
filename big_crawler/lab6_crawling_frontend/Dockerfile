@@ -1,13 +1,16 @@
 FROM python:3.7
 
 RUN apt-get update 
-RUN apt-get -y install curl unzip vim nano wkhtmltopdf poppler-utils
+RUN apt-get -y install curl unzip vim nano wkhtmltopdf xvfb poppler-utils
 
 RUN python -m pip install --upgrade pip
 WORKDIR /usr/share/sherlock
 COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
+## Link the wkhtmltopdf wrapper appropriately
+RUN chmod +x wkhtmltopdf.sh
+RUN ln -s /usr/local/bin/wkhtmltopdf wkhtmltopdf.sh
 ## SETUP /data PATH
 ## This must be overriden in the deployment.yml with concrete values.
 VOLUME /data
