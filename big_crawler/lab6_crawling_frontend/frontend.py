@@ -33,10 +33,11 @@ def setup_globals():
     es = elastic.Elastic(app.config["ELASTICSEARCH_HOST"],
                          app.config["ELASTICSEARCH_PORT"],
                          (app.config["ELASTICSEARCH_USER"],
-                         app.config["ELASTICSEARCH_PASSWORT"]),
+                         app.config["ELASTICSEARCH_PASSWORD"]),
+                         cert=app.config["ELASTICSEARCH_CAFILE"],
                          docs_index=app.config["ELASTICSEARCH_DOCS_INDEX"],
                          fs_dir=app.config["UPLOAD_DIR"])
-    # connect to the mongoDB
+    # start the scheduler
     sched = scheduler.Scheduler(es.es, crawler_args={"elastic": es},
                                 hour=2, minute=0)
 

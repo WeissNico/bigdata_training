@@ -1,0 +1,8 @@
+---
+# this is a kibana configuration for the new "Databases for Elasticsearch"
+server.host: 0.0.0.0
+server.port: 5601
+elasticsearch.url: https://a68a95ee-0079-4637-9dab-e8048174f0d1.659dc287bad647f9b4fe17c4e4c38dcc.databases.appdomain.cloud:31791
+elasticsearch.username: sherlock
+elasticsearch.password: sherlockpw
+elasticsearch.ssl.certificateAuthorities: /usr/share/kibana/certs/2e1c46d0-ce0b-11e8-b230-ced9d81cd3f4

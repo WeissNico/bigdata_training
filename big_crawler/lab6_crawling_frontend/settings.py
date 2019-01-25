@@ -3,11 +3,18 @@
 import logging
 import os
 
-ELASTICSEARCH_USER = "admin"
-ELASTICSEARCH_PASSWORT = "RYZUAYORFMEGJRCT"
-ELASTICSEARCH_HOST = ("portal-ssl223-11.bmix-lon-yp-2012af18-4749-4d32-94a6-"
-                      "09573ff5ee35.3259324498.composedb.com")
-ELASTICSEARCH_PORT = 26611
+ELASTICSEARCH_USER = os.environ.get("SHERLOCK_ES_USER", "admin")
+ELASTICSEARCH_PASSWORD = os.environ.get("SHERLOCK_ES_PASSWORD",
+                                        "RYZUAYORFMEGJRCT")
+ELASTICSEARCH_HOST = os.environ.get(
+    "SHERLOCK_ES_HOST",
+    ("a68a95ee-0079-4637-9dab-e8048174f0d1.659dc287bad647f9b4"
+     "fe17c4e4c38dcc.databases.appdomain.cloud"))
+ELASTICSEARCH_PORT = os.environ.get("SHERLOCK_ES_PORT", 31791)
+ELASTICSEARCH_CAFILE = os.environ.get(
+    "SHERLOCK_ES_CAFILE",
+    ("C:\\Users\\j.mueller\\.bluemix\\plugins\\cdb\\cdbcerts\\"
+     "2e1c46d0-ce0b-11e8-b230-ced9d81cd3f4"))
 ELASTICSEARCH_DOCS_INDEX = os.environ.get("SHERLOCK_ES_DOCS_INDEX", "eur_lex")
 LOGGING_LEVEL = logging.DEBUG
 

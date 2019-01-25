@@ -6,6 +6,8 @@ Author: Johannes Mueller <j.mueller@reply.de>
 """
 import logging
 import time
+import ssl
+import os
 
 import elasticsearch as es
 
@@ -160,7 +162,8 @@ class Elastic():
         }
     }
 
-    def __init__(self, host="localhost", port=9000, auth=None, **kwargs):
+    def __init__(self, host="localhost", port=9000, auth=None, cert=None,
+                 **kwargs):
         """Initialize the elasticsearch client.
 
         Args:
@@ -169,6 +172,8 @@ class Elastic():
             port (int): the port of the elasticsearch database.
                 Defaults to `9000`.
             auth (tuple): a tuple of username and password, defaults to `None`.
+            cert (path): a path to a self-signed certificate as used by
+                ibmcloud.
             **kwargs (dict): keyword arguments that updates the defaults.
 
         Returns:
@@ -184,8 +189,16 @@ class Elastic():
             "size": 10
         }, **kwargs))
 
+        context = None
+        if cert:
+            if not os.path.exists(cert):
+                logger.error(f"Certificate file: {cert} does not exist!")
+            else:
+                context = ssl.create_default_context(cafile=cert)
+
         self.es = es.Elasticsearch(host=host, port=port, http_auth=auth,
-                                   use_ssl=True, timeout=60)
+                                   use_ssl=True, ssl_context=context,
+                                   timeout=60)
         self.fs = filestore.FileStore(self.defaults.fs_dir(None))
 
         for script_id, script_body in self.SCRIPTS.items():

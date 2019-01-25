@@ -1,7 +1,7 @@
 ---
-apiVersion: "v1"
+apiVersion: v1
 items:
-- apiVersion: "v1"
+- apiVersion: v1
   kind: "Service"
   metadata:
     name: kibana-service
@@ -15,7 +15,7 @@ items:
     -  protocol: TCP
        port: 5601
        nodePort: 30101
-- apiVersion: "v1"
+- apiVersion: v1
   kind: "ReplicationController"
   metadata:
     name: kibana
@@ -30,14 +30,7 @@ items:
       spec:
         containers:
           - name: kibana
-            image: docker.elastic.co/kibana/kibana-oss:6.5.2
-            env:
-            - name: "ELASTICSEARCH_URL"
-              value: "https://admin:RYZUAYORFMEGJRCT@portal-ssl223-11.bmix-lon-yp-2012af18-4749-4d32-94a6-09573ff5ee35.3259324498.composedb.com:26611"
-            - name: "ELASTICSEARCH_USERNAME"
-              value: "admin"              
-            - name: "ELASTICSEARCH_PASSWORD"
-              value: "RYZUAYORFMEGJRCT"            
+            image: registry.eu-de.bluemix.net/bluereplyde/kibana:latest
             ports:
               - containerPort: 5601
                 name: http
