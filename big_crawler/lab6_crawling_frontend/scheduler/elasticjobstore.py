@@ -251,7 +251,10 @@ class ElasticJobStore(BaseJobStore):
         if failed_ids:
             self.client.delete_by_query(index=self.index,
                                         doc_type=self.doc_type,
-                                        body={"ids": {"values": failed_ids}})
+                                        body={
+                                            "query": {
+                                                "ids": {
+                                                    "values": failed_ids}}})
         return jobs
 
     def __repr__(self):

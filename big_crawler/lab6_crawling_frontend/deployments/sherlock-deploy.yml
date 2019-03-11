@@ -35,7 +35,7 @@ items:
       spec:
         containers:
         - name: sherlock
-          image: registry.eu-de.bluemix.net/bluereplyde/sherlock:latest
+          image: de.icr.io/bluereplyde/sherlock:latest
           volumeMounts:
             - mountPath: /data
               name: file-store
