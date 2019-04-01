@@ -328,8 +328,12 @@ class HTMLConverter(BaseConverter):
         # stringify the portions together
         html_string = "\n".join([html.tostring(part).decode("utf-8")
                                  for part in relevant_html])
-        doc = pdfkit.from_string(html_string, False,
-                                 configuration=self.pdfkit_config)
+        try:
+            doc = pdfkit.from_string(html_string, False,
+                                     configuration=self.pdfkit_config)
+        except IOError as ioe:
+            logger.warning("Skipped a document due to wkhtmltopdf failure.")
+            return None
         return doc
 
 
@@ -355,7 +359,7 @@ class BasePlugin:
         "text/html": HTMLConverter()
     }
 
-    def __init__(self, elastic, fetch_limit=100):
+    def __init__(self, elastic, fetch_limit=300):
         super(BasePlugin, self).__init__()
         self.elastic = elastic
         self.defaults = utility.DefaultDict({
