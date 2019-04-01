@@ -146,7 +146,8 @@ class PDFAnalyzer(BaseAnalyzer):
         if doc_info is not None:
             for key, value in doc_info.items():
                 if "Date" in key:
-                    metadata[key[1:]] = _datetime_from_meta_string(value)
+                    # use str in order to dereference IndirectObjects
+                    metadata[key[1:]] = _datetime_from_meta_string(str(value))
                 else:
                     metadata[key[1:]] = str(value)
 
@@ -162,6 +163,9 @@ class PDFAnalyzer(BaseAnalyzer):
         return metadata
 
     def analyze(self, doc, **kwargs):
+        # skip empty documents
+        if doc["content"] is None:
+            return doc
         meta = self._getpdfmeta(doc["content"], **kwargs)
         text = self._pdftotext(doc["content"], **kwargs)
 
