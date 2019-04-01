@@ -84,6 +84,8 @@ class FileStore():
         Returns:
             str: the relative name of this file.
         """
+        if content is None:
+            return None
         mode = self.defaults.mode.also(mode)
 
         filename = _hash_content(content)
