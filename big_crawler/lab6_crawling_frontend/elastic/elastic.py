@@ -246,7 +246,7 @@ class Elastic():
         """
         doc_hash = self.fs.set(doc.get("content", None))
         doc_timestamp = time.time()
-        doc_id = f"{doc_hash}.{doc_timestamp}"
+        doc_id = f"{doc_hash}_{doc_timestamp}"
 
         pipeline = [analyzers.DefaultAnalyzer(), analyzers.PDFAnalyzer(),
                     analyzers.MetaAnalyzer(), analyzers.TextAnalyzer()]

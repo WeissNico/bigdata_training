@@ -6,7 +6,7 @@ $RESOURCE_GROUP = "sherlock-prod"
 # the cluster name
 $CLUSTER_NAME = "test"
 # the container name
-$SHERLOCK_CR = "de.icr.io/bluereplyde/sherlock"
+$KIBANA_CR = "de.icr.io/bluereplyde/kibana"
 
 # login to ibmcloud this asks for user and password
 do {
@@ -32,27 +32,27 @@ ibmcloud cr login
 Write-Host "DONE" -ForegroundColor green
 
 # delete container due to space constraints
-Write-Host "Delete sherlock container..." -ForegroundColor yellow
-ibmcloud cr image-rm $SHERLOCK_CR
+Write-Host "Delete kibana container from container registry..." -ForegroundColor yellow
+ibmcloud cr image-rm $KIBANA_CR
 Write-Host "DONE" -ForegroundColor green
 
 # build container
-Write-Host "Build sherlock container..." -ForegroundColor yellow
-docker build -t sherlock ${PSScriptRoot}\..
+Write-Host "Build new kibana container..." -ForegroundColor yellow
+docker build -t kibana ${PSScriptRoot}\kibana_deploy
 Write-Host "DONE" -ForegroundColor green
 
 # Push container
-Write-Host "Tag and push sherlock container..." -ForegroundColor yellow
-docker tag sherlock ${SHERLOCK_CR}:latest
-docker push $SHERLOCK_CR
+Write-Host "Tag and push kibana container..." -ForegroundColor yellow
+docker tag kibana ${KIBANA_CR}:latest
+docker push $KIBANA_CR
 Write-Host "DONE" -ForegroundColor green
 
 # delete kubernetes deployment
 Write-Host "Delete kubernetes deployment..." -ForegroundColor yellow
-kubectl delete -f ${PSScriptRoot}\sherlock-deploy.yml
+kubectl delete -f ${PSScriptRoot}\kibana-deploy.yml
 Write-Host "DONE" -ForegroundColor green
 
 # create kubernetes deployment
 Write-Host "Delete kubernetes deployment..." -ForegroundColor yellow
-kubectl create -f ${PSScriptRoot}\sherlock-deploy.yml
+kubectl create -f ${PSScriptRoot}\kibana-deploy.yml
 Write-Host "DONE" -ForegroundColor green

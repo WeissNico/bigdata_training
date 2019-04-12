@@ -30,7 +30,7 @@ items:
       spec:
         containers:
           - name: kibana
-            image: registry.eu-de.bluemix.net/bluereplyde/kibana:latest
+            image: de.icr.io/bluereplyde/kibana:latest
             ports:
               - containerPort: 5601
                 name: http
