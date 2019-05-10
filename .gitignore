@@ -2,3 +2,16 @@
 .vscode/**
 env/**
 *.pyc
+big_crawler/lab6_crawling_frontend/\.idea/codeStyles/Project\.xml
+
+big_crawler/lab6_crawling_frontend/\.idea/dbnavigator\.xml
+
+big_crawler/lab6_crawling_frontend/\.idea/lab6_crawling_frontend\.iml
+
+big_crawler/lab6_crawling_frontend/\.idea/misc\.xml
+
+big_crawler/lab6_crawling_frontend/\.idea/modules\.xml
+
+big_crawler/lab6_crawling_frontend/\.idea/vcs\.xml
+
+big_crawler/lab6_crawling_frontend/\.idea/workspace\.xml
