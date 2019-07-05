@@ -15,7 +15,7 @@ ELASTICSEARCH_CAFILE = os.environ.get(
     "SHERLOCK_ES_CAFILE",
     ("C:\\Users\\j.mueller\\.bluemix\\plugins\\cdb\\cdbcerts\\"
      "2e1c46d0-ce0b-11e8-b230-ced9d81cd3f4"))
-ELASTICSEARCH_DOCS_INDEX = os.environ.get("SHERLOCK_ES_DOCS_INDEX", "eurlex")
+ELASTICSEARCH_DOCS_INDEX = os.environ.get("SHERLOCK_ES_DOCS_INDEX", "sherlock")
 LOGGING_LEVEL = logging.DEBUG
 
 SECRET_KEY = os.environ.get("SHERLOCK_SECRET", "pl34se change th1s!")

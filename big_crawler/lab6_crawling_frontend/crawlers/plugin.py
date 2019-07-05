@@ -11,6 +11,10 @@ import time
 from functools import reduce
 from concurrent.futures import ThreadPoolExecutor
 import re
+import os
+import shutil
+import subprocess
+import tempfile
 
 import pdfkit
 
@@ -246,10 +250,65 @@ class DummyConverter(BaseConverter):
         return content
 
 
+class EmptyConverter(BaseConverter):
+    """Converter that just returns None."""
+    def convert(self, content, **kwargs):
+        return None
+
+
+class OfficeConverter(BaseConverter):
+    """Simple Converter for all LibreOffice-Supported formats.
+
+    TODO: PUT THIS IN A SEPERATE ANALYZER, maybe.
+    Just fetches the content and returns it.
+    """
+    def convert(self, content, **kwargs):
+        path_to_exc = utility.path_in_project("soffice", True)
+        if not (os.path.exists(path_to_exc) or shutil.which(path_to_exc)):
+            raise ValueError(f"The current path '{path_to_exc}' does not lead "
+                             " to an actual file.")
+
+        pdf = None
+        try:
+            with tempfile.TemporaryDirectory(prefix=".pdfconv_") as tmp_dir:
+                tmp_off = os.path.join(tmp_dir, "office")
+                tmp_pdf = os.path.join(tmp_dir, "office.pdf")
+
+                pdf = self._convert_to_pdf(content, path_to_exc, tmp_off,
+                                           tmp_pdf, **kwargs)
+        # catch oserrors caused by anti-virus software.
+        except OSError as ose:
+            logging.error("Supressed an OSError while handling the "
+                          " temp-folder.")
+        return pdf
+
+    def _convert_to_pdf(self, content, executable, tmp_off, tmp_pdf, **kwargs):
+        with open(tmp_off, "wb") as in_file:
+            in_file.write(content)
+
+        command = [executable,
+                   "--headless",  # headless mode for conversion
+                   "--convert-to pdf",  # target format
+                   tmp_off]
+
+        logging.info(f"Running command '{' '.join(command)}'")
+        process = subprocess.Popen(command)
+
+        ret = process.wait()
+        if ret != 0:
+            raise IOError("Couldn't extract any text information.")
+        return ret
+
+        content = None
+        with open(tmp_pdf, "rb") as out_file:
+            content = out_file.read()
+        return content
+
+
 class HTMLConverter(BaseConverter):
     """Simple Converter for the html mime-type.
 
-    Just fetches the content and converts it using weasyprint.
+    Just fetches the content and converts it using wkhtmltopdf.
     """
     def __init__(self, content_xpath=None):
         """Initializes the HTML converter.
@@ -356,10 +415,21 @@ class BasePlugin:
 
     content_converters = {
         "application/pdf": DummyConverter(),
-        "text/html": HTMLConverter()
+        "text/html": HTMLConverter(),
+        # "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        #     OfficeConverter(),
+        # ("application/vnd.openxmlformats-officedocument.wordprocessingml"
+        #     ".document"):
+        #     OfficeConverter(),
+        # "application/msword": OfficeConverter(),
+        # "application/msexcel": OfficeConverter(),
+        # "application/mspowerpoint": OfficeConverter(),
+        # "application/vnd.oasis.opendocument.text": OfficeConverter(),
+        # "application/vnd.oasis.opendocument.spreadsheet": OfficeConverter(),
+        # "application/vnd.oasis.opendocument.presentation": OfficeConverter(),
     }
 
-    def __init__(self, elastic, fetch_limit=300):
+    def __init__(self, elastic, fetch_limit=1200):
         super(BasePlugin, self).__init__()
         self.elastic = elastic
         self.defaults = utility.DefaultDict({
@@ -499,11 +569,13 @@ class BasePlugin:
         """
         def process_loop(enumerated):
             idx, doc = enumerated
-            logger.info(f"Inserting doc {idx+1} of {len(self.documents)}"
-                        " into the database.")
-            res = self.elastic.insert_document(doc)
-            if res["result"] == "created":
-                return 1
+            if doc["content"]:
+                logger.info(f"Inserting doc {idx+1} of {len(self.documents)}"
+                            " into the database.")
+                res = self.elastic.insert_document(doc)
+                if res["result"] == "created":
+                    return 1
+            logger.info("Doc contains no content. SKIP")
             return 0
 
         logger.info("--- Start inserting the new documents into the db.")
@@ -523,12 +595,20 @@ class BasePlugin:
         Returns:
             bytes: the converted content.
         """
+        logging.info(f"Converting document with MIME-type: {mimetype}.")
+        if not mimetype:
+            return None
+
         mime, *args = mimetype.split(";")
         for arg in args:
             kw, *vals = arg.strip(" .,;:_").split("=")
             kwargs[kw] = vals and vals[0]
 
-        conv = self.content_converters.get(mime, BaseConverter())
+        conv = self.content_converters.get(mime)
+        # sort out unknown mimetypes.
+        if not conv:
+            logging.info(f"Failed to find a content converter for {mime}.")
+            conv = EmptyConverter()
         return conv(content, **kwargs)
 
     def convert_document(self, document, **kwargs):
@@ -548,7 +628,7 @@ class BasePlugin:
             document["content"] = None
             return document
         resp = self.url_fetcher(doc_url)
-        content_type = resp.headers["content-type"]
+        content_type = resp.headers.get("content-type", None)
         content = self.convert(content_type, resp.content, base_url=doc_url)
         document["content"] = content
         return document

@@ -7,7 +7,11 @@ RUN apk update
 RUN apk add build-base bash libxml2-dev libxslt-dev \
     libssl1.0 openssl-dev \
     curl unzip vim nano \
-    wkhtmltopdf@edgecommunity poppler-utils tzdata
+    wkhtmltopdf@edgecommunity \
+    # don't install libreoffice
+    # openjdk8-jre-base \
+    # libreoffice@edgecommunity \
+    poppler-utils tzdata
 
 RUN python -m pip install --upgrade pip
 WORKDIR /usr/share/sherlock
@@ -30,7 +34,7 @@ ENV SHERLOCK_ES_CAFILE /usr/share/sherlock/certificate.ca
 ## This must be overriden in the deployment.yml with concrete values.
 VOLUME /data
 ENV SHERLOCK_UPLOAD_DIR /data/sherlock/uploads
-ENV SHERLOCK_ES_DOCS_INDEX eurlex
+ENV SHERLOCK_ES_DOCS_INDEX sherlock
 ## USE ANOTHER DOCUMENTS INDEX
 # ENV SHERLOCK_ES_DOCS_INDEX documents
 ## USE FLASK IN PRODUCTION MODE

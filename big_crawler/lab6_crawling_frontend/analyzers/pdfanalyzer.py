@@ -128,18 +128,21 @@ class PDFAnalyzer(BaseAnalyzer):
         password = self.defaults.other(kwargs).password()
         filename = self.defaults.other(kwargs).filename("No Filename")
         mimetype = self.defaults.other(kwargs).mimetype("application/pdf")
-        pdf = PdfFileReader(io.BytesIO(content))
-        if pdf.isEncrypted:
-            pdf.decrypt(password)
-        # retrieve the info documents
-        doc_info = pdf.getDocumentInfo()
-        doc_xmp = pdf.getXmpMetadata()
 
         metadata = {
             "crawl_date": utility.from_date(),
             "filename": filename,
             "mimetype": mimetype
         }
+
+        pdf = PdfFileReader(io.BytesIO(content))
+        if pdf.isEncrypted:
+            if not password:
+                return metadata
+            pdf.decrypt(password)
+        # retrieve the info documents
+        doc_info = pdf.getDocumentInfo()
+        doc_xmp = pdf.getXmpMetadata()
 
         # and create a nice dict, in the form that nutch provides.
         # for the doc info...

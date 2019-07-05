@@ -145,11 +145,11 @@ class MetaAnalyzer(BaseAnalyzer):
                                          "metadata.mimetype",
                                          "metadata.Content-Type",
                                          "metadata.dc:format"],
-                                        "application/pdf"),
+                                        "application/pdf").strip(),
             "document": ut.try_keys(doc,
                                     ["metadata.title",
                                      "metadata.Title",
                                      "metadata.dc:title",
                                      "metadata.filename"],
-                                    "No Title")
+                                    "No Title").strip()
         }
