@@ -25,6 +25,12 @@ sda = utility.safe_dict_access
 
 
 class Elastic():
+    SETTINGS = {
+        "index": {
+            "mapping.ignore_malformed": "true"
+        }
+    }
+
     DOC_MAPPING = {
         "properties": {
             "hash": {"type": "keyword"},
@@ -214,6 +220,10 @@ class Elastic():
         self._create_index(self.defaults.search_index(),
                            self.defaults.search_type(),
                            self.SEARCH_MAPPING)
+        self.es.indices.close(index=self.defaults.docs_index())
+        self.es.indices.put_settings(index=self.defaults.docs_index(),
+                                     body=self.SETTINGS)
+        self.es.indices.open(index=self.defaults.docs_index())
 
     def _create_index(self, index, doc_type, mapping):
         """Checks whether an index is present, if not, creates it.

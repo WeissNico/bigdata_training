@@ -15,7 +15,7 @@ ELASTICSEARCH_HOST = os.environ.get(
 ELASTICSEARCH_PORT = os.environ.get("SHERLOCK_ES_PORT", 31791)
 ELASTICSEARCH_CAFILE = os.environ.get(
     "SHERLOCK_ES_CAFILE", cert_path)
-ELASTICSEARCH_DOCS_INDEX = os.environ.get("SHERLOCK_ES_DOCS_INDEX", "buba")
+ELASTICSEARCH_DOCS_INDEX = os.environ.get("SHERLOCK_ES_DOCS_INDEX", "sherlock")
 LOGGING_LEVEL = logging.DEBUG
 
 SECRET_KEY = os.environ.get("SHERLOCK_SECRET", "pl34se change th1s!")

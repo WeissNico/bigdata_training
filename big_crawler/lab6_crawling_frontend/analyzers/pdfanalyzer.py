@@ -112,8 +112,12 @@ class PDFAnalyzer(BaseAnalyzer):
                                   **kwargs)
 
                 # read back the write results
-                with open(tmp_txt, "r", encoding="utf-8") as fl:
-                    text = fl.read()
+                try:
+                    with open(tmp_txt, "r", encoding="utf-8") as fl:
+                        text = fl.read()
+                except UnicodeDecodeError as e:
+                    with open(tmp_txt, "r", encoding="latin-1") as fl:
+                        text = fl.read()
         # handle an OSError (could surface because of AntiVir)
         except OSError as ose:
             logging.error("Supressed an OSError while handling the "
