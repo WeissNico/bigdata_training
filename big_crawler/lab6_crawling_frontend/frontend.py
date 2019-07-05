@@ -70,7 +70,7 @@ def dashboard(dbdate=None):
             # when an invalid string is provided
             db_date = ut.from_date()
         except AttributeError as err:
-            db_date = ut.from_date(dt.date.strptime(dbdate,'%Y-%m-%d'))                
+            db_date = ut.from_date(dt.date.strptime(dbdate, '%Y-%m-%d'))
 
     # retrieve sort order on the documents
     sort_by = request.args.get("sortby", "impact")
