@@ -12,7 +12,7 @@ import tempfile
 import datetime as dt
 import logging
 import shutil
-
+import xml  # just for that one stupid error :/
 from PyPDF2 import PdfFileReader
 
 import utility
@@ -125,21 +125,31 @@ class PDFAnalyzer(BaseAnalyzer):
         # other possible implementations
         # https://stackoverflow.com/questions/14209214/reading-the-pdf-properties-metadata-in-python
         # http://blog.matt-swain.com/post/25650072381/a-lightweight-xmp-parser-for-extracting-pdf
-        password = self.defaults.other(kwargs).password()
+        password = self.defaults.other(kwargs).password("")
         filename = self.defaults.other(kwargs).filename("No Filename")
         mimetype = self.defaults.other(kwargs).mimetype("application/pdf")
-        pdf = PdfFileReader(io.BytesIO(content))
-        if pdf.isEncrypted:
-            pdf.decrypt(password)
-        # retrieve the info documents
-        doc_info = pdf.getDocumentInfo()
-        doc_xmp = pdf.getXmpMetadata()
 
         metadata = {
             "crawl_date": utility.from_date(),
             "filename": filename,
             "mimetype": mimetype
         }
+
+        pdf = PdfFileReader(io.BytesIO(content))
+        if pdf.isEncrypted:
+            try:
+                result = pdf.decrypt(password)
+            except NotImplementedError:
+                result = 0
+            # skip when document couldn't be decrypted.
+            if result == 0:
+                return metadata
+        # retrieve the info documents
+        doc_info = pdf.getDocumentInfo()
+        try:
+            doc_xmp = pdf.getXmpMetadata()
+        except xml.parsers.expat.ExpatError as e:
+            doc_xmp = None
 
         # and create a nice dict, in the form that nutch provides.
         # for the doc info...

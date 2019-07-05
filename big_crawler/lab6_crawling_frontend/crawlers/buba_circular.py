@@ -4,20 +4,22 @@ The idea is to use the documents yielded by the advanced search, when given no
 keywords to search for. These documents are automatically ordered by
 update-date. Which is nice.
 
+The bundesbank needs some previous crawling step to fill the `state` of
+it's url-template with a valid value.
+This is performed using the buba_state_fetcher from buba_helper.py
+
 Author: Johannes Mueller <j.mueller@reply.de>
 """
 import datetime as dt
-import re
 import logging
 from crawlers.plugin import (BasePlugin, PaginatedResource, XPathResource)
+from crawlers.buba_helper import buba_state_fetcher
 import utility as ut
 
-URL_TEMPLATE = ("https://www.bundesbank.de/action/de/730314/bbksearch?state=H4sIAAAAAAAAAG1PQWrDQBD7Splj8cG57rFQQ6G0h"
-                "uQD67ViL53surPjgwn5e2ehDg30JmkkobnS9wrZyNEzNRRmnxL4bSSXVuaGxhxO24KdLn7Cx3oh1zZ09gFayF1vhiMr5JdoniZGV"
-                "88v2-eiMac9P0ctPaS3GnKH9kE4qsQ02ZBDS7VRir5DrXYPe15mP0DNHJOvta_JDwwbe_Zc8J-jFxQwgt6tKqs5R6_oJF_ufxo_5"
-                "b_smFm6CLYIDcNXyaJVtmkVPopPI0qg2w-BkjLgTAEAAA"
-                "&query=&tfi-730318=&tfi-730324="
-                "&dateFrom=&dateTo="
+# this template maker has to be filled by a valid state, which is done using
+# the helper BubaSearchTemplate, which fills the state tag.
+URL_TEMPLATE = ("https://www.bundesbank.de/action/de/730314/bbksearch"
+                "?state={state}"
                 "&hitsPerPageString=50"
                 "&sort=bbksortdate+desc"
                 "&pageNumString={page}")
@@ -42,16 +44,10 @@ def _make_resource_path(path, cwd):
 def _convert_dates(date_string):
     """Converts the date from a given date string-span:
 
-    Example: 'Publication date: 28/02/2019 (Last update: 04/03/2019)'
-    Returns: {'Publication date': date(2019,02,28),
-              'Last update': date(2019, 03, 04)}
+    Example: '01.01.2010'
+    Returns: date(2010,01,01)
     """
-    match = re.findall(r"([\s\w]+): (\d{2}/\d{2}/\d{4})", date_string)
-
-    if match:
-        doc_dates = {m[0]: dt.datetime.strptime(m[1], "%d/%m/%Y")
-                     for m in match}
-    return doc_dates
+    return dt.datetime.strptime(date_string, "%d.%m.%Y")
 
 
 # TODO: update XPath Resources: date_path, doc_path
@@ -67,27 +63,31 @@ class BubaCircularPlugin(BasePlugin):
     )
 
     date_path = XPathResource(
-        ".//span[contains(normalize-space(@class), 'teasable__date')]"
-        "/text()",
-        after=[ut.defer("__getitem__", 0), ut.defer("strip")]
+        ".//span[contains(normalize-space(@class), 'teasable__date')]/text()",
+        after=[ut.defer("__getitem__", 0),
+               ut.defer("strip"),
+               _convert_dates]
     )
+
     title_path = XPathResource(
-        ".//li[contains(normalize-space(@class), 'resultlist__item')]"
-        "//div[contains(normalize-space(@class), 'teasable__title')]"
-        "//div[contains(normalize-space(@class), 'h2')]/text()",
+        ".//div[contains(normalize-space(@class), 'teasable__title')]"
+        "/div[contains(normalize-space(@class), 'h2')]"
+        "/text()[normalize-space()]",
         after=[ut.defer("__getitem__", 0), ut.defer("strip")]
     )
 
     doc_path = XPathResource(
-        ".//li[contains(normalize-space(@class), 'resultlist__item')]"
-        "//div[contains(normalize-space(@class), 'teasable__main-info')]"
-        "//a[1]/@href",
-        after=[ut.defer("__getitem__", 0), ut.curry(_make_resource_path, cwd=CWD)]
+        ".//a[contains(normalize-space(@class), 'teasable__link')]/@href",
+        after=[
+            ut.defer("__getitem__", 0),
+            ut.curry(_make_resource_path, cwd=CWD)
+        ]
     )
 
     def __init__(self, elastic):
         super().__init__(elastic)
-        self.entry_resource = PaginatedResource(URL_TEMPLATE, min_page=0)
+        pre_filled_url = buba_state_fetcher(URL_TEMPLATE)
+        self.entry_resource = PaginatedResource(pre_filled_url, min_page=0)
 
     def find_entries(self, page):
         docs = []
