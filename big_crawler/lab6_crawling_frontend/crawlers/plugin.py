@@ -6,17 +6,9 @@ from abc import abstractmethod
 import logging
 import requests
 from lxml import etree, html
-from urllib.parse import urljoin
 import time
 from functools import reduce
 from concurrent.futures import ThreadPoolExecutor
-import re
-import os
-import shutil
-import subprocess
-import tempfile
-
-import pdfkit
 
 import utility
 
@@ -208,194 +200,6 @@ class PaginatedResource:
         return html.fromstring(resp.content)
 
 
-class BaseConverter:
-
-    def __init__(self):
-        super(BaseConverter, self).__init__()
-
-    @abstractmethod
-    def convert(self, content, **kwargs):
-        """Converts the content into another format.
-
-        Args:
-            content (bytes): some content.
-            **kwargs (dict): additional parameters used in the implementations
-                convert method.
-
-        Returns:
-            bytes: content in a different format.
-        """
-
-    def __call__(self, content, **additional_args):
-        """Converts the content into another format.
-
-        Args:
-            content (bytes): some content.
-            **additional_args (dict): additional args to pass to the convert
-                function.
-
-        Returns:
-            bytes: content in a different format.
-        """
-        ret = self.convert(content, **additional_args)
-        return ret
-
-
-class DummyConverter(BaseConverter):
-    """Simple Converter for the most mime-types.
-
-    Just fetches the content and returns it.
-    """
-    def convert(self, content, **kwargs):
-        return content
-
-
-class EmptyConverter(BaseConverter):
-    """Converter that just returns None."""
-    def convert(self, content, **kwargs):
-        return None
-
-
-class OfficeConverter(BaseConverter):
-    """Simple Converter for all LibreOffice-Supported formats.
-
-    TODO: PUT THIS IN A SEPERATE ANALYZER, maybe.
-    Just fetches the content and returns it.
-    """
-    def convert(self, content, **kwargs):
-        path_to_exc = utility.path_in_project("soffice", True)
-        if not (os.path.exists(path_to_exc) or shutil.which(path_to_exc)):
-            raise ValueError(f"The current path '{path_to_exc}' does not lead "
-                             " to an actual file.")
-
-        pdf = None
-        try:
-            with tempfile.TemporaryDirectory(prefix=".pdfconv_") as tmp_dir:
-                tmp_off = os.path.join(tmp_dir, "office")
-                tmp_pdf = os.path.join(tmp_dir, "office.pdf")
-
-                pdf = self._convert_to_pdf(content, path_to_exc, tmp_off,
-                                           tmp_pdf, **kwargs)
-        # catch oserrors caused by anti-virus software.
-        except OSError as ose:
-            logging.error("Supressed an OSError while handling the "
-                          " temp-folder.")
-        return pdf
-
-    def _convert_to_pdf(self, content, executable, tmp_off, tmp_pdf, **kwargs):
-        with open(tmp_off, "wb") as in_file:
-            in_file.write(content)
-
-        command = [executable,
-                   "--headless",  # headless mode for conversion
-                   "--convert-to pdf",  # target format
-                   tmp_off]
-
-        logging.info(f"Running command '{' '.join(command)}'")
-        process = subprocess.Popen(command)
-
-        ret = process.wait()
-        if ret != 0:
-            raise IOError("Couldn't extract any text information.")
-        return ret
-
-        content = None
-        with open(tmp_pdf, "rb") as out_file:
-            content = out_file.read()
-        return content
-
-
-class HTMLConverter(BaseConverter):
-    """Simple Converter for the html mime-type.
-
-    Just fetches the content and converts it using wkhtmltopdf.
-    """
-    def __init__(self, content_xpath=None):
-        """Initializes the HTML converter.
-
-        Args:
-            content_xpath (etree.XPath): an XPath pointing to the relevant
-                html portions. Defaults to `//body`
-                for fetching all the contents of the page.
-        """
-        super().__init__()
-
-        self.content_xpath = content_xpath
-        if content_xpath is None:
-            self.content_xpath = XPathResource(
-                "//body"
-            )
-        self.head_xpath = XPathResource(
-            "//head"
-        )
-        self.link_xpath = XPathResource(
-            "//*[@href or @src]"
-        )
-        self.style_xpath = XPathResource(
-            "//style[@type = 'text/css' and contains(text(), 'url(')]"
-        )
-        self.base_xpath = XPathResource(
-            "//head/base/@href",
-            after=[utility.defer("__getitem__", 0)]
-        )
-        # treat windows specially
-        if utility.PLATFORM == "win32":
-            self.pdfkit_config = pdfkit.configuration(
-                wkhtmltopdf=utility.path_in_project("wkhtmltopdf", True)
-            )
-        else:
-            self.pdfkit_config = pdfkit.configuration()
-
-    def _replace_relative(self, tree, base_url):
-        """Replaces relative href and src attributes.
-
-        Args:
-            tree (lxml.etree): An html-ETree.
-            base_url (str): the base url.
-        """
-        def _replace_css_url(match):
-            return (match.group(1) + urljoin(base_url, match.group(2)) +
-                    match.group(3))
-
-        # replace in the attributes
-        for elem in self.link_xpath(tree):
-            for attr in ["href", "src"]:
-                if attr not in elem.attrib:
-                    continue
-                elem.attrib[attr] = urljoin(base_url, elem.attrib[attr])
-        # replace in css
-        for elem in self.style_xpath(tree):
-            elem.text = re.sub(r"(url\()([^\)]+)(\))", _replace_css_url,
-                               elem.text)
-            links = re.findall(r"url\(([^\)]+)\)", elem.text)
-            for link in links:
-                elem.addnext(
-                    etree.XML(f"<link rel='stylesheet' href='{link}' />")
-                )
-
-    def convert(self, content, **kwargs):
-        tree = html.fromstring(content)
-        # retrieve base url from kwargs
-        base_url = kwargs.get("base_url", None)
-        base_url_found = self.base_xpath(tree)
-        if base_url_found:
-            base_url = base_url_found
-        # replace relative links
-        self._replace_relative(tree, base_url)
-        relevant_html = self.head_xpath(tree)
-        relevant_html.extend(self.content_xpath(tree))
-        # stringify the portions together
-        html_string = "\n".join([html.tostring(part).decode("utf-8")
-                                 for part in relevant_html])
-        try:
-            doc = pdfkit.from_string(html_string, False,
-                                     configuration=self.pdfkit_config)
-        except IOError as ioe:
-            logger.warning("Skipped a document due to wkhtmltopdf failure.")
-            return None
-        return doc
-
-
 class BasePlugin:
     """Holds all the base functionality of a plugin.
 
@@ -412,22 +216,6 @@ class BasePlugin:
 
     source_name = "No Name"
     """Name that should be displayed as source."""
-
-    content_converters = {
-        "application/pdf": DummyConverter(),
-        "text/html": HTMLConverter(),
-        # "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-        #     OfficeConverter(),
-        # ("application/vnd.openxmlformats-officedocument.wordprocessingml"
-        #     ".document"):
-        #     OfficeConverter(),
-        # "application/msword": OfficeConverter(),
-        # "application/msexcel": OfficeConverter(),
-        # "application/mspowerpoint": OfficeConverter(),
-        # "application/vnd.oasis.opendocument.text": OfficeConverter(),
-        # "application/vnd.oasis.opendocument.spreadsheet": OfficeConverter(),
-        # "application/vnd.oasis.opendocument.presentation": OfficeConverter(),
-    }
 
     def __init__(self, elastic, fetch_limit=1200):
         super(BasePlugin, self).__init__()
@@ -536,8 +324,8 @@ class BasePlugin:
 
         return self
 
-    def convert_documents(self, **kwargs):
-        """Converts all included documents to pdf.
+    def download_documents(self, **kwargs):
+        """Downloads the content of `metadata.url` and writes it to content.
 
         Args:
             **kwargs (dict): additional keyword args, which are only consumed.
@@ -548,7 +336,7 @@ class BasePlugin:
         def process_loop(enumerated):
             idx, doc = enumerated
             logger.info(f"Converting doc {idx+1} of {len(self.documents)}...")
-            self.convert_document(doc)
+            self.download_document(doc)
             return 1
 
         logger.info("--- Start converting the new documents.")
@@ -569,7 +357,7 @@ class BasePlugin:
         """
         def process_loop(enumerated):
             idx, doc = enumerated
-            if doc["content"]:
+            if doc["raw_content"]:
                 logger.info(f"Inserting doc {idx+1} of {len(self.documents)}"
                             " into the database.")
                 res = self.elastic.insert_document(doc)
@@ -584,34 +372,7 @@ class BasePlugin:
         logger.info(f"--- Done: Inserted {sum(futures)} documents.")
         return sum(futures)
 
-    def convert(self, mimetype, content, **kwargs):
-        """Converts the given content with the given mimetype to pdf.
-
-        Args:
-            mimetype (str): the mimetype.
-            content (bytes): the content of the file.
-            **kwargs (dict): passed on to the converter.
-
-        Returns:
-            bytes: the converted content.
-        """
-        logging.info(f"Converting document with MIME-type: {mimetype}.")
-        if not mimetype:
-            return None
-
-        mime, *args = mimetype.split(";")
-        for arg in args:
-            kw, *vals = arg.strip(" .,;:_").split("=")
-            kwargs[kw] = vals and vals[0]
-
-        conv = self.content_converters.get(mime)
-        # sort out unknown mimetypes.
-        if not conv:
-            logging.info(f"Failed to find a content converter for {mime}.")
-            conv = EmptyConverter()
-        return conv(content, **kwargs)
-
-    def convert_document(self, document, **kwargs):
+    def download_document(self, document, **kwargs):
         """Fetches the url of a document and sets the content of the document.
 
         Args:
@@ -625,12 +386,12 @@ class BasePlugin:
         # fetch body
         doc_url = utility.SDA(document)["metadata.url"]
         if not doc_url:
-            document["content"] = None
+            document["raw_content"] = None
             return document
         resp = self.url_fetcher(doc_url)
         content_type = resp.headers.get("content-type", None)
-        content = self.convert(content_type, resp.content, base_url=doc_url)
-        document["content"] = content
+        document["content_type"] = content_type
+        document["raw_content"] = resp.content
         return document
 
     @abstractmethod

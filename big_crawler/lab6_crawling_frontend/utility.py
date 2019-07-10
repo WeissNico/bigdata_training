@@ -449,6 +449,10 @@ def merge_dicts(*dictionaries):
     Dictionaries defined first have a lower precedence (they will be
     overwritten by the dictionaries after).
 
+    IMPORTANT: if a value is `None` it will not be used to overwrite a
+    previously defined value. It will just insert it, when the key is
+    undefined.
+
     Args:
         *dictionaries (list): a list of dicts that should be merged.
     """
@@ -465,8 +469,12 @@ def merge_dicts(*dictionaries):
             if cur_el and isinstance(cur_el, dict):
                 # if this is a dictionary call recursively
                 new_dict[key] = merge_dicts(new_dict[key], other[key])
-            # override only if the other key is not None
+            # override only if the other value is not None
             elif other[key] is not None:
+                new_dict[key] = other[key]
+            # if it is none: override only if there is no value in the prev.
+            # dictionaries
+            elif other[key] is None and key not in new_dict:
                 new_dict[key] = other[key]
     return new_dict
 

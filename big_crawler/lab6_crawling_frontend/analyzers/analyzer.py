@@ -9,6 +9,7 @@ Author: Johannes Müller <j.mueller@reply.de>
 from abc import abstractmethod
 
 import utility as ut
+from converters import CONVERTERS
 
 
 class BaseAnalyzer():
@@ -88,6 +89,7 @@ class DefaultAnalyzer(BaseAnalyzer):
             "hash": None,
             "version": None,
             "content_type": "application/pdf",
+            "raw_content": None,
             "content": None,
             "document": "No Title",
             "text": "",
@@ -105,6 +107,18 @@ class DefaultAnalyzer(BaseAnalyzer):
             "impact": "low",
             "status": "open",
             "new": True,
+        }
+
+
+class FileConvertAnalyzer(BaseAnalyzer):
+    """Analyzer for converting the raw_content to pdf."""
+
+    required = ["content_type", "raw_content"]
+
+    def analyze(self, doc, **options):
+        converter = CONVERTERS.get(doc["content_type"])
+        return {
+            "content": converter(doc["content"])
         }
 
 
