@@ -40,7 +40,7 @@ class BaseConverter:
 
 
 class DummyConverter(BaseConverter):
-    """Simple Converter for the most mime-types.
+    """Simple Converter for the pdf-mimetype.
 
     Just fetches the content and returns it.
     """

@@ -15,8 +15,7 @@ import logging
 
 from lxml import html
 
-from crawlers.plugin import (BasePlugin, PaginatedResource,
-                             XPathResource, HTMLConverter)
+from crawlers.plugin import BasePlugin, PaginatedResource, XPathResource
 
 import utility as ut
 
@@ -140,8 +139,6 @@ class BafinPlugin(BasePlugin):
         super().__init__(elastic)
         # bafin needs a faked user-agent in the headers.
         self.entry_resource = PaginatedResource(URL_TEMPLATE)
-        # override the HTML Converter to just retrieve content path.
-        self.content_converters["text/html"] = HTMLConverter(self.content_path)
 
     def find_entries(self, page):
         docs = []
@@ -149,7 +146,6 @@ class BafinPlugin(BasePlugin):
             doc = ut.SDA({}, "N/A")
             doc["metadata.date"] = self.date_path(entry)
             doc["metadata.title"] = self.title_path(entry)
-            logging.info(doc["metadata.title"])
             doc["metadata.detail_url"] = self.detail_path(entry)
             doc["metadata.url"] = self.doc_path(entry)
             if doc["metadata.url"] is None:

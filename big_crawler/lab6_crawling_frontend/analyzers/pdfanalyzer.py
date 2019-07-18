@@ -131,12 +131,9 @@ class PDFAnalyzer(BaseAnalyzer):
         # http://blog.matt-swain.com/post/25650072381/a-lightweight-xmp-parser-for-extracting-pdf
         password = self.defaults.other(kwargs).password("")
         filename = self.defaults.other(kwargs).filename("No Filename")
-        mimetype = self.defaults.other(kwargs).mimetype("application/pdf")
 
         metadata = {
-            "crawl_date": utility.from_date(),
             "filename": filename,
-            "mimetype": mimetype
         }
 
         pdf = PdfFileReader(io.BytesIO(content))

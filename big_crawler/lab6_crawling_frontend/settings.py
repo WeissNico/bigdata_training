@@ -21,5 +21,5 @@ LOGGING_LEVEL = logging.DEBUG
 SECRET_KEY = os.environ.get("SHERLOCK_SECRET", "pl34se change th1s!")
 """The secret key for csrf-protection and so on. Please change."""
 
-UPLOAD_DIR = os.environ.get("SHERLOCK_UPLOAD_DIR", None)
+UPLOAD_DIR = os.environ.get("SHERLOCK_UPLOAD_DIR", r"D:\Sherlock_upload")
 """The relative folder, the uploaded and scraped files should be stored."""

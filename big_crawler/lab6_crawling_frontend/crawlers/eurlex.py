@@ -120,8 +120,10 @@ class EurlexPlugin(BasePlugin):
         after=[ut.defer("strip", " .:,;!?-_#"), ut.defer("split", "#")])
 
     def __init__(self, elastic):
-        super().__init__(elastic)
-        self.entry_resource = PaginatedResource(URL_TEMPLATE)
+        super().__init__(elastic, initial=True)
+        # TODO remove min_page tag.
+        self.entry_resource = PaginatedResource(URL_TEMPLATE, min_page=2338,
+                                                max_page=9999)
         # register a string-join function for the lxml XPath
         ns = etree.FunctionNamespace(None)
         ns["string-join"] = _string_join

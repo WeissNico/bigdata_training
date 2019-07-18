@@ -254,25 +254,29 @@ class Elastic():
         Returns:
             tuple: the enriched document (dict) and a unique identifier (str)
         """
-        raw_hash = self.fs.set(doc.get("raw_content", None))
-        doc_hash = self.fs.set(doc.get("content", None))
-
-        doc_timestamp = time.time()
-        doc_id = f"{doc_hash}_{doc_timestamp}"
-
-        pipeline = [analyzers.DefaultAnalyzer(), analyzers.FileConvertAnalyzer,
+        pipeline = [analyzers.DefaultAnalyzer(),
+                    analyzers.FileConvertAnalyzer(),
                     analyzers.PDFAnalyzer(),
-                    analyzers.MetaAnalyzer(), analyzers.TextAnalyzer()]
+                    analyzers.MetaAnalyzer(),
+                    analyzers.TextAnalyzer()]
 
         new_doc = dict(doc)
         for step in pipeline:
             new_doc = step(new_doc)
 
+        doc_hash = self.fs.set(doc.get("raw_content", None))
+
+        doc_timestamp = time.time()
+        doc_id = f"{doc_hash}_{doc_timestamp}"
+
         new_doc["hash"] = doc_hash
+        new_doc["raw_content"] = doc_hash
         new_doc["version"] = doc_timestamp
-        new_doc["content"] = doc_hash
-        new_doc["raw_content"] = raw_hash
         new_doc["version_key"] = doc_id
+
+        if new_doc["content"]:
+            content_hash = self.fs.set(new_doc.get("content", None))
+            new_doc["content"] = content_hash
 
         return new_doc, doc_id
 

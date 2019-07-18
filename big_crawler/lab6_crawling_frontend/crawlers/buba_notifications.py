@@ -98,7 +98,7 @@ class BubaNotificationsPlugin(BasePlugin):
             doc["metadata.title"] = title
             logging.info(f"Found document: {title}.")
             date = self.date_path(entry)
-            doc["metadata.date_original"] = date
+            doc["metadata.date"] = date
             doc["metadata.url"] = self.doc_path(entry)
             docs.append(doc.a_dict)
 

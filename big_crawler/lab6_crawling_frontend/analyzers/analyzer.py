@@ -7,9 +7,14 @@ return a extended document.
 Author: Johannes Müller <j.mueller@reply.de>
 """
 from abc import abstractmethod
+import logging
+import re
 
 import utility as ut
 from converters import CONVERTERS
+
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAnalyzer():
@@ -88,7 +93,7 @@ class DefaultAnalyzer(BaseAnalyzer):
             },
             "hash": None,
             "version": None,
-            "content_type": "application/pdf",
+            "content_type": None,
             "raw_content": None,
             "content": None,
             "document": "No Title",
@@ -98,7 +103,9 @@ class DefaultAnalyzer(BaseAnalyzer):
             "entities": {},
             "quantity": {"lines": 0, "words": 0},
             "change": {"lines_added": 0, "lines_removed": 0},
-            "metadata": {},
+            "metadata": {
+                "crawl_date": ut.from_date(),
+            },
             "type": "?",
             "category": "?",
             "fingerprint": "a_fingerprint",
@@ -115,10 +122,21 @@ class FileConvertAnalyzer(BaseAnalyzer):
 
     required = ["content_type", "raw_content"]
 
+    MIME_RE = re.compile(r"[a-z]{3,}\/[a-z\.\-+]{2,} ?")
+
+    def _clean_content_type(self, content_type):
+        m = self.MIME_RE.match(content_type.lower())
+        if m:
+            return m[0]
+        return None
+
     def analyze(self, doc, **options):
-        converter = CONVERTERS.get(doc["content_type"])
+        mime_type = self._clean_content_type(doc["content_type"])
+        logger.debug(f"Get converter for {mime_type}.")
+        converter = CONVERTERS.get(mime_type, CONVERTERS["default"])
         return {
-            "content": converter(doc["content"])
+            "content": converter(doc["raw_content"]),
+            "content_type": mime_type,
         }
 
 
@@ -138,7 +156,7 @@ class TextAnalyzer(BaseAnalyzer):
 class MetaAnalyzer(BaseAnalyzer):
     """Analyzer for the included metadata."""
 
-    required = ["metadata"]
+    required = ["content_type", "metadata"]
 
     def analyze(self, doc, **options):
         doc = ut.SDA(doc)
@@ -155,7 +173,8 @@ class MetaAnalyzer(BaseAnalyzer):
                 "name": doc["metadata.source"] or "inhouse"
             },
             "content_type": ut.try_keys(doc,
-                                        ["metadata.contentType",
+                                        ["content_type",
+                                         "metadata.contentType",
                                          "metadata.mimetype",
                                          "metadata.Content-Type",
                                          "metadata.dc:format"],

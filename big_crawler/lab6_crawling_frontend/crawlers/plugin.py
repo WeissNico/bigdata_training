@@ -8,7 +8,8 @@ import requests
 from lxml import etree, html
 import time
 from functools import reduce
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+import queue
 
 import utility
 
@@ -50,7 +51,7 @@ def _flat_map(func, iterable):
     return reduce(_red_func, iterable, [])
 
 
-def _retry_connection(url, method="get", max_retries=10, **kwargs):
+def _retry_connection(url, method="get", max_retries=3, **kwargs):
     """Repeats the connection with increasing pauses until an answer arrives.
 
     This should ease out of the 10054 Error, that windows throws.
@@ -194,7 +195,7 @@ class PaginatedResource:
                                                          locale=self.locale),
                                 "get",
                                 **self._fetch_args)
-        if not resp:
+        if resp.status_code != 200:
             raise StopIteration
         self._cur_page += self.step
         return html.fromstring(resp.content)
@@ -217,49 +218,87 @@ class BasePlugin:
     source_name = "No Name"
     """Name that should be displayed as source."""
 
-    def __init__(self, elastic, fetch_limit=1200):
+    def __init__(self, elastic, fetch_limit=None, initial=False,
+                 queue_size=100):
         super(BasePlugin, self).__init__()
         self.elastic = elastic
         self.defaults = utility.DefaultDict({
-            "limit": fetch_limit
+            "limit": fetch_limit,
+            "initial": initial,
         })
         self.url_fetcher = _retry_connection
         self.entry_resource = []
-        self.documents = []
-        self.threaded_executor = ThreadPoolExecutor(max_workers=10)
+        self.docq = queue.Queue(maxsize=queue_size)
 
     def __call__(self, **kwargs):
         """Runs the plugin, by fetching all documents and saving them.
+
+        This is achieved by using several queues.
 
         Args:
             **kwargs (dict): keyword arguments that will be passed on to all
                 steps.
         """
-        self.get_documents(**kwargs)
-        self.process_documents(**kwargs)
-        self.convert_documents(**kwargs)
-        self.insert_documents(**kwargs)
+        with ThreadPoolExecutor(max_workers=20) as ex:
+            # retrieve all documents (initial list of tasks)
+            working_futures = {
+                ex.submit(self.get_documents, **kwargs): "Docs retrieved!"
+            }
+            # while there are working threads:
+            while working_futures:
+                # check for status of the threads
+                done, _ = wait(working_futures, timeout=2,
+                               return_when=FIRST_COMPLETED)
+                # check the queue for new items.. with a timeout of 5 secs
+                try:
+                    item = self.docq.get(timeout=5)
+                except queue.Empty:
+                    logger.debug("Timed out waiting for new docs!")
+                else:
+                    # if there is a new item, submit a new worker.
+                    cur_fut = ex.submit(self._chained_process, item, **kwargs)
+                    working_futures[cur_fut] = f"processing document {item[0]}"
+                # work on finished futures
+                for future in done:
+                    msg = working_futures[future]
+                    # check whether an exception was thrown:
+                    try:
+                        future.result()
+                    except Exception as exc:
+                        logger.exception(
+                            f"An exception was caught while {msg}! {exc}"
+                        )
+                    else:
+                        if msg.startswith("processing"):
+                            self.docq.task_done()
+                        logger.info(f"Finished {msg}!")
+                    # remove future from list.
+                    del working_futures[future]
 
-    def get_documents(self, limit=None, **kwargs):
-        """Fetches new entries for the given resource.
+    def get_documents(self, limit=None, initial=None, **kwargs):
+        """Fetches new entries for the given resource and places them in a
+        queue (`self.process_docq`).
 
         Args:
             limit (int): maximum number of entries to pull.
+            initial (bool): whether an initial run should be done?
+                An initial run does not halt, when a document appeared prev.
             **kwargs (dict): additional keyword args, which are only consumed.
 
         Returns:
             BasePlugin: self.
         """
         limit = self.defaults.limit.also(limit)
+        initial = self.defaults.initial.also(initial)
         has_unseen_docs = True
         doc_count = 0
         for page in self.entry_resource:
             # insert the entries into documents, if they aren't already tracked
             cur_docs = self.find_entries(page, **kwargs)
+
             # if there are no documents on the page, break
             if len(cur_docs) == 0:
                 logger.info(f"No documents found on page {page}!")
-                has_unseen_docs = False
 
             for doc in cur_docs:
                 doc = utility.SDA(doc)
@@ -277,7 +316,7 @@ class BasePlugin:
                                  "exist. SKIP.")
                     doc_date = doc["metadata.date"]
                     today = utility.from_date()
-                    if doc_date and doc_date < today:
+                    if (not initial) and doc_date and doc_date < today:
                         logger.debug("Document's date lies in the past."
                                      "Stop search.")
                         has_unseen_docs = False
@@ -286,12 +325,13 @@ class BasePlugin:
 
                 logger.info(f"Found document {doc_url}.")
                 doc["metadata.source"] = self.source_name
-                self.documents.append(doc.a_dict)
+                # enter documents to processing queue.
+                self.docq.put((doc_count, doc.a_dict))
                 doc_count += 1
 
                 # break when the number of retrieved documents reaches the
                 # limit
-                if doc_count >= limit:
+                if limit and doc_count >= limit:
                     has_unseen_docs = False
                     break
 
@@ -301,76 +341,65 @@ class BasePlugin:
                 break
         return self
 
-    def process_documents(self, **kwargs):
+    def _chained_process(self, dox, **kwargs):
+        pipeline = [self.process_documents,
+                    self.download_documents,
+                    self.insert_documents]
+        for step in pipeline:
+            dox = step(dox, **kwargs)
+        return dox
+
+    def process_documents(self, dox, **kwargs):
         """Process the documents.
 
         Args:
             **kwargs (dict): additional keyword args, which are only consumed.
+            dox (tuple): index and document to work on.
 
         Returns:
-            BasePlugin: self.
+            int: the current index of the document.
         """
-        def process_loop(enumerated):
-            idx, doc = enumerated
-            logger.info(f"Processing doc {idx+1} of {len(self.documents)}...")
-            self.process_document(doc, **kwargs)
-            return 1
+        idx, doc = dox
+        logger.info(f"Processing doc {idx}...")
+        pdoc = self.process_document(doc, **kwargs)
 
-        logger.info("--- Start processing the new documents.")
-        futures = self.threaded_executor.map(process_loop,
-                                             enumerate(self.documents))
+        return idx, pdoc
 
-        logger.info(f"--- Done: Processed {sum(futures)} documents.")
-
-        return self
-
-    def download_documents(self, **kwargs):
+    def download_documents(self, dox, **kwargs):
         """Downloads the content of `metadata.url` and writes it to content.
 
         Args:
             **kwargs (dict): additional keyword args, which are only consumed.
 
         Returns:
-            BasePlugin: self.
+            int: the current index of the document.
         """
-        def process_loop(enumerated):
-            idx, doc = enumerated
-            logger.info(f"Converting doc {idx+1} of {len(self.documents)}...")
-            self.download_document(doc)
-            return 1
+        idx, doc = dox
+        logger.info(f"Downloading doc {idx}...")
+        ddoc = self.download_document(doc)
+        logger.info(f"Got content type {ddoc['content_type']} for doc {idx}.")
 
-        logger.info("--- Start converting the new documents.")
-        futures = self.threaded_executor.map(process_loop,
-                                             enumerate(self.documents))
-        logger.info(f"--- Done: Converted {sum(futures)} documents.")
+        return idx, ddoc
 
-        return self
-
-    def insert_documents(self, **kwargs):
+    def insert_documents(self, dox, **kwargs):
         """Inserts the documents into the database.
 
         Args:
             **kwargs (dict): additional keyword args, which are only consumed.
 
         Returns:
-            int: the number of newly inserted documents.
+            int: the current index of the document.
         """
-        def process_loop(enumerated):
-            idx, doc = enumerated
-            if doc["raw_content"]:
-                logger.info(f"Inserting doc {idx+1} of {len(self.documents)}"
-                            " into the database.")
-                res = self.elastic.insert_document(doc)
-                if res["result"] == "created":
-                    return 1
+        idx, doc = dox
+        if doc["raw_content"]:
+            logger.info(f"Analyzing doc {idx} and inserting it into the DB...")
+            res = self.elastic.insert_document(doc)
+            if res["result"] == "created":
+                logger.info(f"Successfully inserted document {idx} into DB.")
+        else:
             logger.info("Doc contains no content. SKIP")
-            return 0
 
-        logger.info("--- Start inserting the new documents into the db.")
-        futures = self.threaded_executor.map(process_loop,
-                                             enumerate(self.documents))
-        logger.info(f"--- Done: Inserted {sum(futures)} documents.")
-        return sum(futures)
+        return idx
 
     def download_document(self, document, **kwargs):
         """Fetches the url of a document and sets the content of the document.
