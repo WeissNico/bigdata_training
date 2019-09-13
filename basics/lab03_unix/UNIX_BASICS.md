@@ -1,7 +1,7 @@
 Unix Basics
 ==========
 
-Shell:
+Shell
 ==========
 * sash
 * sh
@@ -62,3 +62,4 @@ Netzwerk
 * curl
 
 Website mit Details zu den Befehlen
+==========
