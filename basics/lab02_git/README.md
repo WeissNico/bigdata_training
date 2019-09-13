@@ -46,17 +46,26 @@ Clone Repository
 =========
 
 
-*Grundlegende Git-Befehle*
+Grundlegende Git-Befehle
 =========
 Um Git zu verwenden, verwenden Entwickler spezielle Befehle zum Kopieren, Erstellen, Ändern und Kombinieren von Code. Diese Befehle können direkt von der Kommandozeile aus ausgeführt werden. Hier sind einige gängige Befehle zur Verwendung von Git:
+
 *git init* initialisiert ein brandneues Git-Repository und beginnt mit der Verfolgung eines bestehenden Verzeichnisses. Es wird ein versteckter Unterordner innerhalb des bestehenden Verzeichnisses hinzugefügt, der die für die Versionskontrolle erforderliche interne Datenstruktur enthält.
+
 *git clone* erstellt eine lokale Kopie eines Projekts, das bereits remote existiert. Der Klon enthält alle Dateien, den Verlauf und die Zweige des Projekts.
+
 *git add* führt eine Veränderung durch. Git verfolgt Änderungen an der Codebasis eines Entwicklers, aber es ist notwendig, die Änderungen durchzuführen und eine Momentaufnahme zu machen, um sie in die Projekthistorie aufzunehmen. Dieser Befehl führt das Staging durch, den ersten Teil dieses zweistufigen Prozesses. Alle Änderungen, die durchgeführt werden, werden Teil des nächsten Snapshots und Teil der Projekthistorie. Das separate Staging und Commit gibt Entwicklern die volle Kontrolle über die Historie ihres Projekts, ohne die Art und Weise, wie sie programmieren und arbeiten, zu verändern.
+
 *git commit* speichert den Snapshot in der Projekthistorie und schließt den Change-Tracking-Prozess ab. Kurz gesagt, ein Commit funktioniert wie das Aufnehmen eines Fotos. Alles, was mit *git add* inszeniert wurde, wird Teil des Snapshots mit *git commit*.
+
 *git status* zeigt den Status von Änderungen als nicht verfolgt, geändert oder durchgeführt an.
+
 *git branch* zeigt die Zweige, an denen lokal gearbeitet wird.
+
 *git merge* verschmilzt Entwicklungslinien miteinander. Dieser Befehl wird typischerweise verwendet, um Veränderungen, die an zwei verschiedenen Zweigen vorgenommen wurden, zu kombinieren. Ein Entwickler würde beispielsweise fusionieren, wenn er Änderungen aus einem Feature-Zweig in den Master-Zweig für die Bereitstellung kombinieren möchte.
+
 *git pull* aktualisiert die lokale Entwicklungslinie mit Updates von seinem entfernten Gegenstück. Entwickler verwenden diesen Befehl, wenn ein Teamkollege einen Zweig auf eines Remotes festgelegt hat und diese Änderungen in seiner lokalen Umgebung berücksichtigen möchte.
+
 *git push* aktualisiert das Remote-Repository mit allen lokal vorgenommenen Commits für einen Zweig.
 
 
