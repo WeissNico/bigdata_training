@@ -13,19 +13,11 @@ Allgemeiner Überblick
 
 Definition "Version Control System"
 =========
-
-Was ist ein Versionskontrollsystem?
-
 Ein **Versionskontrollsystem** (VCS) verfolgt die Historie von Änderungen, wenn Personen und Teams gemeinsam an Projekten arbeiten. Im Laufe des Projekts können Teams Tests durchführen, Fehler beheben und neuen Code einbringen, mit der Gewissheit, dass jede Version jederzeit wiederhergestellt werden kann. Entwickler können die Projekthistorie einsehen, um herauszufinden:
 * Welche Änderungen wurden vorgenommen?
 * Wer hat die Änderungen vorgenommen?
 * Wann wurden die Änderungen vorgenommen?
 * Warum waren Änderungen erforderlich?
-
-**Versionskontrollsysteme** (engl. "Version Control Systems" auch bekannt als "Source Control Management" (SCM)) sind Systeme, die jede Version einer Datei in einem Codierungsprojekt, einen Zeitstempel für die Erstellung dieser Version und den Autor dieser Änderungen verfolgt.
-
-Das Schreiben von Code ist ein iterativer Prozess. Versionskontrollsysteme ermöglichen es Programmierern, Fehler zu machen, ohne befürchten zu müssen, dass sie komplett neu anfangen müssen.
-Stell dir vor, du könntest auf "Undo" klicken, aber anstatt jeden Tastendruck rückgängig zu machen, kannst du einen ganzen Teil des Projekts rückgängig machen, wenn du entscheidest, dass es dir nicht gefällt oder es nicht funktioniert.
 
 **Bekannte Plattformen (GitHub, GitLab)**
 =========
