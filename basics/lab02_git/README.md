@@ -68,6 +68,7 @@ Um Git zu verwenden, verwenden Entwickler spezielle Befehle zum Kopieren, Erstel
 
 *git push* aktualisiert das Remote-Repository mit allen lokal vorgenommenen Commits für einen Zweig.
 
+Ausführlichere Informationen: https://git-scm.com/docs
 
 
 Commit / Revert Changes
