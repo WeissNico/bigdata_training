@@ -27,10 +27,13 @@ Ein **Versionskontrollsystem** (VCS) verfolgt die Historie von Änderungen, wenn
 Das Schreiben von Code ist ein iterativer Prozess. Versionskontrollsysteme ermöglichen es Programmierern, Fehler zu machen, ohne befürchten zu müssen, dass sie komplett neu anfangen müssen.
 Stell dir vor, du könntest auf "Undo" klicken, aber anstatt jeden Tastendruck rückgängig zu machen, kannst du einen ganzen Teil des Projekts rückgängig machen, wenn du entscheidest, dass es dir nicht gefällt oder es nicht funktioniert.
 
-
-
-**Bekannte Plattformen (Github, Gitlab)**
-Ähnliche Dienste sind GitLab und Bitbucket.
+**Bekannte Plattformen (GitHub, GitLab)**
+=========
+* GitLab
+* Bitbucket
+* Google Code
+* FogBugz
+* Gitea
 
 Anlegen Repository
 =========
